@@ -9,12 +9,18 @@ brew bundle
 # Install yadr
 sh -c "`curl -fsSL https://raw.githubusercontent.com/skwp/dotfiles/master/install.sh`"
 
-# Add custom prompt
-cp prompt_andyhite_setup ~/.zsh.prompts/prompt_andyhite_setup
-mkdir -p ~/.zshrc.after
-echo "prompt andyhite" >> ~/.zshrc.after/prompt.zsh
-source ~/.zshrc
+# Add this directory to the home directory
+ln -s $PWD "/Users/$(whoami)/.dotfiles"
+
+# Add custom zsh config
+ln -s "/Users/$(whoami)/.dotfiles/zsh.prompts" "/Users/$(whoami)/.zsh.prompts"
+ln -s "/Users/$(whoami)/.dotfiles/zshrc.before" "/Users/$(whoami)/.zshrc.before"
+ln -s "/Users/$(whoami)/.dotfiles/zshrc.after" "/Users/$(whoami)/.zshrc.after"
 
 # Add custom vim config
-cp vimrc.before ~/.vimrc.before
-cp vimrc.after ~/.vimrc.after
+ln -s "/Users/$(whoami)/.dotfiles/vimrc.before" "/Users/$(whoami)/.vimrc.before"
+ln -s "/Users/$(whoami)/.dotfiles/vimrc.after" "/Users/$(whoami)/.vimrc.after"
+
+# Add custom tmux config
+ln -s "/Users/$(whoami)/.dotfiles/tmux.conf.user" "/Users/$(whoami)/.tmux.conf.user"
+tmux source-file ~/.tmux.conf
