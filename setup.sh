@@ -11,6 +11,7 @@ sh -c "`curl -fsSL https://raw.githubusercontent.com/skwp/dotfiles/master/instal
 
 # Add custom prompt
 cp prompt_andyhite_setup ~/.zsh.prompts/prompt_andyhite_setup
+mkdir -p ~/.zshrc.after
 echo "prompt andyhite" >> ~/.zshrc.after/prompt.zsh
 source ~/.zshrc
 
