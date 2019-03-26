@@ -20,14 +20,10 @@ let g:ctrlp_switch_buffer = 1
 let g:ctrlp_by_filename = 0
 
 " === autoformat
+au BufRead,BufNewFile *.overrides setfiletype less
+au BufRead,BufNewFile *.variables setfiletype less
+au Bufwrite * :Autoformat
+
 let g:autoformat_autoindent = 0
-au BufRead,BufNewFile *.overrides       setfiletype less
-au BufRead,BufNewFile *.variables       setfiletype less
-au Bufwrite *.py :Autoformat
-au BufWrite *.ex :Autoformat
-au BufWrite *.exs :Autoformat
-au BufWrite *.js :Autoformat
-au BufWrite *.jsx :Autoformat
-" might need to comment these
 let g:autoformat_retab = 0
 let g:autoformat_remove_trailing_spaces = 0
