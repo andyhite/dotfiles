@@ -7,12 +7,12 @@ brew "tmux"
 brew "vim"
 brew "zsh"
 
-mas "things3", id: 904280696
-mas "spark", id: 997102246
+mas "Things3", id: 904280696
+mas "Spark", id: 1176895641
+mas "Bear", id: 1091189122
 
 cask "1password"
 cask "alfred"
-cask "bear"
 cask "box-drive"
 cask "divvy"
 cask "docker"
