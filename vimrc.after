@@ -1,0 +1,33 @@
+" ==== Yadr
+" Set the color scheme to gruvbox
+let g:yadr_disable_solarized_enhancements = 1
+colorscheme gruvbox
+
+" ==== NERD tree
+" Ctrl-N for nerd tree
+nmap <C-N> :NERDTreeToggle<CR>
+
+" ==== Tabularize - alignment
+" Hit Ctrl-A then type a character you want to align by
+nmap ,a :Tabularize /
+vmap ,a :Tabularize /
+
+" === ctrlp
+" Jump to already open window
+let g:ctrlp_switch_buffer = 1
+
+" Include path in searches
+let g:ctrlp_by_filename = 0
+
+" === autoformat
+let g:autoformat_autoindent = 0
+au BufRead,BufNewFile *.overrides       setfiletype less
+au BufRead,BufNewFile *.variables       setfiletype less
+au Bufwrite *.py :Autoformat
+au BufWrite *.ex :Autoformat
+au BufWrite *.exs :Autoformat
+au BufWrite *.js :Autoformat
+au BufWrite *.jsx :Autoformat
+" might need to comment these
+let g:autoformat_retab = 0
+let g:autoformat_remove_trailing_spaces = 0
