@@ -1,0 +1,5 @@
+" === Yadr
+let g:yadr_using_unsolarized_terminal = 1
+
+" === NERD tree
+let NERDTreeQuitOnOpen=1
