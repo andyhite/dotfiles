@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
 # Install homebrew
-/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+# /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 
 # Install applications
-brew bundle
+# brew bundle
 
 # Install yadr
-sh -c "`curl -fsSL https://raw.githubusercontent.com/skwp/dotfiles/master/install.sh`"
+# sh -c "`curl -fsSL https://raw.githubusercontent.com/skwp/dotfiles/master/install.sh`"
 
 # Clone this repo into the home directory
 git clone https://github.com/andyhite/dotfiles.git ~/.dotfiles
