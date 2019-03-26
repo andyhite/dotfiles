@@ -9,8 +9,8 @@ brew bundle
 # Install yadr
 sh -c "`curl -fsSL https://raw.githubusercontent.com/skwp/dotfiles/master/install.sh`"
 
-# Add this directory to the home directory
-ln -s $PWD "/Users/$(whoami)/.dotfiles"
+# Clone this repo into the home directory
+git clone https://github.com/andyhite/dotfiles.git ~/.dotfiles
 
 # Add custom zsh config
 ln -s "/Users/$(whoami)/.dotfiles/zsh.prompts" "/Users/$(whoami)/.zsh.prompts"
