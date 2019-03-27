@@ -14,8 +14,8 @@ cd ~/.dotfiles && brew bundle
 
 # Add custom zsh config
 ln -s "/Users/$(whoami)/.dotfiles/zsh.prompts" "/Users/$(whoami)/.zsh.prompts"
-ln -s "/Users/$(whoami)/.dotfiles/zshrc.before" "/Users/$(whoami)/.zshrc.before"
-ln -s "/Users/$(whoami)/.dotfiles/zshrc.after" "/Users/$(whoami)/.zshrc.after"
+ln -s "/Users/$(whoami)/.dotfiles/zsh.before" "/Users/$(whoami)/.zsh.before"
+ln -s "/Users/$(whoami)/.dotfiles/zsh.after" "/Users/$(whoami)/.zsh.after"
 
 # Add custom vim config
 ln -s "/Users/$(whoami)/.dotfiles/vimrc.before" "/Users/$(whoami)/.vimrc.before"
