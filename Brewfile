@@ -4,7 +4,7 @@ brew "reattach-to-user-namespace"
 brew "the_silver_searcher"
 brew "tig"
 brew "tmux"
-brew "vim"
+brew "neovim"
 brew "zsh"
 
 mas "Things3", id: 904280696
