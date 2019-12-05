@@ -10,7 +10,6 @@ brew "zsh"
 mas "Things3", id: 904280696
 mas "Spark", id: 1176895641
 mas "Bear", id: 1091189122
-mas "Xcode", id: 497799835
 
 cask "1password"
 cask "adobe-creative-cloud"
