@@ -1,46 +1,44 @@
-# Zsh plugin manager: antidote (replaces Oh My Zsh)
+# ── Completion ──────────────────────────────────────────────────────────────
+# Must run before antidote loads plugins that hook into it (fzf-tab).
+autoload -Uz compinit
+compinit -C
+
+# ── Plugin manager (antidote, replaces Oh My Zsh) ───────────────────────────
 source "$HOME/.antidote/antidote.zsh"
 antidote load "$HOME/.zsh_plugins.txt"
 
-# machine-local secrets/overrides — never committed (see zshrc.local.example)
+# ── Machine-local secrets/overrides — never committed ───────────────────────
+# See zshrc.local.example for the template.
 [ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
 
-# User configuration
+# ── Editor ───────────────────────────────────────────────────────────────────
+# nvim locally; vim over SSH in case the remote box doesn't have nvim.
+if [[ -n $SSH_CONNECTION ]]; then
+  export EDITOR='vim'
+  export VISUAL='vim'
+else
+  export EDITOR='nvim'
+  export VISUAL='nvim'
+fi
 
-# export MANPATH="/usr/local/man:$MANPATH"
-
-# You may need to manually set your language environment
-# export LANG=en_US.UTF-8
-
-# Preferred editor for local and remote sessions
-# if [[ -n $SSH_CONNECTION ]]; then
-#   export EDITOR='vim'
-# else
-#   export EDITOR='nvim'
-# fi
-export EDITOR='vim'
-export VISUAL='vim'
-
-# Compilation flags
-# export ARCHFLAGS="-arch $(uname -m)"
-
-# Set personal aliases, overriding those provided by Oh My Zsh libs,
-# plugins, and themes. Aliases can be placed here, though Oh My Zsh
-# users are encouraged to define aliases within a top-level file in
-# the $ZSH_CUSTOM folder, with .zsh extension. Examples:
-# - $ZSH_CUSTOM/aliases.zsh
-# - $ZSH_CUSTOM/macos.zsh
-# For a full list of active aliases, run `alias`.
-#
-# Example aliases
-# alias zshconfig="mate ~/.zshrc"
-# alias ohmyzsh="mate ~/.oh-my-zsh"
-
-# fab-remote indicator now lives in starship.toml's `format`
-# (see the "🏭" line — matches the Ghostty/macOS setup)
+# ── PATH ─────────────────────────────────────────────────────────────────────
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 
-# prompt / navigation / fuzzy search / modern ls & cat
+# ── History ──────────────────────────────────────────────────────────────────
+HISTFILE="$HOME/.zsh_history"
+HISTSIZE=50000
+SAVEHIST=50000
+setopt EXTENDED_HISTORY       # store timestamps
+setopt INC_APPEND_HISTORY     # write as commands run, not just on exit
+setopt SHARE_HISTORY          # share across concurrent sessions
+setopt HIST_IGNORE_DUPS       # don't record a line if it's a dup of the previous
+setopt HIST_IGNORE_SPACE      # leading space = don't record
+
+# ── Shell quality of life ────────────────────────────────────────────────────
+setopt AUTO_CD                # typing a directory name cds into it
+setopt EXTENDED_GLOB          # ~/^/# glob qualifiers
+
+# ── Prompt / navigation / fuzzy search / modern ls & cat ────────────────────
 eval "$(starship init zsh)"
 eval "$(zoxide init zsh)"
 [ -f /usr/share/doc/fzf/examples/key-bindings.zsh ] && source /usr/share/doc/fzf/examples/key-bindings.zsh
@@ -50,33 +48,21 @@ alias ll='eza -l --icons --group-directories-first'
 alias tree='eza --tree --icons'
 alias cat='batcat'
 
-# direnv (per-directory env, e.g. per-worktree PORT)
+# ── direnv (per-directory env, e.g. per-worktree PORT) ──────────────────────
 eval "$(direnv hook zsh)"
 
-# Task Master aliases added on 7/16/2026
-alias tm='task-master'
-alias taskmaster='task-master'
+# ── Linux-only fixups ────────────────────────────────────────────────────────
+if [[ "$(uname -s)" == "Linux" ]]; then
+  # systemctl --user needs this set over SSH / non-login shells; harmless
+  # no-op when a real login session already set it via pam_systemd.
+  export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+fi
 
-# Ensure systemctl --user works over SSH / non-login shells
-export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
-
-# claude config
-alias claude="claude --dangerously-skip-permissions"
-
-# bun completions
-[ -s "/home/you/.bun/_bun" ] && source "/home/you/.bun/_bun"
-
-# bun
+# ── bun ──────────────────────────────────────────────────────────────────────
+[ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 
-
-# omp/pi: disable inline images under tmux — Kitty graphics protocol placements
-# don't track tmux pane scroll/resize/redraw, so they get stuck on screen.
-if [ -n "$TMUX" ]; then
-  export PI_FORCE_IMAGE_PROTOCOL=none
-fi
-
+# ── atuin (shell history) — keep last, it needs to own Ctrl+R ──────────────
 . "$HOME/.atuin/bin/env"
-
 eval "$(atuin init zsh)"
