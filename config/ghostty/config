@@ -1,0 +1,10 @@
+theme = One Dark Two
+
+font-family = JetBrainsMono Nerd Font
+font-size = 14
+
+shell-integration = detect
+shell-integration-features = cursor,sudo,title,ssh-env
+
+window-padding-x = 10
+window-padding-y = 10
