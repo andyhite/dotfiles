@@ -7,48 +7,48 @@ theme everywhere, zsh with antidote instead of oh-my-zsh, starship for the promp
 
 | Path | Links to | What it is |
 |---|---|---|
-| `zshrc` | `~/.zshrc` | zsh config: antidote plugin load, path setup, aliases, tool init hooks |
+| `zshrc` | `~/.zshrc` | zsh config: completion, antidote plugin load, history, aliases, tool init hooks |
 | `zsh_plugins.txt` | `~/.zsh_plugins.txt` | antidote's plugin list (zsh-autosuggestions, zsh-syntax-highlighting, fzf-tab, zsh-vi-mode) |
-| `config/starship.toml` | `~/.config/starship.toml` | prompt — One Dark Pro preset |
+| `tmux.conf` | `~/.tmux.conf` | tmux config, plugins managed by TPM |
+| `config/starship.toml` | `~/.config/starship.toml` | prompt — One Dark Pro preset, hostname shown only over SSH |
 | `config/zellij/config.kdl` | `~/.config/zellij/config.kdl` | terminal multiplexer, `onedark` theme |
 | `config/herdr/config.toml` | `~/.config/herdr/config.toml` | Herdr (agent terminal workspace manager), `one-dark` theme + accent/border overrides |
-| `config/ghostty/config` | OS-dependent, see below | Ghostty terminal: `One Dark Two` theme, shell integration |
+| `config/ghostty/config` | `~/.config/ghostty/config` | Ghostty terminal: `One Dark Two` theme, shell integration — same path on macOS and Linux |
 | `zshrc.local.example` | (copy, not linked) | template for machine-local secrets — never committed |
-| `install.sh` | — | symlinks everything above into place |
-
-zsh, starship, zoxide, atuin, fzf, eza, and bat are the actual tools this config drives.
-`install.sh` only wires up config files — it doesn't install the tools themselves (see
-below).
+| `install.sh` | — | installs/updates every tool below, then symlinks all the config above into place |
 
 ## Bootstrap a new machine
 
-1. Install the tools this config expects to find on `$PATH`:
-   - **macOS**: `brew install ghostty starship zellij zoxide atuin fzf eza bat antidote`
-   - **Linux (Debian/Ubuntu)**: `apt` has `zoxide`, `eza`, and `bat` (installs as `batcat`
-     — the `zshrc` aliases around this). `starship` and `atuin` ship official install
-     scripts (`curl -sS https://starship.rs/install.sh | sh`, `curl ... | sh -s --
-     https://setup.atuin.sh`). `zellij` has no apt package here — `cargo install --locked
-     zellij`. `antidote`: `git clone --depth=1 https://github.com/mattmc3/antidote.git
-     ~/.antidote`.
-   - [Herdr](https://herdr.dev): `curl -fsSL https://herdr.dev/install.sh | sh`
-   - A [Nerd Font](https://www.nerdfonts.com/) for the icons in starship/eza — this repo
-     assumes JetBrains Mono Nerd Font.
+```sh
+git clone https://github.com/andyhite/dotfiles.git ~/dotfiles
+~/dotfiles/install.sh
+```
 
-2. Clone this repo and run the installer:
-   ```sh
-   git clone https://github.com/andyhite/dotfiles.git ~/dotfiles
-   ~/dotfiles/install.sh
-   ```
-   It symlinks every file in the table above into place, detects macOS vs Linux for the
-   Ghostty config path, and backs up (`.bak.<timestamp>`) anything real that's already
-   sitting where a symlink needs to go — safe to re-run.
+`install.sh` does two things, and is safe to re-run any time (installs what's missing,
+updates what's already there):
 
-3. Fill in secrets. The installer copies `zshrc.local.example` to `~/.zshrc.local` if it
-   doesn't already exist. Edit that file with real values — `zshrc` sources it
-   automatically and it's git-ignored, so secrets never end up in this repo or its
-   history.
+1. **Installs/updates the tools this config drives**: starship, zellij, zoxide, atuin,
+   fzf, eza, bat, tmux, antidote, TPM, and the JetBrains Mono Nerd Font. macOS goes
+   through Homebrew (formulae + casks, including Ghostty itself); Linux goes through
+   `apt` where a package exists, and falls back to each tool's official installer
+   otherwise (starship/atuin ship curl-able install scripts; zellij has no apt package
+   so it's built from source via `cargo`, bootstrapping `rustup` first if needed; the
+   Nerd Font is fetched straight from its GitHub release and installed under
+   `~/.local/share/fonts`). Ghostty itself is only installed on macOS — it's a local GUI
+   app, so there's nothing to install on a headless remote box, though its config still
+   gets symlinked in case that box ever runs Ghostty directly.
+2. **Symlinks every config file** in the table above into place. Backs up
+   (`.bak.<timestamp>`) anything real that's already sitting where a symlink needs to
+   go.
 
-4. Restart your shell (or `exec zsh`). Antidote clones its plugins on first run.
+After that:
+
+- Fill in secrets. The installer copies `zshrc.local.example` to `~/.zshrc.local` if it
+  doesn't already exist. Edit that file with real values — `zshrc` sources it
+  automatically and it's git-ignored, so secrets never end up in this repo or its
+  history.
+- Restart your shell (or `exec zsh`). Antidote clones its plugins on first run.
+- Open tmux and press `prefix+I` to have TPM install its plugins on first run.
 
 ## Making changes
 
