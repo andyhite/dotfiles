@@ -4,7 +4,7 @@ font-family = JetBrainsMono Nerd Font
 font-size = 14
 
 shell-integration = detect
-shell-integration-features = cursor,sudo,title,ssh-env
+shell-integration-features = cursor,sudo,title,ssh-env,ssh-terminfo
 
 window-padding-x = 10
 window-padding-y = 10
