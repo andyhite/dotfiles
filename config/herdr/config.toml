@@ -1,0 +1,16 @@
+[ui.toast]
+delivery = "system"
+
+[theme]
+name = "one-dark"
+auto_switch = false
+
+[theme.custom]
+panel_bg = "reset"
+overlay0 = "#4a505a"
+overlay1 = "#5c6370"
+surface_dim = "#5c6370"
+
+[ui]
+show_agent_labels_on_pane_borders = true
+accent = "#71b9f4"
