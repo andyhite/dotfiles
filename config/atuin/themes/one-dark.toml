@@ -1,0 +1,39 @@
+# One Dark for Atuin — matches starship (One Dark Pro), herdr (one-dark),
+# nvim (NvChad onedark) and Ghostty (One Dark Two).
+#
+# `name` must equal the filename stem and the `[theme] name` selected in
+# ../config.toml; atuin resolves a custom theme by appending `.toml` to the
+# selected name. A mismatch isn't fatal but warns under `debug = true`.
+#
+# Atuin themes set FOREGROUND colors only — its style factory only ever assigns
+# foreground_color — so One Dark's #282c34 background is not expressible here
+# and comes from the terminal (config/ghostty/config) instead.
+#
+# Colors accept `#RRGGBB`, a lowercase `palette` name, or an `@`-prefixed
+# crossterm color. Hex is used throughout so the values match the other configs
+# exactly rather than approximating to the nearest named color.
+
+[theme]
+name = "one-dark"
+
+[colors]
+## Structural
+Base = "#abb2bf"       # default text — One Dark foreground
+Annotation = "#5c6370" # de-emphasized annotations — comment grey
+Muted = "#5c6370"
+Title = "#61afef"      # blue
+Important = "#c678dd"  # magenta
+Guidance = "#56b6c2"   # cyan
+
+## Alerts
+AlertInfo = "#61afef"  # blue
+AlertWarn = "#e5c07b"  # yellow
+AlertError = "#e06c75" # red
+
+## Command syntax highlighting in the search results
+SyntaxCommand = "#98c379"  # green
+SyntaxFlag = "#61afef"     # blue
+SyntaxString = "#98c379"   # green
+SyntaxVariable = "#e06c75" # red
+SyntaxOperator = "#56b6c2" # cyan
+SyntaxComment = "#5c6370"  # comment grey

@@ -1,0 +1,11 @@
+# Herdr plugins, one per line: <owner>/<repo>[/<subdir>][@<ref>]
+# install.sh feeds each line to `herdr plugin install`, which is also how herdr
+# updates an already-installed plugin. Pin a tag/branch/commit with @<ref>;
+# without one you get the repo's default branch at install time.
+persiyanov/herdr-reviewr
+AltanS/collie
+# Fork pin: upstream's provider hardcodes `max_tokens`, which every OpenAI
+# reasoning model rejects ("use 'max_completion_tokens' instead"). The branch
+# rewrites the parameter for api.openai.com only. Drop back to
+# iurysza/herdr-tab-smart-rename once that fix lands upstream.
+andyhite/herdr-tab-smart-rename@fix/openai-max-completion-tokens

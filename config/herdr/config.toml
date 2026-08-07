@@ -16,6 +16,7 @@ surface_dim = "#5c6370"
 
 [ui]
 show_agent_labels_on_pane_borders = true
-hide_tab_bar_when_single_tab = true
+hide_tab_bar_when_single_tab = false
 mouse_scroll_lines = 1
 accent = "#71b9f4"
+agent_panel_sort = "spaces"
