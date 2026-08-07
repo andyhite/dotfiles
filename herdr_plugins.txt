@@ -2,10 +2,86 @@
 # install.sh feeds each line to `herdr plugin install`, which is also how herdr
 # updates an already-installed plugin. Pin a tag/branch/commit with @<ref>;
 # without one you get the repo's default branch at install time.
+# Three things live outside this file:
+#   - Per-plugin settings, in config/herdr/plugins/config/<plugin_id>/, which is
+#     symlinked to ~/.config/herdr/plugins/config. Not every plugin uses it —
+#     ghzinga reads its config from elsewhere entirely (see its note).
+#   - Keybindings, in config/herdr/config.toml. herdr has no [keys] entry for
+#     plugin actions, so each one is a [[keys.command]] block shelling out to
+#     `herdr plugin action invoke`.
+#   - Plugins developed in this repo, in config/herdr/plugins/local/<id>/.
+#     install.sh links each one straight from its working copy with
+#     `herdr plugin link`, since there's no GitHub spec for it to resolve —
+#     so this file stays the source of truth for GitHub-hosted plugins only.
+#
+# A spec line ending in `# local-only` is skipped when install.sh runs inside an
+# ssh session ($SSH_CONNECTION set), for plugins that only make sense on the
+# machine you physically sit at.
+
+# Chromium in a pane, drivable over CDP. Ships the herdr-browser omp skill that
+# the `skills` step symlinks into ~/.omp/agent/skills.
+ogulcancelik/herdr-browser
+
+# Local diff/review TUI in a split pane — a Rust app reading git, not an AI
+# reviewer. Also opens on the worktree.created event. Config: config.toml.
 persiyanov/herdr-reviewr
+
+# Mobile web UI for the herd, served over Tailscale: watch every agent and reply
+# from a phone. Runs as a launchd agent on macOS, not a herdr pane, so it
+# outlives herdr restarts. Config: .env (gitignored, holds secrets; see
+# env.example beside it). Needs the tailscale CLI, which the Mac App Store
+# build hides inside its app bundle — install.sh shims it onto PATH.
 AltanS/collie
-# Fork pin: upstream's provider hardcodes `max_tokens`, which every OpenAI
-# reasoning model rejects ("use 'max_completion_tokens' instead"). The branch
-# rewrites the parameter for api.openai.com only. Drop back to
-# iurysza/herdr-tab-smart-rename once that fix lands upstream.
-andyhite/herdr-tab-smart-rename@fix/openai-max-completion-tokens
+
+# Mirrors a *remote* herdr server into this one's sidebar over ssh or
+# `docker exec` — remote panes appear as local workspaces. No listener, no port.
+#
+# local-only because it inverts over ssh: installed on a box you've ssh'd into,
+# it would mirror some other machine's herdr back into the session you're
+# already viewing remotely. The laptop is the only place this makes sense.
+nikok6/herdr-mirror  # local-only
+
+# Directional pane focus that hands off to nvim splits instead of stopping at
+# the pane edge (vim-tmux-navigator, for herdr). Two-sided: the herdr half is
+# the ctrl+h/j/k/l bindings in config/herdr/config.toml, the nvim half is
+# config/nvim/lua/herdr-nav.lua.
+paulbkim-dev/vim-herdr-navigation
+
+# Ctrl-click a github.com issue/PR link in any pane and it opens in a ghzinga
+# TUI split. The plugin is pure wiring; all behaviour and all config belong to
+# the `gzg` binary — `cargo install ghzinga`, configured in config/ghzinga/.
+osolmaz/ghzinga/plugins/herdr
+
+# Inbox for agent panes, plus session/tab naming — it can auto-rename tabs, so
+# it replaces iurysza/herdr-tab-smart-rename (and the andyhite fork of it that
+# patched max_tokens -> max_completion_tokens for OpenAI reasoning models).
+douglascorrea/herdr-agent-inbox
+
+# Live token spend dashboard + cost notifications. Reads Pi/OpenCode/Claude
+# session files — it lists omp panes but can't price them, and there is no
+# Codex support. Exposes no configuration at all.
+Davidcreador/herdr-token-dashboard
+
+# fzf over every action of every installed plugin, enumerated at run time from
+# `herdr plugin action list`. Bound to prefix+p, and the reason so many plugin
+# actions here are deliberately left unbound — 42 of them are one fuzzy search
+# away rather than needing a key each.
+JanTvrdik/herdr-command-palette
+
+# Runs setup steps in a new worktree on worktree.created: copies .env* from the
+# main checkout, `mise trust`, `direnv allow`, installs deps. A worktree per
+# issue otherwise starts with none of its gitignored files. No actions, pure
+# event hook. Config: config.toml.
+tdi/herdr-worktree-setup
+
+# Declarative tab/pane layouts applied to each new worktree, chosen by repo and
+# branch glob, with real `herdr agent start` panes rather than typed commands.
+# Owns the layout of new worktrees — which is why reviewr's auto_open is off.
+# Also ships `remove-gone` to clear worktrees whose upstream branch was deleted.
+# Config: config.yml. Compiles itself with cargo on first use.
+razajamil/herdr-plugin-workspace-manager
+
+# The focused agent's branch PR state as a sidebar token — "#123 ✓". Needs $pr
+# in [ui.sidebar.agents] rows to render at all. Ambient status only; ghzinga is
+# still the thing that opens a PR to read it.
+wyattjoh/herdr-plugin-gh-pr

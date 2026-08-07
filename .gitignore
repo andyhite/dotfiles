@@ -7,6 +7,14 @@
 # worth tracking; the logs aren't.
 config/herdr/plugins/config/**/*.log
 
+# Collie records the ONE `tailscale serve` mapping it published so teardown can
+# prove it owns what it's about to remove. That record names this machine's
+# MagicDNS host, and serve.out is just the last serve command's output — both
+# are per-machine runtime state, and a committed handler record would let one
+# machine's install tear down a mapping another machine created.
+config/herdr/plugins/config/**/tailscale-managed-handler
+config/herdr/plugins/config/**/serve.out
+
 # omp takes a lock next to its config while writing through the symlink. It's
 # transient (and empty), so it shows up as a stray untracked file after any
 # in-app settings change.
@@ -19,3 +27,12 @@ omp/agent/*.lock
 # template is needed; this file is per-machine.
 config/herdr/plugins/config/**/provider.env
 config/herdr/plugins/config/**/*.env
+
+# Local herdr plugins (config/herdr/plugins/local/*/) that ship real npm deps —
+# currently just omp-subagents, whose scripts/install.sh (run by its
+# [[build]] step) pins them to whatever `omp` binary is on PATH. Both
+# node_modules and the lockfile are per-machine, regenerated-on-every-build
+# artifacts as a result — tracking either would just be cross-machine merge
+# noise for a lockfile that gets rewritten the moment omp itself is upgraded.
+config/herdr/plugins/local/*/node_modules/
+config/herdr/plugins/local/*/bun.lock

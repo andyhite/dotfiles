@@ -1,0 +1,265 @@
+# AeroSpace — i3-like tiling window manager for macOS
+# https://nikitabobko.github.io/AeroSpace/guide
+#
+# Linked to ~/.config/aerospace/aerospace.toml by install.sh. AeroSpace looks in
+# exactly two places — ~/.aerospace.toml and $XDG_CONFIG_HOME/aerospace/
+# aerospace.toml — and *reports an ambiguity error* if it finds both, so
+# ~/.aerospace.toml must stay absent. Nothing in this repo creates it.
+#
+# Anything omitted here falls back to AeroSpace's built-in default config, with
+# one exception that matters: `mode.*.binding` falls back to an EMPTY table.
+# This file is the complete and only source of keybindings — there is no
+# inherited default set underneath it.
+
+config-version = 2
+
+# ── Startup ──────────────────────────────────────────────────────────────────
+
+# Off on purpose. A window manager that launches itself before you've decided
+# you want it is how the last one got uninstalled. Flip to true once it has
+# earned a place in the login sequence.
+start-at-login = false
+
+# Config lives in this repo and is symlinked into place, so edits here apply
+# without a restart. Upstream's caveat: after switching this on for the first
+# time, reload once manually (cmd+ctrl+shift+; then esc) to start the watcher.
+auto-reload-config = true
+
+after-startup-command = []
+
+# ── Layout ───────────────────────────────────────────────────────────────────
+
+# Both normalizations left on (upstream's recommendation unless you're a
+# hardcore i3 user): single-child containers collapse, and nested containers
+# are forced to alternate orientation. Together they keep the tree shape
+# predictable from what's on screen.
+enable-normalization-flatten-containers = true
+enable-normalization-opposite-orientation-for-nested-containers = true
+
+default-root-container-layout = 'tiles'
+# 'auto' picks horizontal for a wide monitor, vertical for a tall one. Both
+# panels here are 3360x1890 landscape, so this resolves to horizontal — but it
+# stays 'auto' so a rotated monitor does the right thing without an edit.
+default-root-container-orientation = 'auto'
+
+# Padding shown by the accordion layout to hint at windows stacked behind.
+accordion-padding = 30
+
+# Gaps. 8px matches the screen-edge inset that reads as deliberate next to the
+# 10px window-padding-x/y in config/ghostty/config, rather than windows jammed
+# against each other and the bezel.
+gaps.inner.horizontal = 8
+gaps.inner.vertical   = 8
+gaps.outer.left       = 8
+gaps.outer.right      = 8
+gaps.outer.top        = 8
+gaps.outer.bottom     = 8
+
+# ── Focus behaviour ──────────────────────────────────────────────────────────
+
+# Left at AeroSpace's default (off). Deliberately conservative for a first run:
+# focus-follows-mouse is the single option most likely to feel like the window
+# manager is fighting you, and it's a one-line change to try:
+#   focus-follows-mouse.enabled = true
+focus-follows-mouse.enabled = false
+
+# Warp the pointer when focus moves to the *other monitor*, though. Without it,
+# a pointer stranded on the old display keeps hovering menus and tooltips on a
+# screen you're no longer looking at. This is AeroSpace's own default.
+on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
+
+# ── Workspaces ───────────────────────────────────────────────────────────────
+
+# AeroSpace reimplements Spaces rather than driving macOS's: inactive
+# workspaces are parked off-screen and swapped back instantly, with none of
+# the native Space slide animation. The intended workflow is one macOS Space
+# per monitor and no further interaction with Mission Control.
+#
+# Mnemonic letters over numbers, because these map to actual apps (see
+# on-window-detected below) rather than to positions. 1-3 stay as scratch
+# space for anything that doesn't have a home.
+#
+# Listed explicitly because config-version = 2 makes persistent-workspaces
+# default to an empty array — without this, a workspace vanishes the moment
+# its last window closes, and switching to it lands somewhere unexpected.
+persistent-workspaces = ["1", "2", "3", "T", "W", "C", "M", "A"]
+
+# Both monitors are the same 3360x1890 DELL, so there's no "the big one" to
+# pin work to and no workspace-to-monitor-force-assignment block. Workspaces
+# follow you; move one deliberately with cmd+ctrl+shift+n.
+
+# ── Window rules ─────────────────────────────────────────────────────────────
+
+# Ordered list — first matching entry wins unless it sets
+# check-further-callbacks. Bundle IDs below were all read off actually-running
+# windows on this machine, not guessed.
+#
+# Written as single-line inline tables rather than upstream's multi-line form:
+# multi-line inline tables are a TOML 1.1 feature, and keeping to 1.0 syntax
+# means a plain `tomllib.load` can validate this file offline, before AeroSpace
+# ever sees it.
+on-window-detected = [
+  # Ghostty gets its own workspace instead of floating.
+  #
+  # config/ghostty/config sets `fullscreen = non-native` and binds
+  # `global:ctrl+enter=toggle_visibility`, which together make the terminal an
+  # always-fullscreen overlay you summon from anywhere. Workspace T reproduces
+  # that and improves on it: one tiled window on a workspace fills the screen
+  # identically, and cmd+ctrl+t switches to it with no animation at all.
+  #
+  # Floating it — the obvious translation of the overlay idea — is actively
+  # worse here, because AeroSpace has no sticky windows yet (upstream issue
+  # #2). A floating window still belongs to one workspace, so ctrl+enter from
+  # a different workspace would reveal an app whose window AeroSpace is
+  # holding off-screen. Workspace T has no such failure mode.
+  { if = 'test %{app-bundle-id} = com.mitchellh.ghostty', run = 'move-node-to-workspace T' },
+
+  { if = 'test %{app-bundle-id} = com.google.Chrome', run = 'move-node-to-workspace W' },
+  { if = 'test %{app-bundle-id} = com.anthropic.claudefordesktop', run = 'move-node-to-workspace A' },
+  { if = 'test %{app-bundle-id} = com.tinyspeck.slackmacgap', run = 'move-node-to-workspace C' },
+
+  # Calendar and mail share a workspace — both are glanced at, neither needs a
+  # full screen to itself.
+  { if = 'test %{app-bundle-id} = com.mimestream.Mimestream', run = 'move-node-to-workspace M' },
+  { if = 'test %{app-bundle-id} = com.cron.electron', run = 'move-node-to-workspace M' },
+
+  # Zoom floats rather than tiling: its meeting window, screen-share toolbar
+  # and participant panel are separate windows that a tiler will happily lay
+  # out as equal thirds mid-call.
+  { if = 'test %{app-bundle-id} = us.zoom.xos', run = 'layout floating' },
+
+  # Fixed-size utility windows that render their own internal layout; tiling
+  # them to a third of the screen just clips the content.
+  { if = 'test %{app-bundle-id} = com.apple.systempreferences', run = 'layout floating' },
+  { if = 'test %{app-bundle-id} = com.apple.finder', run = 'layout floating' },
+]
+
+# ── Keybindings ──────────────────────────────────────────────────────────────
+
+# The modifier layer is `cmd + ctrl`, and as with everything else in this repo
+# that's forced rather than chosen. AeroSpace's own defaults are `alt`-based
+# (i3 convention) and would be the obvious thing to keep — they can't be:
+#
+#   alt + <key>    — herdr's plugin layer is `prefix+alt+<key>`, and prefix
+#                    means ctrl+b *then* the alt chord as a separate
+#                    keystroke. AeroSpace's event tap sees that second
+#                    keystroke as a bare alt+<key> and swallows it before
+#                    herdr gets it. That takes out alt+h, alt+l, alt+m, alt+d,
+#                    alt+r, alt+n, alt+c, alt+v, alt+s and alt+1..9 — i.e.
+#                    almost exactly AeroSpace's default binding set.
+#   ctrl + h/j/k/l — bound globally by vim-herdr-navigation, via the
+#                    [[keys.command]] blocks in config/herdr/config.toml.
+#   cmd + <key>    — cmd+h is Hide Application, cmd+l is the address bar in
+#                    every browser, cmd+w closes the window.
+#
+# cmd + ctrl is free: nothing in this repo binds it, and macOS only claims
+# ctrl+cmd+f (native fullscreen, shadowed below on purpose), ctrl+cmd+space
+# (Character Viewer) and ctrl+cmd+q (Lock Screen) — none of which are bound.
+#
+# Shift widens each motion from "move focus" to "move the window", matching
+# config/herdr/config.toml's focus_pane_* vs swap_pane_* and vim's <C-w>h vs
+# <C-w>H. Anything needing a third modifier goes in a binding mode instead of
+# growing a four-key chord.
+
+[mode.main.binding]
+
+## Focus, and the shift mirror that drags the window along. Because AeroSpace
+## treats floating windows as part of the tree for focus purposes, these reach
+## floating windows too — no separate binding needed for the floating layer.
+cmd-ctrl-h = 'focus left'
+cmd-ctrl-j = 'focus down'
+cmd-ctrl-k = 'focus up'
+cmd-ctrl-l = 'focus right'
+
+cmd-ctrl-shift-h = 'move left'
+cmd-ctrl-shift-j = 'move down'
+cmd-ctrl-shift-k = 'move up'
+cmd-ctrl-shift-l = 'move right'
+
+## Layout of the focused window's container. slash toggles the split axis the
+## way i3's mod+e does; comma cycles the accordion (i3's tabbed/stacked).
+cmd-ctrl-slash = 'layout tiles horizontal vertical'
+cmd-ctrl-comma = 'layout accordion horizontal vertical'
+
+## AeroSpace's own fullscreen — the container fills the monitor but stays a
+## normal window, so it doesn't spawn a macOS Space. Deliberately shadows
+## ctrl+cmd+f, since native fullscreen is the thing a tiler is replacing.
+## macOS native fullscreen is still one green-button click away when an app
+## genuinely wants its own Space (video, Zoom presenting).
+cmd-ctrl-f = 'fullscreen'
+cmd-ctrl-shift-f = 'layout floating tiling'
+
+## Even out the sizes in the current workspace after manual resizing.
+cmd-ctrl-b = 'balance-sizes'
+
+## Workspaces. Letters are mnemonic — Terminal, Web, Comms, Mail, Ai — and
+## 1-3 are scratch. Shift sends the focused window there and follows it, which
+## is the pairing worth having: sending a window somewhere you then can't see
+## is rarely what you meant.
+cmd-ctrl-t = 'workspace T'
+cmd-ctrl-w = 'workspace W'
+cmd-ctrl-c = 'workspace C'
+cmd-ctrl-m = 'workspace M'
+cmd-ctrl-a = 'workspace A'
+cmd-ctrl-1 = 'workspace 1'
+cmd-ctrl-2 = 'workspace 2'
+cmd-ctrl-3 = 'workspace 3'
+
+cmd-ctrl-shift-t = 'move-node-to-workspace --focus-follows-window T'
+cmd-ctrl-shift-w = 'move-node-to-workspace --focus-follows-window W'
+cmd-ctrl-shift-c = 'move-node-to-workspace --focus-follows-window C'
+cmd-ctrl-shift-m = 'move-node-to-workspace --focus-follows-window M'
+cmd-ctrl-shift-a = 'move-node-to-workspace --focus-follows-window A'
+cmd-ctrl-shift-1 = 'move-node-to-workspace --focus-follows-window 1'
+cmd-ctrl-shift-2 = 'move-node-to-workspace --focus-follows-window 2'
+cmd-ctrl-shift-3 = 'move-node-to-workspace --focus-follows-window 3'
+
+## Bounce between the last two workspaces — the single most-used binding in
+## any i3 setup, and the reason tab is worth spending here.
+cmd-ctrl-tab = 'workspace-back-and-forth'
+
+## Monitors. Two identical panels side by side, so "next" with wrap-around is
+## the whole vocabulary needed.
+cmd-ctrl-n = 'focus-monitor --wrap-around next'
+cmd-ctrl-shift-n = 'move-node-to-monitor --wrap-around --focus-follows-window next'
+
+## Modes. Resizing and tree surgery are infrequent enough that a mode beats
+## inventing four-key chords for them.
+cmd-ctrl-r = 'mode resize'
+cmd-ctrl-shift-semicolon = 'mode service'
+
+# ── resize mode ──────────────────────────────────────────────────────────────
+
+# i3's mod+r convention: enter the mode, then bare keys resize repeatedly with
+# no modifier held, esc or enter to leave. `smart` picks width or height from
+# the container's orientation, so h/l and j/k both do the obvious thing.
+[mode.resize.binding]
+h = 'resize smart -50'
+l = 'resize smart +50'
+j = 'resize smart -50'
+k = 'resize smart +50'
+minus = 'resize smart -50'
+equal = 'resize smart +50'
+## Back to even, without leaving the mode.
+b = 'balance-sizes'
+esc = 'mode main'
+enter = 'mode main'
+
+# ── service mode ─────────────────────────────────────────────────────────────
+
+# AeroSpace's own convention, kept as-is so upstream docs and issues still
+# apply. Each binding returns to main mode, so it's a one-shot menu rather
+# than a place you linger.
+[mode.service.binding]
+esc = ['reload-config', 'mode main']
+## Reset a workspace whose tree has been contorted into something unhelpful.
+r = ['flatten-workspace-tree', 'mode main']
+f = ['layout floating tiling', 'mode main']
+backspace = ['close-all-windows-but-current', 'mode main']
+
+## join-with merges the focused window into its neighbour's container, which
+## is how you build nesting deliberately rather than by accident.
+cmd-ctrl-shift-h = ['join-with left', 'mode main']
+cmd-ctrl-shift-j = ['join-with down', 'mode main']
+cmd-ctrl-shift-k = ['join-with up', 'mode main']
+cmd-ctrl-shift-l = ['join-with right', 'mode main']

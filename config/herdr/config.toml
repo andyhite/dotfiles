@@ -9,17 +9,65 @@ name = "one-dark"
 auto_switch = false
 
 [theme.custom]
-panel_bg = "reset"
-overlay0 = "#4a505a"
-overlay1 = "#5c6370"
-surface_dim = "#5c6370"
+overlay0 = "#ffffff"
+accent = "#71b9f4"
 
 [ui]
 show_agent_labels_on_pane_borders = true
 hide_tab_bar_when_single_tab = false
 mouse_scroll_lines = 1
-accent = "#71b9f4"
 agent_panel_sort = "spaces"
+accent = "#71b9f4"
+
+## herdr-agent-inbox's sidebar-grow / sidebar-shrink actions (prefix+alt+l and
+## prefix+alt+h below) rewrite these three numbers in place and reload. They
+## bail out with an error if ANY of the three is missing, which is why all
+## three are spelled out here even though every value is herdr's own default.
+##
+## The actions pin all three to the target width to force it past herdr's
+## clamp-on-reload, then relax min/max back to 20/60 so the mouse can still
+## drag the divider. So expect these numbers to drift in git as you resize —
+## that's the feature working, not a stray edit.
+sidebar_width = 26
+sidebar_min_width = 18
+sidebar_max_width = 36
+
+# ── Sidebar rows ─────────────────────────────────────────────────────────────
+
+# herdr's packed sidebar only renders tokens you name here. Two plugins report
+# custom ones and BOTH are silently invisible without this block:
+#   herdr-agent-inbox  $title (derived session name), $flag (⚑ settled /
+#                      ● unread), $age (session runtime), $since (time in
+#                      current state), and workspace-level $agents / $busy
+#   gh-pr              $pr — the branch's PR as "#123 ✓", where the symbol is
+#                      ✓ passing, ✗ failing, ● pending, ◆ merged, ⊘ closed,
+#                      ⟳ recomputing, and bare for an open PR with no checks
+# They don't collide: different token names, different writers.
+#
+# Builtins stay bare (state_icon, workspace, tab, agent, branch, git_status);
+# custom tokens keep the $. A styled token becomes a table.
+
+[ui.sidebar.agents]
+## Line 1 is the answer to "what is this?" — the AI-derived session title, with
+## PR state trailing it, dimmed so it reads as metadata rather than the name.
+## Line 2 is the answer to "should I care right now?" — the unread/settled flag
+## first, then which agent and where, then how long it's been going.
+##
+## `tab` is deliberately absent from line 2: agent-inbox renames the tab to
+## this same $title, so showing both would print the name twice per row.
+rows = [
+  ["state_icon", "$title", { token = "$pr", dim = true }],
+  [{ token = "$flag", fg = "#e5c07b", bold = true }, "agent", "workspace", { token = "$age", dim = true }],
+]
+
+[ui.sidebar.spaces]
+## $agents is the per-state count, $busy the longest current working stint —
+## together they answer "is this workspace waiting on me" without expanding it.
+## Second row is the git context that makes a worktree identifiable at all.
+rows = [
+  ["state_icon", "workspace", "$agents", { token = "$busy", dim = true }],
+  ["branch", "git_status"],
+]
 
 # ── Keybindings ──────────────────────────────────────────────────────────────
 
@@ -114,3 +162,215 @@ focus_agent = "prefix+alt+1..9"
 ## one key per action — so up/down no longer move between spaces.
 navigate_workspace_up = "ctrl+k"
 navigate_workspace_down = "ctrl+j"
+
+# ── Plugin keybindings ───────────────────────────────────────────────────────
+
+# [keys] above only understands herdr's OWN action names. There is no field
+# there for a plugin action — the only way to bind one is a [[keys.command]]
+# block shelling out to the herdr CLI, which is what all of these are.
+#
+# `type` is "shell" throughout: these are short control commands that return
+# immediately. "pane" would flash a temporary pane and "popup" a modal terminal,
+# both of which are wrong for a command whose entire output is a state change.
+#
+# Several of these plugins' READMEs still document `type = "plugin_action"` with
+# a combined "<plugin>.<action>" string. That form is dead on 0.8 — `herdr
+# --default-config` documents only shell/pane/popup.
+#
+# These must stay at the END of the file: once TOML sees [[keys.command]], the
+# [keys] table above is closed and no further bare keys can be added to it.
+#
+# The layout, roughly: plain prefix+<letter> opens or marks something, and
+# prefix+alt+<letter> is the plugin layer, reusing the letter of whatever local
+# action it parallels.
+
+## vim-herdr-navigation — the one family bound WITHOUT the prefix, because the
+## point is that ctrl+h/j/k/l behaves identically whether the focused pane holds
+## nvim or a shell. The plugin checks the pane's foreground process: nvim gets
+## the raw chord (and config/nvim/lua/herdr-nav.lua hands focus back to herdr
+## only once nvim is already at the edge of its own splits), anything else moves
+## herdr's pane focus directly.
+##
+## The cost, in non-nvim panes: zsh loses ctrl+l (clear-screen), ctrl+k
+## (kill-line) and ctrl+j (the accept-line alias for Enter — plain Enter is
+## unaffected, it sends CR where ctrl+j sends LF). prefix+h/j/k/l still moves
+## panes unconditionally, so nothing is unreachable.
+##
+## Backspace is NOT affected, despite ctrl+h being the classic worry: Ghostty
+## sends DEL (0x7f) for Backspace and 0x08 for ctrl+h, and nothing in
+## config/ghostty/config remaps that.
+##
+## No conflict with navigate_workspace_* above either — those bind only inside
+## the prefix+g navigator, where pane focus isn't in play.
+[[keys.command]]
+key = "ctrl+h"
+type = "shell"
+command = "herdr plugin action invoke left --plugin vim-herdr-navigation"
+
+[[keys.command]]
+key = "ctrl+j"
+type = "shell"
+command = "herdr plugin action invoke down --plugin vim-herdr-navigation"
+
+[[keys.command]]
+key = "ctrl+k"
+type = "shell"
+command = "herdr plugin action invoke up --plugin vim-herdr-navigation"
+
+[[keys.command]]
+key = "ctrl+l"
+type = "shell"
+command = "herdr plugin action invoke right --plugin vim-herdr-navigation"
+
+## herdr-agent-inbox — the inbox itself, as a split beside the current pane
+## rather than the overlay its manifest declares. `--placement` overrides the
+## manifest, and a split is the right shape here: the inbox is a picker you act
+## from, so you want it next to the agent you're triaging, not covering it.
+## With no --target-pane it splits whichever pane is focused, which from a
+## keybinding is always the one you're looking at.
+[[keys.command]]
+key = "prefix+i"
+type = "shell"
+command = "herdr plugin pane open --plugin herdr-agent-inbox --entrypoint inbox --placement split --direction right"
+
+## m / shift+m are the two halves of one idea: mark this agent handled, or mark
+## it as still wanting me. Settling drops it to the bottom of the inbox; unread
+## flags it up to attention rank. Both are undone automatically the moment the
+## agent starts working or blocks again.
+[[keys.command]]
+key = "prefix+m"
+type = "shell"
+command = "herdr plugin action invoke settle --plugin herdr-agent-inbox"
+
+[[keys.command]]
+key = "prefix+shift+m"
+type = "shell"
+command = "herdr plugin action invoke unread --plugin herdr-agent-inbox"
+
+## Same idea, whole workspace: settles every agent here that's done, idle or
+## unknown. The end-of-session sweep.
+[[keys.command]]
+key = "prefix+alt+m"
+type = "shell"
+command = "herdr plugin action invoke settle-workspace --plugin herdr-agent-inbox"
+
+## Throw away this agent's cached session title and derive a new one — for when
+## the opening prompt turned out not to describe where the session went. Plain
+## prefix+t is free; prefix+shift+t is herdr's own rename_tab, which is the
+## manual counterpart (and permanently releases the tab from auto-naming).
+[[keys.command]]
+key = "prefix+t"
+type = "shell"
+command = "herdr plugin action invoke retitle --plugin herdr-agent-inbox"
+
+## h/l = narrower/wider, the vim axis. These rewrite sidebar_width and the two
+## bounds in this file and reload — see the [ui] comment above.
+[[keys.command]]
+key = "prefix+alt+h"
+type = "shell"
+command = "herdr plugin action invoke sidebar-shrink --plugin herdr-agent-inbox"
+
+[[keys.command]]
+key = "prefix+alt+l"
+type = "shell"
+command = "herdr plugin action invoke sidebar-grow --plugin herdr-agent-inbox"
+
+## The daemon is started by herdr's startup hook and re-checked on every
+## pane.agent_detected, so it normally self-heals. This is for when it doesn't.
+[[keys.command]]
+key = "prefix+alt+d"
+type = "shell"
+command = "herdr plugin action invoke restart-daemon --plugin herdr-agent-inbox"
+
+## reviewr — one binding, because `toggle` already converges: it closes every
+## reviewr pane in the workspace if any are open, else opens one at the
+## configured placement. Binding the raw pane-open would skip that de-duping.
+[[keys.command]]
+key = "prefix+alt+r"
+type = "shell"
+command = "herdr plugin action invoke toggle --plugin persiyanov.reviewr"
+
+## token-dashboard — u for usage, as a split below the current pane.
+##
+## This deliberately bypasses the plugin's own `open-dashboard` action, which
+## hardcodes --placement tab and so always costs a whole tab. The action does
+## nothing else — it shells out to exactly this command with tab substituted —
+## so calling the pane directly loses no behaviour. Down rather than right: it's
+## a status readout you glance at, not something you work inside.
+[[keys.command]]
+key = "prefix+u"
+type = "shell"
+command = "herdr plugin pane open --plugin dave.token-dashboard --entrypoint dashboard --placement split --direction down"
+
+## herdr-mirror — alt + the same letter as the local action it mirrors:
+##   shift+n new_workspace -> alt+n    c new_tab -> alt+c
+##   v split_vertical      -> alt+v    s split_horizontal -> alt+s
+## Each one falls back to the plain local behaviour when the current pane isn't
+## mirrored, so they're safe to hit anywhere. Lifecycle (start/pause/status/
+## once) stays unbound — autostart covers it — and `teardown` deliberately so,
+## since it closes every mirror and clears state.
+##
+## herdr has no conditional config, so these four ride along to every machine
+## this repo is installed on — including ones where herdr_plugins.txt's
+## `# local-only` marker deliberately skipped the mirror plugin. There they just
+## error as an unknown plugin. Harmless, and the alternative is a second config
+## file to keep in sync.
+[[keys.command]]
+key = "prefix+alt+n"
+type = "shell"
+command = "herdr plugin action invoke remote-new-workspace --plugin mirror"
+
+[[keys.command]]
+key = "prefix+alt+c"
+type = "shell"
+command = "herdr plugin action invoke remote-new-tab --plugin mirror"
+
+[[keys.command]]
+key = "prefix+alt+v"
+type = "shell"
+command = "herdr plugin action invoke remote-split-right --plugin mirror"
+
+[[keys.command]]
+key = "prefix+alt+s"
+type = "shell"
+command = "herdr plugin action invoke remote-split-down --plugin mirror"
+
+## command-palette — fzf over EVERY action of EVERY installed plugin, built at
+## run time from `herdr plugin action list`, so it needs no maintenance as
+## plugins come and go. This is what makes the "deliberately unbound" list
+## below a decision rather than a loss.
+##
+## prefix+p is free here: herdr's default previous_tab lives there, and this
+## config moved that to prefix+shift+tab.
+##
+## The action opens an overlay pane because a herdr action runs server-side
+## with no TTY and so can't host fzf itself; the overlay inherits the origin
+## cwd, and herdr tears it down on exit.
+[[keys.command]]
+key = "prefix+p"
+type = "shell"
+command = "herdr plugin action invoke open --plugin jt.command-palette"
+
+## gh-pr — open the focused agent's branch PR in a browser. prefix+o is herdr's
+## open_notification_target, so this takes the shift variant. The plugin's own
+## README suggests prefix+u and prefix+i, both already taken here by the token
+## dashboard and the inbox.
+##
+## Its `refresh` action isn't bound: the status already recomputes on
+## pane.focused and on worktree create/open, throttled to once per pane per
+## 30s, and a manual refresh is a palette entry away.
+[[keys.command]]
+key = "prefix+shift+o"
+type = "shell"
+command = "herdr plugin action invoke open-pr --plugin gh-pr"
+
+# Deliberately unbound — all reachable through prefix+p:
+#   ghzinga            its `open` action reads HERDR_PLUGIN_CLICKED_URL, which
+#                      only link-handler dispatch populates. Ctrl-click a
+#                      github.com issue or PR link instead; no binding needed.
+#   collie             workspace lifecycle only (start/stop/url/status), run
+#                      rarely and never in a hurry.
+#   workspace-manager  apply/validate are occasional, and `remove-gone` deletes
+#                      worktrees — a preview-first action does not belong one
+#                      keypress from your fingers.
+#   worktree-setup     no actions at all; it is purely a worktree.created hook.

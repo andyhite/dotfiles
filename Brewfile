@@ -87,3 +87,18 @@ cask "font-monaspace"
 # output, powerline separators in the prompt); this is the one font both need.
 cask "font-jetbrains-mono-nerd-font"
 cask "1password-cli"
+# AeroSpace — i3-like tiling window manager, configured by
+# config/aerospace/aerospace.toml. macOS-only by nature, which is also why the
+# Linux branch of install.sh has no counterpart.
+#
+# From the author's tap; it isn't in homebrew/core. Newer Homebrew gates
+# non-official taps behind a trust check that `brew bundle` can't answer, so
+# prepare a fresh machine for an unattended run with:
+#
+#   brew trust --cask nikitabobko/tap/aerospace
+#
+# Installing the cask does not launch it: config/aerospace/aerospace.toml sets
+# start-at-login = false, and nothing here runs `open -a AeroSpace`. Starting
+# it is a deliberate act.
+tap "nikitabobko/tap"
+cask "aerospace"
