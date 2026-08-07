@@ -1,0 +1,143 @@
+# Git config — tracked identity, LFS/xet wiring, and defaults that hold on
+# every machine. Anything that varies per machine (work identity, private
+# registry credentials, credential rewrites) belongs in ~/.gitconfig.local,
+# pulled in by the [include] at the bottom — never in this file.
+
+[user]
+	name = Andrew Hite
+	email = andy@andyhite.com
+[init]
+	defaultBranch = main
+
+# ── Git LFS / xet ────────────────────────────────────────────────────────────
+# git-lfs writes this filter into every repo's local config too, but it also
+# has to exist globally for `git clone`/`git lfs clone` to hydrate LFS files
+# in a repo before that repo's own hooks have run.
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+# git-xet is a Git LFS custom transfer agent — faster than LFS's default HTTP
+# transfer for repos that opt into it via their own .lfsconfig.
+[lfs "customtransfer.xet"]
+	path = git-xet
+	args = transfer
+	concurrent = true
+
+# ── Credentials ──────────────────────────────────────────────────────────────
+# https auth for github.com/gist.github.com goes through gh's own credential
+# helper instead of a stored token. This block used to sit next to a
+# `[url "https://<token>@github.com/"] insteadOf = https://github.com/`
+# rewrite that put a long-lived PAT in plaintext in this file — dropping it is
+# a strict improvement, since the helpers below already cover https auth
+# without ever writing a token to disk.
+# `gh` is resolved from PATH here, not the Homebrew-prefix absolute path
+# `gh`'s own installer used to bake in on this machine — this file also needs
+# to work on Linux, where that prefix doesn't exist.
+[credential "https://github.com"]
+	helper =
+	helper = !gh auth git-credential
+[credential "https://gist.github.com"]
+	helper =
+	helper = !gh auth git-credential
+
+# ── Quality-of-life defaults ─────────────────────────────────────────────────
+# core.excludesFile is deliberately unset: git already reads
+# $XDG_CONFIG_HOME/git/ignore by default when the variable isn't set, and
+# that's exactly config/git/ignore, symlinked to ~/.config/git/ignore. Setting
+# it here would just be a second, redundant place for that path to drift out
+# of sync with install.sh's symlink.
+[push]
+	# First push of a new branch creates its upstream automatically — no more
+	# `git push -u origin <branch>` on every new branch.
+	autoSetupRemote = true
+	# `git push` also pushes annotated tags reachable from what's pushed,
+	# without needing `--follow-tags` spelled out every time.
+	followTags = true
+[pull]
+	# `git pull` rebases local commits onto upstream instead of merging, to
+	# match the rebase-oriented settings below and keep history linear.
+	rebase = true
+[rebase]
+	# Stashes a dirty worktree before an interactive rebase and pops it after,
+	# instead of refusing to start.
+	autoStash = true
+	# Honors `fixup!`/`squash!` commit-message prefixes automatically during
+	# `git rebase -i`, no `--autosquash` flag needed.
+	autoSquash = true
+	# Moves dependent branch refs along with the commits they point at when
+	# rebasing a stack (git 2.38+), instead of leaving them pointing at the
+	# old, now-abandoned commits.
+	updateRefs = true
+[fetch]
+	# Deletes local remote-tracking branches whose upstream branch was
+	# deleted, instead of letting stale refs pile up forever.
+	prune = true
+	# Same, for tags whose upstream tag was deleted or moved. Only takes
+	# effect because fetch.prune is also on.
+	pruneTags = true
+[merge]
+	# Conflict markers also show the common-ancestor text, not just both
+	# sides — usually enough to see the actual change without reaching for a
+	# merge tool.
+	conflictStyle = zdiff3
+[diff]
+	# Produces more readable hunks than the default myers algorithm,
+	# especially across reordered code.
+	algorithm = histogram
+	# Highlights moved lines as moved rather than as a delete+add pair, so a
+	# refactor doesn't read like a wholesale rewrite.
+	colorMoved = default
+	# Replaces the a/ b/ diff prefixes with mnemonic i/ (index) o/ (old)
+	# w/ (worktree) c/ (commit) — easier to tell which side of a diff you're
+	# looking at.
+	mnemonicPrefix = true
+	# Detects copies in addition to renames (the default only looks for
+	# renames), catching copy-then-modify patterns too.
+	renames = copies
+[rerere]
+	# Records how a conflict was resolved so an identical conflict
+	# auto-resolves next time — mainly useful when rebasing the same branch
+	# over the same base repeatedly.
+	enabled = true
+	# Stages rerere's auto-resolved result instead of leaving it unstaged to
+	# `git add` by hand.
+	autoupdate = true
+[branch]
+	# `git branch` lists the most recently committed-to branch first,
+	# instead of alphabetically.
+	sort = -committerdate
+[tag]
+	# `git tag` lists in semantic-version order (v9 before v10) instead of
+	# lexicographic.
+	sort = version:refname
+[column]
+	# Multi-column output for branch/tag/status listings when the terminal
+	# is wide enough to use it.
+	ui = auto
+[commit]
+	# Includes the diff being committed as a comment in the message editor
+	# buffer, so you can see what you're describing while writing it.
+	verbose = true
+[help]
+	# Offers to run the intended command on a typo'd subcommand instead of
+	# just failing. "prompt" asks first; "immediate" would run it
+	# unconfirmed.
+	autocorrect = prompt
+[core]
+	# Perf: watches the filesystem for changes instead of stat-ing every
+	# tracked file on every git operation. Needs git 2.37+ for the builtin
+	# monitor — older git silently ignores this setting rather than erroring.
+	fsmonitor = true
+	# Perf: caches which directories have no untracked files between
+	# operations, cutting status/diff time on large trees. Relies on
+	# fsmonitor (or reliable mtimes) to know when to invalidate — both are
+	# already satisfied above.
+	untrackedCache = true
+
+# Included last, not first: git applies repeated keys in file order, so
+# anything ~/.gitconfig.local sets after this point wins over every default
+# above — a per-machine override without editing this tracked file.
+[include]
+	path = ~/.gitconfig.local

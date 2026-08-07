@@ -1,0 +1,173 @@
+// Zed settings
+//
+// For information on how to configure Zed, see the Zed
+// documentation: https://zed.dev/docs/configuring-zed
+//
+// To see all of Zed's default settings without changing your
+// custom settings, run `zed: open default settings` from the
+// command palette (cmd-shift-p / ctrl-shift-p)
+//
+// ssh_connections is deliberately not tracked here: it's per-machine session
+// state (Zed rewrites it as you connect/disconnect) and the entries on this
+// machine hardcode work project paths that don't exist on a fresh checkout.
+// Reconnecting to a host from the command palette regenerates it locally.
+{
+  "vim": {
+    "use_system_clipboard": "always"
+  },
+  "use_system_window_tabs": false,
+  "debugger": {
+    "button": false
+  },
+  "diagnostics": {
+    "button": false
+  },
+  "status_bar": {
+    "show_active_file": true
+  },
+  "collaboration_panel": {
+    "button": false
+  },
+  "project_panel": {
+    "hide_hidden": false,
+    "hide_root": false,
+    "git_status_indicator": true,
+    "diagnostic_badges": true,
+    "auto_fold_dirs": false,
+    "bold_folder_labels": true,
+    "entry_spacing": "comfortable",
+    "hide_gitignore": false,
+    "dock": "left"
+  },
+  // Agents are driven from the terminal via omp, not from inside the editor —
+  // this is the one setting in this file that actually changes Zed's
+  // behaviour rather than just its appearance. With it true, the `agent`,
+  // `agent_servers` and `agent_buffer_font_size` keys below have nothing left
+  // to configure, so they're dropped rather than tracked as dead config.
+  "disable_ai": true,
+  "diff_view_style": "split",
+  "cli_default_open_behavior": "existing_window",
+  "buffer_font_fallbacks": [
+    "Menlo",
+    "Monaco",
+    "Courier New",
+    "monospace"
+  ],
+  "file_types": {
+    "markdown": [
+      "*.mdx"
+    ]
+  },
+  "ensure_final_newline_on_save": true,
+  "hard_tabs": false,
+  "git": {
+    "hunk_style": "staged_hollow",
+    "inline_blame": {
+      "show_commit_summary": true
+    }
+  },
+  "terminal": {
+    "button": false,
+    "env": {},
+    "font_size": 12.0,
+    "shell": "system"
+  },
+  "git_panel": {
+    "dock": "left",
+    "tree_view": true,
+    "sort_by_path": true,
+    "button": true
+  },
+  "tab_bar": {
+    "show_tab_bar_buttons": true
+  },
+  "tabs": {
+    "file_icons": true,
+    "git_status": true
+  },
+  "title_bar": {
+    "button_layout": "platform_default",
+    "show_user_picture": true,
+    "show_sign_in": true,
+    "show_branch_status_icon": true,
+    "show_menus": false
+  },
+  "search": {
+    "regex": true
+  },
+  "prettier": {
+    "allowed": true
+  },
+  "inlay_hints": {
+    "enabled": true
+  },
+  "colorize_brackets": true,
+  "indent_guides": {
+    "coloring": "indent_aware"
+  },
+  "tab_size": 2,
+  "toolbar": {
+    "code_actions": true
+  },
+  "minimap": {
+    "thumb": "always",
+    "show": "auto"
+  },
+  "sticky_scroll": {
+    "enabled": true
+  },
+  "languages": {
+    "TypeScript": {
+      "ensure_final_newline_on_save": true,
+      "hard_tabs": false,
+      "tab_size": 2,
+      "formatter": [
+        {
+          "external": {
+            "command": "npx prettier",
+            "arguments": ["--stdin-filepath", "{buffer_path}"]
+          }
+        },
+        { "code_action": "source.fixAll.eslint" },
+        { "code_action": "source.organizeImports" }
+      ]
+    }
+  },
+  "ui_font_family": ".ZedSans",
+  // Ships via the font-monaspace cask in this repo's Brewfile — install.sh's
+  // brew bundle step is what makes this font actually present on a fresh
+  // machine.
+  "buffer_font_family": "Monaspace Neon",
+  // material-icon-theme is a Zed extension, not built in. icon_theme below
+  // names it, so it has to be force-installed or a fresh machine falls back
+  // to Zed's default icons with no error.
+  "auto_install_extensions": {
+    "material-icon-theme": true
+  },
+  "icon_theme": {
+    "mode": "system",
+    "light": "Material Icon Theme",
+    "dark": "Material Icon Theme"
+  },
+  "telemetry": {
+    "diagnostics": false,
+    "metrics": false
+  },
+  "session": {
+    "trust_all_worktrees": true
+  },
+  "vim_mode": true,
+  "base_keymap": "VSCode",
+  "ui_font_size": 15.0,
+  "buffer_font_size": 12.0,
+  // Both themes ship with Zed itself, so a fresh machine renders correctly
+  // with zero extension installs. One Dark also matches the rest of this
+  // repo's dark theme (ghostty's One Dark Two, starship's One Dark Pro,
+  // atuin's one-dark) — Base16 Tomorrow Night was a one-off that didn't match
+  // anything else here.
+  "theme": {
+    "mode": "system",
+    "light": "One Light",
+    "dark": "One Dark"
+  }
+}

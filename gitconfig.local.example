@@ -1,0 +1,28 @@
+# Copy to ~/.gitconfig.local (outside the repo — never committed) and fill in
+# per-machine identity and credentials. gitconfig pulls this in automatically
+# via the trailing `[include] path = ~/.gitconfig.local` — includes apply in
+# file order and that one comes last, so anything set here overrides the
+# defaults in the tracked file without editing it.
+#
+# chmod 600 ~/.gitconfig.local if it ends up holding credentials.
+
+# ── Work identity ────────────────────────────────────────────────────────────
+# Scope a different name/email to a whole tree of work checkouts, so work
+# commits don't inherit the personal identity from the tracked gitconfig.
+# gitdir includeIf matches on the repo's on-disk path, not its remote URL, so
+# it also covers a personal fork cloned under the same work tree.
+# [includeIf "gitdir:~/Code/acme/"]
+# 	path = ~/.gitconfig-acme
+#
+# ~/.gitconfig-acme then only needs the override itself:
+# [user]
+# 	name = Andrew Hite
+# 	email = andrew.hite@acme.com
+
+# ── Credentials / private registries ────────────────────────────────────────
+# Anything credential-bearing goes here, never in the tracked gitconfig:
+#   - a `[url "https://<token>@host/"] insteadOf = https://host/` rewrite for
+#     a private registry or self-hosted git server
+#   - an extra [credential "https://..."] helper for a host gh doesn't cover
+# This file is gitignored (*.local) and lives outside the repo once copied to
+# ~/.gitconfig.local, so secrets here never end up in a commit.

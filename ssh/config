@@ -1,0 +1,46 @@
+# Portable identity config — safe on every machine, no per-machine paths or
+# throwaway hosts. Anything machine-specific (dstack's generated Include, work
+# box shortcuts, disposable test hosts) lives in ~/.ssh/config.local instead;
+# see ssh/config.local.example for the template.
+
+# ssh takes the FIRST value it finds for any given option, so this Include has
+# to come before every Host block below — it's the only way config.local can
+# override something (e.g. a different IdentityFile for github.com on a work
+# laptop) instead of being silently shadowed by the blocks in this file. A
+# missing Include target is not an error in ssh_config, so this line is safe
+# on a fresh machine before config.local exists.
+Include ~/.ssh/config.local
+
+# IdentitiesOnly stops ssh from offering every key already in the agent before
+# the one named here. Without it, whichever identity the agent happens to offer
+# first wins the handshake, so a push to an andyhite repo could authenticate as
+# andyhite-circuit and 403.
+#
+# UseKeychain is macOS-only (it tells ssh to store/retrieve the passphrase in
+# the system Keychain); ssh on Linux ignores the keyword rather than erroring,
+# so this file doesn't need a per-OS variant.
+Host github.com
+  HostName github.com
+  AddKeysToAgent yes
+  UseKeychain yes
+  IdentityFile ~/.ssh/github_circuit
+  IdentitiesOnly yes
+
+Host github.com-personal
+  HostName github.com
+  AddKeysToAgent yes
+  UseKeychain yes
+  IdentityFile ~/.ssh/github_personal
+  IdentitiesOnly yes
+
+Host hf.co
+  HostName hf.co
+  AddKeysToAgent yes
+  UseKeychain yes
+  IdentityFile ~/.ssh/huggingface
+
+Host runpod.io
+  HostName runpod.io
+  AddKeysToAgent yes
+  UseKeychain yes
+  IdentityFile ~/.ssh/runpod

@@ -1,0 +1,45 @@
+# The current version of the config schema
+version: 1
+# What protocol to use when performing git operations. Supported values: ssh, https
+#
+# Deliberately https, not ssh: ~/.ssh/config maps github.com to the work SSH
+# key with `IdentitiesOnly yes` for a different reason (see ssh/config), which
+# means an ssh remote here would silently authenticate as the wrong account.
+# https instead goes through gh's credential helper (wired into gitconfig's
+# [credential] blocks), which authenticates as whichever gh account is
+# currently active via `gh auth switch`.
+git_protocol: https
+# What editor gh should run when creating issues, pull requests, etc. If blank, will refer to environment.
+editor:
+# When to interactively prompt. This is a global config that cannot be overridden by hostname. Supported values: enabled, disabled
+prompt: enabled
+# Preference for editor-based interactive prompting. This is a global config that cannot be overridden by hostname. Supported values: enabled, disabled
+prefer_editor_prompt: disabled
+# A pager program to send command output to, e.g. "less". If blank, will refer to environment. Set the value to "cat" to disable the pager.
+pager:
+# Aliases allow you to create nicknames for gh commands
+aliases:
+    co: pr checkout
+    pv: pr view --web
+    prs: pr list
+    il: issue list
+    rv: pr review
+# The path to a unix socket through which send HTTP connections. If blank, HTTP traffic will be handled by net/http.DefaultTransport.
+http_unix_socket:
+# What web browser gh should use when opening URLs. If blank, will refer to environment.
+browser:
+# Whether to display labels using their RGB hex color codes in terminals that support truecolor. Supported values: enabled, disabled
+#
+# Ghostty is truecolor, so gh's hex label colors render correctly instead of
+# falling back to the nearest 4-bit approximation.
+color_labels: enabled
+# Whether customizable, 4-bit accessible colors should be used. Supported values: enabled, disabled
+accessible_colors: disabled
+# Whether an accessible prompter should be used. Supported values: enabled, disabled
+accessible_prompter: disabled
+# Whether to use a animated spinner as a progress indicator. If disabled, a textual progress indicator is used instead. Supported values: enabled, disabled
+spinner: enabled
+
+# Per-host settings — which account is active, its OAuth token — live in the
+# untracked ~/.config/gh/hosts.yml, kept out of this file because it holds
+# tokens. Those settings override anything set here on a per-host basis.
