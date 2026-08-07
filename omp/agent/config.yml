@@ -1,0 +1,97 @@
+providers: 
+  webSearchOrder: 
+    []
+  memoryModel: online
+modelRoles: 
+  default: anthropic/claude-opus-5
+symbolPreset: nerd
+theme: 
+  dark: dark-one
+  light: light-one
+setupVersion: 1
+dev: 
+  autoqaConsent: granted
+statusLine: 
+  preset: nerd
+  separator: slash
+terminal: 
+  showProgress: true
+tui: 
+  textSizing: false
+  codexResetFireworks: true
+  tight: false
+  scrollbackRebuild: true
+  imeSafeCursor: false
+display: 
+  shimmer: classic
+  showTokenUsage: true
+task: 
+  showResolvedModelBadge: true
+  eager: preferred
+personality: pragmatic
+retry: 
+  usageAwareFallback: true
+interruptMode: immediate
+followUpMode: all
+steeringMode: all
+loop: 
+  mode: reset
+doubleEscapeAction: tree
+error: 
+  notify: "on"
+collab: 
+  displayName: andyhite
+marketplace: 
+  autoUpdate: auto
+startup: 
+  changelogMode: summary
+features: 
+  unexpectedStopDetection: true
+compaction: 
+  strategy: snapcompact
+  handoffSaveToDisk: true
+ttsr: 
+  contextMode: discard
+  repeatMode: after-gap
+memory: 
+  backend: mnemopi
+autolearn: 
+  enabled: true
+mnemopi: 
+  proactiveLinking: true
+  enhancedRecall: true
+  polyphonicRecall: true
+edit: 
+  mode: hashline
+readLineNumbers: true
+read: 
+  renderMarkdown: true
+  toolResultPreview: true
+lsp: 
+  formatOnWrite: false
+bash: 
+  autoBackground: 
+    enabled: true
+  direnv: auto
+bashInterceptor: 
+  enabled: true
+astGrep: 
+  enabled: true
+computer: 
+  enabled: true
+checkpoint: 
+  enabled: true
+github: 
+  enabled: true
+web_search: 
+  enabled: true
+todo: 
+  eager: preferred
+browser: 
+  relay: true
+plan: 
+  defaultOnStartup: false
+commands: 
+  enableClaudeUser: true
+secrets: 
+  enabled: true
