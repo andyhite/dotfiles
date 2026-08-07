@@ -110,7 +110,7 @@ format = '[ $user ]($style)'
 [hostname]
 ssh_only = true
 style = "bold bg:color_red0 fg:syntax_bg"
-format = '[@$hostname]($style) '
+format = '[@$hostname ]($style)'
 
 # Module that displays the current directory.
 [directory]
