@@ -1,3 +1,6 @@
+# Top-level keys must precede the first table header.
+onboarding = false
+
 [ui.toast]
 delivery = "system"
 
