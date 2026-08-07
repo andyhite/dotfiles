@@ -327,22 +327,17 @@ if command -v nvim >/dev/null 2>&1; then
   # pattern and blocks on it, so it's safe before +qa — verified this
   # actually downloads every configured plugin, not just a partial set.
   #
-  # NvChad's own quickstart docs say to also run :MasonInstallAll and
-  # :TSInstallAll after this. Both are stale advice for the current
-  # starter: MasonInstallAll doesn't exist in mason.nvim at all, and
-  # TSInstallAll silently no-ops (current nvim-treesitter only has
-  # `:TSInstall <lang>`, and `:TSInstall all` grabs every language
-  # nvim-treesitter supports — hundreds of parsers nobody asked for, not
-  # a sane default). Neither Mason nor Treesitter auto-installs on first
-  # file-open in this config either. Install what you actually use with
-  # `:MasonInstall <server>` / `:TSInstall <lang>`, or declare an
-  # `ensure_installed` list in lua/configs/{mason,treesitter}.lua once you
-  # know what those are — that's NvChad's own "make it yours" model, not
-  # a gap this script should paper over with a guess at your stack.
+  # NvChad's quickstart also says to run :MasonInstallAll and :TSInstallAll.
+  # Both are real commands — NvChad defines them in the NvChad/ui plugin
+  # (lua/nvchad/au.lua), not in mason.nvim or nvim-treesitter, which is why
+  # they're absent from those plugins' own docs. Neither can run from here
+  # though: NvChad gates plugin loading on UIEnter, and --headless has no
+  # UI, so nvim-lspconfig never loads and MasonInstallAll would see an
+  # empty server list. They have to be run from a real nvim session.
   nvim --headless "+Lazy! sync" +qa 2>&1 | tail -5 || true
 fi
 
 echo "done. Zsh plugins install on next shell start (antidote) if this is a fresh machine."
 echo "Open tmux and press prefix+I to have TPM install its plugins on first run."
-echo "nvim: plugins are synced. Install the LSP servers/parsers you actually need with"
-echo ":MasonInstall <server> and :TSInstall <lang> — see install.sh's comment for why."
+echo "nvim: plugins are synced. Open nvim and run :MasonInstallAll — it installs every"
+echo "LSP server declared in config/nvim/lua/configs/lspconfig.lua."
