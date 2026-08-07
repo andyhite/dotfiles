@@ -1,0 +1,136 @@
+# Atuin — shell history.
+#
+# Overrides only. `atuin default-config` prints the full annotated template if
+# you need to see what else is tunable; anything omitted here is deliberately
+# left at atuin's default so upstream changes flow through.
+#
+# These are also exactly the questions `atuin setup` asks, which is why
+# install.sh passes --non-interactive to the upstream installer: with the
+# answers checked in, the wizard has nothing left to decide and re-prompting on
+# every install.sh run is pure noise. Sync login is the one thing that can't be
+# committed (it's account state, not config), so install.sh handles that
+# separately and only when you aren't already logged in.
+
+## Enter runs the highlighted command instead of only placing it on the line.
+## Set explicitly rather than inherited: upstream applies this default to new
+## installs only, so an older machine would otherwise keep the old behaviour.
+enter_accept = true
+
+## Fuzzy matching evaluated in the daemon instead of opening sqlite on every
+## keystroke. Depends on [daemon] below.
+search_mode = "daemon-fuzzy"
+
+## Rounded boxes around the input, results and preview instead of compact's
+## bare lines. Unlike `auto` this never degrades: `auto` would drop back to
+## compact below 14 rows of available height, `full` keeps the borders and just
+## gets cramped, so a short tmux split is the one place it looks worse.
+##
+## The border color is deliberately absent from themes/one-dark.toml: atuin
+## builds these blocks with no border_style and has no `Border` theme meaning,
+## so the border always renders in the terminal's default foreground. That's
+## One Dark's #abb2bf via config/ghostty/config, which is why it matches
+## anyway — but it can't be dimmed to the comment grey the way a themeable
+## border could.
+style = "full"
+
+## Open the search in whichever keymap the shell was in, rather than always
+## emacs. The zsh widgets atuin installs already pass `--keymap-mode=vim-insert`
+## / `vim-normal`, but that flag is discarded unless this is "auto" — config
+## wins over the flag for every other value — so with zsh-vi-mode driving the
+## line editor, the search was opening in emacs keymap and ignoring it.
+keymap_mode = "auto"
+
+## Cursor shape per keymap, matching zsh-vi-mode's own (blinking beam in insert,
+## blinking block in normal) so entering the search doesn't change the cursor
+## and `i`/`Esc` inside it read the same as at the prompt. Atuin restores the
+## shape for the shell's keymap — not the search's — when it exits.
+keymap_cursor = { emacs = "blink-bar", vim_insert = "blink-bar", vim_normal = "blink-block" }
+
+## No update nag. Atuin arrives via Homebrew on macOS and the upstream installer
+## on Linux, both driven by install.sh, so "you're out of date" isn't actionable
+## from inside atuin. Sync isn't configured either, and this was the last thing
+## that would have talked to the network — with it off, atuin makes no outbound
+## requests at all.
+update_check = false
+
+## Adds the "workspace" filter: inside a git repo it matches commands run
+## anywhere in that repo's tree, which is the scope most searches actually want.
+## `directory` misses the sibling package you ran it in; `global` drags in every
+## other checkout.
+##
+## This is an extra stop on the ctrl-r cycle, not the new default — despite what
+## the docs imply about it auto-activating. default_filter_mode() takes the first
+## applicable entry in search.filters, and "global" is still first below. Move
+## "workspace" to the front of that list to make repo scope the default.
+workspaces = true
+
+[search]
+## The ctrl-r cycle, minus "host". Listing a mode here is what enables it at all,
+## so upstream's other five are repeated verbatim in their original order. Every
+## row in this database was recorded on this machine (sync is off), so "host"
+## matches everything and is purely a dead stop in the rotation.
+filters = ["global", "session", "session-preload", "workspace", "directory"]
+
+[ui]
+## Upstream is duration, time, command. The directory column is what separates
+## otherwise identical rows across checkouts — much of this history is
+## `./install.sh`-shaped commands whose only distinguishing feature is where they
+## ran. 24 wide rather than the default 20 so a nested checkout path survives
+## truncation; `command` still expands into whatever is left over.
+columns = ["duration", "time", { type = "directory", width = 24 }, "command"]
+
+[keys]
+## tmux.conf sets `mouse on`, which turns one scroll-wheel nudge past the last
+## result into "close the search and discard the query". Stop at the ends
+## instead.
+scroll_exits = false
+
+[stats]
+## Count `git commit` and `brew install` separately instead of collapsing them
+## to `git` and `brew`. This array REPLACES atuin's default rather than extending
+## it, so upstream's list is reproduced verbatim first (taken from the source,
+## not the docs — the docs' copy is missing `dotnet`), then the tools this repo
+## installs and drives.
+common_subcommands = [
+  "apt", "cargo", "composer", "dnf", "docker", "dotnet", "git", "go", "ip",
+  "jj", "kubectl", "nix", "nmcli", "npm", "pecl", "pnpm", "podman", "port",
+  "systemctl", "tmux", "yarn",
+  "asdf", "atuin", "brew", "bun", "gh", "herdr", "omp", "uv",
+]
+
+[tmux]
+## Draw the search in a popup floating over the current pane instead of
+## repainting the pane itself. Needs tmux >= 3.2 (3.7b here) and zsh, bash or
+## fish. The one setup this silently breaks on is iTerm2's control-mode tmux
+## integration, which can't render display-popup and can't be detected — not a
+## concern with Ghostty. Outside tmux, atuin falls back to inline rendering with
+## no error, so this is safe to leave on everywhere.
+##
+## Read by `atuin init` and passed to the shell plugin through the environment,
+## not read by the search itself, so changing this needs a new shell.
+enabled = true
+
+[logs]
+## Put the log directory next to the databases in ~/.local/share/atuin instead of
+## upstream's ~/.atuin/logs, which on a Homebrew machine is the only reason
+## ~/.atuin exists at all. The tilde is expanded by atuin — logs.dir is one of
+## the keys it runs through shellexpand.
+dir = "~/.local/share/atuin/logs"
+
+[theme]
+## Resolves to themes/one-dark.toml alongside this file, keeping atuin in the
+## same One Dark as starship, herdr, nvim and Ghostty. Set `debug = true` to
+## have atuin warn about unparseable colors on startup.
+name = "one-dark"
+
+[daemon]
+## History writes go through a background daemon rather than every shell
+## touching the database directly — this is what makes daemon-fuzzy viable.
+enabled = true
+## Started on demand by the shell init hook, so there's no separate
+## launchd/systemd unit to install per machine.
+autostart = true
+
+[ai]
+## `atuin ai` — natural-language queries over shell history.
+enabled = true

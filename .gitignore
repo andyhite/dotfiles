@@ -1,3 +1,21 @@
 .DS_Store
 *.local
 *.bak.*
+
+# Herdr plugins write runtime logs into their own config dirs (collie.log, and
+# whatever else a plugin decides to drop there). The config in that tree is
+# worth tracking; the logs aren't.
+config/herdr/plugins/config/**/*.log
+
+# omp takes a lock next to its config while writing through the symlink. It's
+# transient (and empty), so it shows up as a stray untracked file after any
+# in-app settings change.
+omp/agent/*.lock
+
+# Herdr plugin secrets. The plugin config tree is symlinked from
+# ~/.config/herdr/plugins/config, so a plugin's API keys physically land inside
+# this repo — provider.env for tab-smart-rename holds an OPENAI_API_KEY. Never
+# tracked. Keep a redacted provider.env.example in the plugin's own repo if a
+# template is needed; this file is per-machine.
+config/herdr/plugins/config/**/provider.env
+config/herdr/plugins/config/**/*.env
