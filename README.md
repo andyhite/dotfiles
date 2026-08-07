@@ -16,6 +16,7 @@ NvChad for editing.
 | `config/herdr/config.toml` | `~/.config/herdr/config.toml` | Herdr (agent terminal workspace manager), `one-dark` theme + accent/border overrides |
 | `config/ghostty/config` | `~/.config/ghostty/config` | Ghostty terminal: `One Dark Two` theme, shell integration — same path on macOS and Linux |
 | `config/nvim` | `~/.config/nvim` | [NvChad](https://nvchad.com) starter — vendored once, `.git` stripped, fully mine to edit from here |
+| `omp/agent/config.yml` | `~/.omp/agent/config.yml` | [omp](https://omp.sh) coding agent settings — only this file; the rest of `~/.omp/agent` is databases, sessions, and a secrets key |
 | `zshrc.local.example` | (copy, not linked) | template for machine-local secrets — never committed |
 | `install.sh` | — | installs/updates every tool below, then symlinks all the config above into place |
 
@@ -30,8 +31,8 @@ git clone https://github.com/andyhite/dotfiles.git ~/dotfiles
 updates what's already there):
 
 1. **Installs/updates the tools this config drives**: starship, zellij, zoxide, atuin,
-   fzf, eza, bat, tmux, antidote, TPM, the JetBrains Mono Nerd Font, neovim,
-   ripgrep, tree-sitter-cli, and NvChad. macOS goes through Homebrew (formulae + casks,
+   fzf, eza, bat, direnv, tmux, antidote, TPM, the JetBrains Mono Nerd Font, neovim,
+   ripgrep, tree-sitter-cli, omp, and NvChad. macOS goes through Homebrew (formulae + casks,
    including Ghostty itself); Linux goes through `apt` where a package exists, and falls
    back to each tool's official installer otherwise:
    - starship/atuin ship curl-able install scripts.
@@ -51,6 +52,9 @@ updates what's already there):
      (`config/nvim`), strips its `.git` immediately per NvChad's own docs, then
      symlinks it like everything else — so all my NvChad customization lives here too,
      not in some separate untracked directory.
+   - omp: install-only, via the installer at [omp.sh](https://omp.sh) — the binary is
+     ~120MB and ships its own `omp update`, so re-running this script skips it rather
+     than re-downloading.
 
    Ghostty itself is only installed on macOS — it's a local GUI app, so there's nothing
    to install on a headless remote box, though its config still gets symlinked in case

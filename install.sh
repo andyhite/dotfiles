@@ -43,6 +43,23 @@ ensure_nvchad() {
   rm -rf "$DOTFILES_DIR/config/nvim/.git"
 }
 
+# ── Cross-platform via upstream installer ───────────────────────────────────
+
+ensure_omp() {
+  # https://omp.sh — coding agent. The upstream installer handles both OSes and
+  # drops the binary in ~/.local/bin (override with PI_INSTALL_DIR).
+  #
+  # Install-only, unlike everything else here: the binary is ~120MB, and omp
+  # ships its own `omp update` for upgrades. Re-downloading it on every run of
+  # this script would be a slow no-op.
+  if command -v omp >/dev/null 2>&1; then
+    echo "omp: already installed ($(omp --version 2>/dev/null | head -1)) — upgrade with 'omp update'"
+    return
+  fi
+  echo "omp: installing"
+  curl -fsSL https://omp.sh/install | sh
+}
+
 # ── Cross-platform via GitHub releases (no package manager needed) ─────────
 
 ensure_tree_sitter_cli() {
@@ -114,6 +131,7 @@ install_tools_macos() {
   ensure_tpm
   ensure_tree_sitter_cli
   ensure_nvchad
+  ensure_omp
 }
 
 # ── Linux: apt + native installers ──────────────────────────────────────────
@@ -246,6 +264,7 @@ install_tools_linux() {
   ensure_tpm
   ensure_nerd_font_linux
   ensure_nvchad
+  ensure_omp
   # Ghostty itself is a local GUI app — install it on the machine it actually
   # runs on (macOS, via the branch above). Nothing to install here on a
   # headless/remote Linux box; its config still gets symlinked below in case
@@ -272,6 +291,10 @@ links=(
   "config/herdr/config.toml:$HOME/.config/herdr/config.toml"
   "config/ghostty/config:$HOME/.config/ghostty/config"
   "config/nvim:$HOME/.config/nvim"
+  # Only the settings file — ~/.omp/agent also holds databases, sessions and a
+  # secrets key, none of which belong in a repo. omp writes through the
+  # symlink, so changes made in-app show up as diffs here.
+  "omp/agent/config.yml:$HOME/.omp/agent/config.yml"
 )
 
 for pair in "${links[@]}"; do

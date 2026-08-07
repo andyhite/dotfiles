@@ -8,3 +8,13 @@ shell-integration-features = cursor,sudo,title,ssh-env,ssh-terminfo
 
 window-padding-x = 10
 window-padding-y = 10
+
+# Every new window opens as a non-native fullscreen modal: covers the menu
+# bar, no animation, stays on the current Space. Tabs are unavailable in
+# this mode (macOS tabs need a titlebar) -- use splits instead.
+fullscreen = non-native
+
+# Global show/hide (works even when Ghostty isn't focused). macOS needs
+# Accessibility permission; Linux needs a DE implementing the XDG Global
+# Shortcuts protocol (GNOME 48+, KDE 5.27+) and silently skips it otherwise.
+keybind = global:ctrl+enter=toggle_visibility
