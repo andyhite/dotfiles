@@ -1,5 +1,32 @@
 # Copy to ~/.zshrc.local (outside the repo — never committed) and fill in
-# per-machine secrets. zshrc sources this automatically if it exists.
+# per-machine secrets and paths. zshrc sources this automatically if it exists,
+# after PATH/asdf/compinit and before the tool blocks that read these values.
+#
+# chmod 600 ~/.zshrc.local — it holds credentials.
+
+# ── Secrets ──────────────────────────────────────────────────────────────────
 # export ANTHROPIC_API_KEY='sk-ant-...'
 # export OPENAI_API_KEY='sk-proj-...'
-# export GH_TOKEN='ghp_...'
+# export GITHUB_PERSONAL_ACCESS_TOKEN='github_pat_...'
+# export JIRA_API_TOKEN='ATATT...'
+# export FIGMA_ACCESS_TOKEN='figd_...'
+# export RUNPOD_API_KEY='rpa_...'
+# export HF_TOKEN='hf_...'
+
+# ── Work context ─────────────────────────────────────────────────────────────
+# Root of your work checkouts. Setting this enables zshrc's Claude Code
+# profile switcher (work vs personal config dir, switched on cwd).
+# export CLAUDE_WORK_PATH="$HOME/Code/acme"
+
+# export AWS_PROFILE='...'
+# export AWS_REGION='us-east-2'
+
+# ── Machine-specific build flags ─────────────────────────────────────────────
+# Each `brew --prefix` is a subprocess on every shell start — only add the
+# ones you actually build against.
+# export LDFLAGS="-L$(brew --prefix tcl-tk@8)/lib"
+# export CPPFLAGS="-I$(brew --prefix tcl-tk@8)/include"
+# export PKG_CONFIG_PATH="$(brew --prefix tcl-tk@8)/lib/pkgconfig"
+
+# Apple Silicon: let unimplemented MPS ops fall back to CPU instead of erroring.
+# export PYTORCH_ENABLE_MPS_FALLBACK=1

@@ -7,6 +7,10 @@ set -euo pipefail
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OS="$(uname -s)"
 
+# Everything installed without a package manager lands here, and zshrc puts it
+# on PATH. Create it up front so no installer has to guess.
+mkdir -p "$HOME/.local/bin"
+
 # ── git-based tools (identical on every OS) ─────────────────────────────────
 
 ensure_antidote() {
@@ -102,7 +106,8 @@ brew_ensure_cask() {
 
 install_tools_macos() {
   command -v brew >/dev/null 2>&1 || { echo "Homebrew not found — install from https://brew.sh first"; return 1; }
-  for f in starship zellij zoxide atuin fzf eza bat tmux neovim ripgrep; do brew_ensure "$f"; done
+  # direnv is required by zshrc's hook; the rest are what the configs call out.
+  for f in starship zellij zoxide atuin fzf eza bat direnv tmux neovim ripgrep; do brew_ensure "$f"; done
   brew_ensure_cask ghostty
   brew_ensure_cask font-jetbrains-mono-nerd-font
   ensure_antidote
@@ -113,12 +118,19 @@ install_tools_macos() {
 
 # ── Linux: apt + native installers ──────────────────────────────────────────
 
+# Returns 1 (without aborting the caller) when the package doesn't exist in
+# this release's archive — eza, for one, only landed in Ubuntu 24.04, and a
+# hard failure there would kill the whole run under `set -e`.
 apt_ensure() {
   if dpkg -s "$1" &>/dev/null; then
     echo "$1: upgrading"; sudo apt-get install --only-upgrade -y "$1" >/dev/null
-  else
-    echo "$1: installing"; sudo apt-get install -y "$1" >/dev/null
+    return 0
   fi
+  if ! apt-cache show "$1" &>/dev/null; then
+    echo "$1: not in this distro's archive — skipping"
+    return 1
+  fi
+  echo "$1: installing"; sudo apt-get install -y "$1" >/dev/null
 }
 
 ensure_rustup() {
@@ -204,10 +216,22 @@ ensure_nerd_font_linux() {
 install_tools_linux() {
   if command -v apt-get >/dev/null 2>&1; then
     sudo apt-get update -y >/dev/null
-    for p in zoxide eza bat tmux unzip ripgrep ncurses-bin; do apt_ensure "$p"; done
+    # zsh: the shell these dotfiles configure, not guaranteed on a minimal box.
+    # fzf: apt's build may predate `fzf --zsh`; zshrc falls back to the
+    #      key-binding scripts apt drops in /usr/share, so old is fine.
+    # build-essential/pkg-config: needed by the cargo builds below.
+    # fontconfig: fc-list/fc-cache for the Nerd Font install.
+    # ncurses-bin: infocmp, for ghostty's ssh-terminfo shell integration.
+    for p in zsh git curl zoxide eza bat fzf direnv tmux unzip ripgrep \
+             fontconfig ncurses-bin build-essential pkg-config; do
+      apt_ensure "$p" || true
+    done
   else
-    echo "no apt-get found — skipping distro packages (zoxide/eza/bat/tmux/ripgrep/ncurses-bin); install manually"
+    echo "no apt-get found — skipping distro packages; install manually"
   fi
+
+  # eza predates its Ubuntu packaging (24.04+); build it where apt can't.
+  command -v eza >/dev/null 2>&1 || cargo_ensure_latest eza
 
   echo "starship: installing/updating (official installer always fetches latest)"
   curl -sS https://starship.rs/install.sh | sh -s -- --yes --bin-dir "$HOME/.local/bin"

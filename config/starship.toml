@@ -2,7 +2,7 @@
 
 # Configures the format of the prompt.
 format = """
-[](color_red0)\
+[](color_red0)\
 $os\
 $username\
 $hostname\
