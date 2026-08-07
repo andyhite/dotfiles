@@ -123,4 +123,4 @@ Edit the files in this repo directly — they're the real config, not copies, si
 everything under `$HOME` is a symlink back here. Commit and push like normal, then run
 `install.sh` (or just `git pull`) on the other machine to pick it up.
 
-`master` is protected — push a branch and open a PR rather than pushing directly.
+`main` is protected — push a branch and open a PR rather than pushing directly.
