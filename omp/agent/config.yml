@@ -26,12 +26,39 @@ setupVersion: 1
 dev: 
   autoqaConsent: granted
 statusLine: 
-  preset: nerd
+  preset: custom
   separator: slash
   showHookStatus: true
   compactThinkingLevel: true
   transparent: false
   sessionAccent: true
+  leftSegments: 
+    - pi
+    - hostname
+    - path
+    - git
+    - pr
+  rightSegments: 
+    - model
+    - mode
+    - subagents
+    - cost
+    - usage
+    - context_pct
+  segmentOptions: 
+    model: 
+      showThinkingLevel: false
+    path: 
+      abbreviate: true
+      maxLength: 60
+    git: 
+      showBranch: true
+      showStaged: true
+      showUnstaged: true
+      showUntracked: true
+    time: 
+      format: 24h
+      showSeconds: true
 terminal: 
   showProgress: true
 tui: 
@@ -52,7 +79,7 @@ retry:
   usageAwareFallback: true
   modelFallback: true
   fallbackRevertPolicy: cooldown-expiry
-  fallbackChains:
+  fallbackChains: 
     default: 
       - cursor/claude-opus-5-high
       - openai-codex/gpt-5.6-terra:high
@@ -99,6 +126,7 @@ marketplace:
   autoUpdate: auto
 startup: 
   changelogMode: summary
+  quiet: true
 features: 
   unexpectedStopDetection: true
 compaction: 

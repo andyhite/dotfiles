@@ -20,6 +20,28 @@ enter_accept = true
 ## keystroke. Depends on [daemon] below.
 search_mode = "daemon-fuzzy"
 
+## Up-arrow opens the search scoped to this shell session; ctrl-r is unaffected
+## and keeps whatever [search].filters puts first. "session-preload" matches
+## this session's commands OR anything recorded before the session started.
+## Every row of this session is newer than its own start, so those sort to the
+## top of the list and the rest of history follows underneath as an archive —
+## roughly what bare zsh up-arrow does with a HISTFILE. What it drops is the
+## middle: rows written by *other* sessions while this one has been open, which
+## is exactly what buries your own recent commands when several agent shells log
+## into this database concurrently. Author filtering wouldn't help there — the
+## interactive search hides known agents (claude-code, codex, copilot,
+## opencode, pi) and omp isn't one of them, so its commands count as yours.
+filter_mode_shell_up_key_binding = "session-preload"
+
+## Sqlite search engine for the up-arrow search only; ctrl-r still gets
+## daemon-fuzzy from search_mode above. The daemon's index has no equivalent of
+## session-preload's "or older than this session" clause and collapses the mode
+## to plain session, so under the daemon the pre-session archive would vanish
+## the moment you typed a character. An empty query is routed straight to
+## sqlite by every engine, so this only changes what happens once you start
+## filtering.
+search_mode_shell_up_key_binding = "fuzzy"
+
 ## Rounded boxes around the input, results and preview instead of compact's
 ## bare lines. Unlike `auto` this never degrades: `auto` would drop back to
 ## compact below 14 rows of available height, `full` keeps the borders and just
@@ -69,6 +91,11 @@ workspaces = true
 ## so upstream's other five are repeated verbatim in their original order. Every
 ## row in this database was recorded on this machine (sync is off), so "host"
 ## matches everything and is purely a dead stop in the rotation.
+##
+## Order sets the ctrl-r default ("global", first applicable entry); the up-arrow
+## default is filter_mode_shell_up_key_binding above, which is read directly and
+## doesn't need to appear here — it's listed anyway so rotating out of it and
+## back lands on the same set of modes.
 filters = ["global", "session", "session-preload", "workspace", "directory"]
 
 [ui]
@@ -95,7 +122,7 @@ common_subcommands = [
   "apt", "cargo", "composer", "dnf", "docker", "dotnet", "git", "go", "ip",
   "jj", "kubectl", "nix", "nmcli", "npm", "pecl", "pnpm", "podman", "port",
   "systemctl", "tmux", "yarn",
-  "asdf", "atuin", "brew", "bun", "gh", "herdr", "omp", "uv",
+  "atuin", "brew", "bun", "gh", "herdr", "mise", "omp", "uv",
 ]
 
 [tmux]
