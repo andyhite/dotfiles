@@ -13,10 +13,13 @@ NvChad for editing.
 | `zsh_plugins.txt` | `~/.zsh_plugins.txt` | antidote's plugin list (zsh-autosuggestions, zsh-syntax-highlighting, fzf-tab, zsh-vi-mode) |
 | `tmux.conf` | `~/.tmux.conf` | tmux config, plugins managed by TPM |
 | `config/starship.toml` | `~/.config/starship.toml` | prompt — One Dark Pro preset, hostname shown only over SSH |
+| `config/ghzinga/config.toml` | `~/.config/ghzinga/config.toml` | [ghzinga](https://github.com/osolmaz/ghzinga) — GitHub issue/PR viewer TUI that the herdr plugin shells out to |
 | `config/herdr/config.toml` | `~/.config/herdr/config.toml` | Herdr (agent terminal workspace manager), `one-dark` theme + accent/border overrides |
 | `herdr_plugins.txt` | (not linked — read by `install.sh`) | Herdr plugin list, one `owner/repo[@ref]` per line; `install.sh` installs/updates each one |
 | `config/herdr/plugins/config` | `~/.config/herdr/plugins/config` | per-plugin Herdr config, one directory per plugin id — the whole tree is linked, so new plugins land here on install |
+| `config/herdr/plugins/local/omp-subagents` | (not linked — `herdr plugin link`ed directly) | the `omp.subagents` Herdr plugin: read-only pane viewer for the subagent-panes feature; see [Subagent panes](#subagent-panes) below |
 | `config/ghostty/config` | `~/.config/ghostty/config` | Ghostty terminal: `One Dark Two` theme, shell integration — same path on macOS and Linux |
+| `config/aerospace/aerospace.toml` | `~/.config/aerospace/aerospace.toml` | [AeroSpace](https://nikitabobko.github.io/AeroSpace/guide) — i3-like tiling window manager. Bindings live on a `cmd+ctrl` layer rather than AeroSpace's default `alt`, which would collide with herdr; see [AeroSpace](#aerospace) below. Linked on macOS only, and `start-at-login = false` so it never runs uninvited |
 | `config/atuin/config.toml` | `~/.config/atuin/config.toml` | Atuin (shell history): overrides only — daemon, fuzzy search, full-style UI, vi keymap, tmux popup, `atuin ai`. Also the answers `atuin setup` would otherwise re-ask on every install |
 | `config/atuin/themes/one-dark.toml` | `~/.config/atuin/themes/one-dark.toml` | One Dark for Atuin; foreground colors only, background comes from Ghostty |
 | `config/nvim` | `~/.config/nvim` | [NvChad](https://nvchad.com) starter — vendored once, `.git` stripped, fully mine to edit from here |
@@ -29,8 +32,10 @@ NvChad for editing.
 | `ssh/config.local.example` | (copy, not linked) | template for `~/.ssh/config.local` — dstack's generated `Include`, throwaway test hosts. `ssh/config`'s first real line is `Include ~/.ssh/config.local`, because ssh takes the first value it finds for any option and this is the only way the local file can override rather than be shadowed |
 | `omp/agent/config.yml` | `~/.omp/agent/config.yml` | [omp](https://omp.sh) coding agent settings — besides this file and `rules/output-style.md` below, the rest of `~/.omp/agent` is databases, sessions, and a secrets key |
 | `omp/agent/extensions/atuin.ts` | `~/.omp/agent/extensions/atuin.ts` | records omp's `bash` commands into Atuin history as `--author pi` (a `KNOWN_AGENTS` name, so `$all-user` hides them), with omp's intent string as `--intent`. Hand-maintained: `atuin hook install` has no omp target |
+| `omp/agent/extensions/herdr-subagent-panes.ts` | `~/.omp/agent/extensions/herdr-subagent-panes.ts` | opens a read-only Herdr pane per omp subagent the moment it spawns, tailing its live session transcript as it works; see [Subagent panes](#subagent-panes) below |
 | `omp/agent/rules/output-style.md` | `~/.omp/agent/rules/output-style.md` | `alwaysApply: true` rule that shapes every omp response for an ADHD reader — answer first, numbered steps, one next action, no preamble or recap |
 | `Brewfile` | (not linked — read by `install.sh`) | macOS formulae + casks for every tool this config drives, applied with `brew bundle` — replaced the old hand-maintained `brew_ensure`/`brew_ensure_cask` loop |
+| `bin/tailscale` | `~/.local/bin/tailscale` | PATH shim for the Mac App Store build of Tailscale — `exec`s the bundled CLI directly, since a plain symlink to it fails at runtime (see the file itself for why). The `AltanS/collie` herdr plugin shells out to bare `tailscale`, so without this on `$PATH` its bridge can't publish itself. Linked only on macOS, and only when the App Store app is actually installed |
 | `agent_skills.txt` | (not linked — read by `install.sh`) | cross-agent skill manifest, one `<owner>/<repo> --skill <name>` per line; `install.sh` runs `npx skills add … -g -y` for each |
 | `zshrc.local.example` | (copy, not linked) | template for machine-local secrets — never committed |
 | `install.sh` | — | installs/updates every tool below, then symlinks all the config above into place |
@@ -124,8 +129,10 @@ reordering doesn't:
    a terminal is actually attached. Everything else about Atuin lives in
    `config/atuin/config.toml`; sync is account state, so it can't be committed. See
    [Atuin](#atuin) below.
-6. **Installs/updates every Herdr plugin** listed in `herdr_plugins.txt`. Skipped with a
-   note if `herdr` isn't on `PATH` — this repo configures Herdr but doesn't install it.
+6. **Installs/updates every Herdr plugin** listed in `herdr_plugins.txt`, then links any
+   plugin developed in this repo itself (`config/herdr/plugins/local/*/`, currently just
+   `omp.subagents`) straight from its working copy with `herdr plugin link`. Skipped with
+   a note if `herdr` isn't on `PATH` — this repo configures Herdr but doesn't install it.
 7. **Installs cross-agent skills**, from two sources. `agent_skills.txt` first — one
    `npx skills add <owner>/<repo> --skill <name> -g -y` per line — which needs the
    `runtimes` step above to have already put node on `PATH`, hence the ordering. Then
@@ -215,6 +222,91 @@ Apple ships GNU make 3.81, from 2006, as *both* `make` and `gnumake` — so the 
 clash, so `zshrc`'s macOS block aliases `make` to `gmake` once it finds Homebrew's copy —
 `gnumake` was never the one worth reaching for.
 
+### AeroSpace
+
+`config/aerospace/aerospace.toml` configures [AeroSpace](https://nikitabobko.github.io/AeroSpace/guide),
+an i3-like tiling window manager. Everything omitted falls back to AeroSpace's built-in
+defaults with one exception that matters: `mode.*.binding` falls back to an **empty
+table**, so that file is the complete and only source of keybindings — there is no
+inherited default set underneath it.
+
+**It does not start itself.** `start-at-login = false`, and nothing in `install.sh` runs
+`open -a AeroSpace`. Launch it deliberately, and flip that key once it's earned a place
+in the login sequence.
+
+#### The bindings are on `cmd+ctrl`, and that's forced
+
+AeroSpace's defaults are `alt`-based, following i3. They can't be kept here:
+
+| Layer | Why it's unavailable |
+|---|---|
+| `alt + <key>` | herdr's plugin layer is `prefix+alt+<key>` — `ctrl+b` *then* the alt chord as a separate keystroke. AeroSpace's event tap sees that second keystroke as a bare `alt+<key>` and swallows it before herdr gets it, taking out `alt+h`, `alt+l`, `alt+m`, `alt+d`, `alt+r`, `alt+n`, `alt+c`, `alt+v`, `alt+s` and `alt+1..9` — almost exactly AeroSpace's default set |
+| `ctrl + h/j/k/l` | bound globally by vim-herdr-navigation, via the `[[keys.command]]` blocks in `config/herdr/config.toml` |
+| `cmd + <key>` | `cmd+h` is Hide Application, `cmd+l` the address bar in every browser, `cmd+w` closes the window |
+
+`cmd+ctrl` is free. macOS only claims `ctrl+cmd+f` (native fullscreen, shadowed on
+purpose), `ctrl+cmd+space` (Character Viewer) and `ctrl+cmd+q` (Lock Screen), none of
+which are bound.
+
+Shift widens each motion from *move focus* to *move the window*, matching
+`config/herdr/config.toml`'s `focus_pane_*` vs `swap_pane_*` and vim's `<C-w>h` vs
+`<C-w>H`. Anything that would need a third modifier goes in a binding mode instead of
+growing a four-key chord.
+
+| Chord | Action | + shift |
+|---|---|---|
+| `cmd+ctrl+h/j/k/l` | focus left/down/up/right | move the window |
+| `cmd+ctrl+t/w/c/m/a` | workspace Terminal/Web/Comms/Mail/Ai | send window there and follow |
+| `cmd+ctrl+1/2/3` | scratch workspaces | send window there and follow |
+| `cmd+ctrl+tab` | last workspace | — |
+| `cmd+ctrl+n` | focus other monitor | move window to it |
+| `cmd+ctrl+f` | fullscreen (AeroSpace's, no macOS Space) | toggle floating |
+| `cmd+ctrl+r` | resize mode — bare `h/l/j/k`, `esc` to exit | — |
+| `cmd+ctrl+shift+;` | service mode — reload, flatten tree, `join-with` | — |
+
+#### Ghostty gets a workspace, not a floating window
+
+`config/ghostty/config` sets `fullscreen = non-native` and binds
+`global:ctrl+enter=toggle_visibility`, making the terminal an always-fullscreen overlay
+summonable from anywhere. Workspace `T` reproduces that and improves on it: one tiled
+window on a workspace fills the screen identically, and `cmd+ctrl+t` switches with no
+animation at all.
+
+Floating it — the obvious translation of the overlay idea — is actively worse, because
+AeroSpace has no sticky windows yet ([issue #2](https://github.com/nikitabobko/AeroSpace/issues/2)).
+A floating window still belongs to one workspace, so `ctrl+enter` from a different
+workspace would reveal an app whose window AeroSpace is holding off-screen.
+
+#### Monitor arrangement — unlike some tilers, side-by-side is fine
+
+AeroSpace parks inactive workspaces in a **bottom corner** of each monitor, so its only
+requirement is that
+[every monitor has free space in its bottom-right or bottom-left corner](https://nikitabobko.github.io/AeroSpace/guide#proper-monitor-arrangement).
+Two displays side by side satisfy that — the left one hides bottom-left, the right one
+bottom-right. No rearranging needed.
+
+This is worth stating because it is *not* a general property of macOS tilers. Ones that
+park windows off the left and right edges (paneru, for instance) are broken by a
+horizontal neighbour and need the displays stacked vertically instead.
+
+`Displays have separate Spaces` stays **enabled** here, against upstream's mild
+recommendation. Disabling it is more stable, but it makes the second monitor a black
+screen whenever anything is in native fullscreen — and native fullscreen still gets used
+for video and screen sharing.
+
+#### Validating the config without running it
+
+`aerospace reload-config --dry-run` needs a live server, which means launching the window
+manager to find out whether the file parses. The CLI parses arguments locally before
+contacting the server, though, so every command string can be checked offline: run it
+and treat `Can't connect to AeroSpace server` as success and anything else as a parse
+error. Combined with a plain `tomllib.load`, that catches bad command names, bad flags,
+bad key notations and TOML mistakes before AeroSpace ever starts.
+
+That's also why the `on-window-detected` rules are written as single-line inline tables
+rather than upstream's multi-line form — multi-line inline tables are a TOML 1.1 feature,
+and staying within 1.0 syntax keeps the file loadable by a stock parser.
+
 ### Atuin
 
 `config/atuin/config.toml` holds overrides only; run `atuin default-config` to see the
@@ -300,6 +392,152 @@ picks it up. (Flags go *after* the repo argument; `herdr plugin install --yes <r
 is a usage error.) To remove one, delete the line and run
 `herdr plugin uninstall <plugin-id>` — nothing prunes plugins automatically, since
 removing a plugin also throws away whatever config it had.
+
+A spec line can also end with `# local-only` — skipped whenever `install.sh` runs
+inside an ssh session (`$SSH_CONNECTION` set), for a plugin that only makes sense on
+the machine you physically sit at. `nikok6/herdr-mirror` is the one entry using it: it
+mirrors a *remote* herdr into this one's sidebar over ssh, which inverts the moment
+`install.sh` itself is run over ssh — installed on a box you've ssh'd into, it would
+mirror some other machine's herdr back into the session you're already viewing
+remotely.
+
+One plugin on the list is installed but not yet running: `AltanS/collie` starts
+stopped on purpose (see `config/herdr/plugins/config/herdr.collie/env.example`) —
+bring the bridge up yourself with `herdr plugin action invoke start --plugin
+herdr.collie` once `COLLIE_TRUSTED_USER`/`COLLIE_PUBLIC_HOSTS` are filled in. It needs
+the `tailscale` CLI on `$PATH` to publish itself, which `bin/tailscale` now provides
+(see the config table above) — the App Store build hides that CLI inside its own app
+bundle otherwise.
+
+`ribbons-digital/pi-herd` used to be listed here too; it's gone. It hardcoded `--name`
+and `--session-id` into every harness launch, and omp — the agent this setup drives —
+hard-errors on `unknown flags: --name, --session-id`; it also shipped a Pi-only
+extension. It couldn't drive omp without patching, so it was dropped from
+`herdr_plugins.txt` rather than carried as permanently broken.
+
+With twelve plugins and forty-two registered actions between them, keybindings stopped
+being a per-plugin question and became one decision: `command-palette`'s `open` action,
+bound to `prefix+p` — free because this config moved herdr's own `previous_tab` off it
+and onto `prefix+shift+tab` — builds its fzf list at run time from `herdr plugin action
+list`, so every action of every installed plugin is one fuzzy search away whether or not
+it has a key. Only the ones reached for constantly earn a `[[keys.command]]` entry;
+ghzinga's click-driven `open`, workspace-manager's `apply`/`validate`/`remove-gone`, and
+worktree-setup's total absence of actions all stay reachable through the palette instead
+of crowding the keymap.
+
+Herdr's packed sidebar renders only the tokens named in a `[ui.sidebar.agents]`/
+`[ui.sidebar.spaces]` row — a plugin can write a custom token correctly and still be
+invisible if nothing names it. Two plugins depend on this: `herdr-agent-inbox`
+contributes `$title`, `$flag`, `$age`, `$since`, and the workspace-level `$agents`/
+`$busy`; `gh-pr` contributes `$pr`, the branch's PR state as `#123 ✓`. Both rows are
+named in `config/herdr/config.toml` — miss one and its plugin looks broken when it's
+actually just unrendered.
+
+Three plugins now cooperate on a worktree's life, in a fixed order. `worktree.created`
+fires; `worktree-setup` runs first and makes the checkout usable — copies `.env*` from
+the main checkout, `mise trust`, `direnv allow`, installs deps — then `workspace-manager`
+applies its YAML layout for that repo/branch, arranging tabs and panes and starting the
+agent pane itself via `herdr agent start`, which blocks until herdr detects it's ready.
+Later, once a branch's PR merges and its upstream is gone, `workspace-manager`'s
+`remove-gone` action previews and clears the worktree. `reviewr` used to also open on
+`worktree.created`; two plugins independently arranging the same fresh workspace race
+each other with no clear winner, so `reviewr`'s `auto_open` is now off and
+`workspace-manager` owns that moment alone — its `issue` layout carries a review tab
+where `reviewr`'s auto-open used to land. `prefix+alt+r` still opens it by hand.
+
+### Local Herdr plugins
+
+`config/herdr/plugins/local/<id>/` holds plugins developed in this repo itself rather
+than fetched from GitHub — currently just `omp.subagents` (see [Subagent
+panes](#subagent-panes) below). `install.sh` links each one with `herdr plugin link
+<path>` instead of `herdr plugin install`: `install` only knows how to resolve a GitHub
+spec, and even a hypothetical local variant of it would have to copy the plugin out of
+the repo to install it into herdr's content-hashed plugin store, the same as every
+GitHub plugin under `~/.config/herdr/plugins/github/`. `link` instead points herdr
+straight at this working copy, so an edit here takes effect on herdr's next read with no
+reinstall step. Re-linking an already-linked plugin was checked and is a no-op success
+(`plugin_linked`, exit 0, both times) rather than an error, so — same as the GitHub loop
+above — `install.sh` just links every local plugin directory on every run instead of
+detecting "already linked" itself.
+
+They're not listed in `herdr_plugins.txt`: that file's `<owner>/<repo>[@ref]` line format
+has no way to spell a local path, and there's no ref to pin against a repo that isn't on
+GitHub. The `local/` directory itself is the manifest — any subdirectory with an
+`herdr-plugin.toml` gets linked.
+
+### Subagent panes
+
+`omp/agent/extensions/herdr-subagent-panes.ts` and the `omp.subagents` Herdr plugin
+(`config/herdr/plugins/local/omp-subagents/`) together open a read-only pane the moment
+any omp subagent spawns, laying panes out as a stacked column next to the parent omp
+pane and tailing each one's live session transcript as it works. It only observes —
+nothing about how or when a subagent gets dispatched changes.
+
+Two halves, one process each:
+
+- **The omp extension** listens for `task:subagent:lifecycle` on omp's own event bus.
+  On `status: "started"` it writes a small status file under
+  `${XDG_STATE_HOME:-$HOME/.local/state}/omp-subagent-panes/<agentId>.json` — the
+  subagent's id, type, description, and its session JSONL path — then asks herdr to open
+  a pane (`herdr plugin pane open`) and renames it (`herdr pane rename`) to the
+  subagent's own name. The first pane opened splits the parent omp pane in
+  `OMP_SUBAGENT_PANES_COLUMN`'s direction, creating the column; every pane after that
+  splits the most recently opened subagent pane in `OMP_SUBAGENT_PANES_DIRECTION`'s
+  direction, stacking inside that column instead of narrowing the omp pane further. On a
+  terminal status it rewrites the same file with the outcome, relabels the pane with a
+  check or cross, and closes the pane — unless the operator is focused on it, in which
+  case it waits and closes once focus moves elsewhere. `OMP_SUBAGENT_PANES_AUTOCLOSE=0`
+  keeps every settled pane instead.
+- **The Herdr plugin** owns the pane: `src/viewer.ts` mounts omp's own
+  `AgentTranscriptViewer` component (imported straight out of the installed
+  `@oh-my-pi/pi-coding-agent` package — the same renderer omp's own Agent Hub
+  uses for a parked subagent/advisor transcript) inside a real `pi-tui` `TUI`,
+  so the pane looks exactly like omp because it *is* omp's renderer. It's
+  read-only by construction (the component's message-editor/revive path is
+  gated behind deps this file never wires) and pinned to the exact installed
+  `omp` version by the plugin's own `[[build]]` step; a version mismatch —
+  or any other failure — degrades to a bundled ANSI-art fallback renderer
+  rather than losing the pane. See
+  `config/herdr/plugins/local/omp-subagents/README.md` for the full split.
+
+Config, all read by the extension, all optional:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `OMP_SUBAGENT_PANES` | `1` | set `0` to disable |
+| `OMP_SUBAGENT_PANES_MAX` | `4` | cap on concurrently open panes |
+| `OMP_SUBAGENT_PANES_PLACEMENT` | `split` | `overlay`, `split`, `tab`, or `zoomed` |
+| `OMP_SUBAGENT_PANES_COLUMN` | `right` | `right` or `down` — direction of the one split off the parent omp pane that creates the column |
+| `OMP_SUBAGENT_PANES_DIRECTION` | `down` | `right` or `down` — direction panes stack *within* that column |
+| `OMP_SUBAGENT_PANES_AUTOCLOSE` | `1` | closes the pane when the agent settles, but never while it's focused — that one waits for focus to move. `0` keeps settled panes until closed by hand |
+
+Inert outside Herdr: the extension checks `HERDR_ENV` before doing anything, so running
+omp directly in a plain terminal (or inside some other multiplexer) never tries to shell
+out to a `herdr` binary that isn't managing the session.
+
+### Herdr plugin keybindings — `[keys]` only knows herdr's own actions
+
+herdr's `[keys]` table takes only its own built-in action names — there's no field in
+it that names a plugin action. The only way to bind one to a key is `[[keys.command]]`,
+which shells back out to the herdr CLI instead of naming the action in config:
+
+```toml
+[[keys.command]]
+key = "prefix+i"
+type = "shell"
+command = "herdr plugin action invoke settle --plugin herdr-agent-inbox"
+```
+
+`type` controls how the command surfaces: `shell` runs it detached in the background,
+`pane` opens a temporary pane that closes when the command exits, `popup` opens a
+session-modal terminal. Plugin actions invoked this way are short control commands with
+no output worth watching, so `shell` is the right call almost every time.
+
+Several plugin READMEs (reviewr, vim-herdr-navigation, mirror, token-dashboard) still
+document `type = "plugin_action"` with a combined `<plugin>.<action>` command string
+instead of this. That form is stale: `herdr --default-config` on 0.8.0 documents only
+`shell`/`pane`/`popup`, and `plugin_action` isn't one of them. Use the `shell`-plus-CLI
+form above regardless of what a given plugin's own docs say.
 
 ### Agent skills — the list is tracked, the lockfile isn't
 

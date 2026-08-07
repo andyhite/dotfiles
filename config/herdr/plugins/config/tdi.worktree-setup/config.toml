@@ -1,0 +1,61 @@
+# worktree-setup — make a fresh worktree usable the moment herdr creates it.
+#
+# Fires on worktree.created and runs shell steps with cwd = the new worktree.
+# The problem it solves: `git worktree add` gives you a clean checkout with none
+# of the gitignored files a repo actually needs to run — .env, .envrc, local
+# overrides — and no installed dependencies. Under the foreman loop that's once
+# per issue, so doing it by hand adds up fast.
+#
+# Env available to every step:
+#   HERDR_MAIN_REPO  absolute path to the main checkout
+#   HERDR_WORKTREE   absolute path to the new worktree (also the cwd)
+#   HERDR_BRANCH     the branch checked out in it
+#
+# Steps run sequentially through `sh -c` and are FAIL-FAST: the first non-zero
+# exit aborts the rest. Anything that may legitimately not apply must end in
+# `|| true`, which is why nearly every line below does.
+#
+# Output is streamed and also written to $HERDR_PLUGIN_STATE_DIR/setup-<ts>.log.
+
+# Applied to any repo without a [[project]] entry below. These three are safe
+# everywhere: each is a no-op when the repo doesn't use that tool.
+[default]
+steps = [
+  # Gitignored env files never come along with a worktree. Copy whatever the
+  # main checkout has; the glob simply matches nothing when there is none.
+  'cp "$HERDR_MAIN_REPO"/.env* . 2>/dev/null || true',
+  # mise trusts a config per-directory, and a worktree is a new directory, so
+  # an untrusted .mise.toml/.tool-versions would otherwise prompt on first cd.
+  'command -v mise >/dev/null && mise trust --quiet 2>/dev/null || true',
+  # Same story for direnv: .envrc arrives untrusted in a new checkout.
+  'command -v direnv >/dev/null && direnv allow 2>/dev/null || true',
+]
+
+# ── Per-repo overrides ───────────────────────────────────────────────────────
+#
+# `path` is the MAIN repo, not the worktree — it's realpath-matched against the
+# new worktree's parent checkout. A [[project]] REPLACES [default] rather than
+# extending it, so repeat the shared steps in any block you add.
+
+[[project]]
+path = "~/Code/andyhite/plotroom"
+steps = [
+  'cp "$HERDR_MAIN_REPO"/.env* . 2>/dev/null || true',
+  'command -v mise >/dev/null && mise trust --quiet 2>/dev/null || true',
+  'command -v direnv >/dev/null && direnv allow 2>/dev/null || true',
+  # Dependencies are the slow part, and a worktree starts with an empty
+  # node_modules. Left non-fatal so a registry blip doesn't abort the setup and
+  # leave the worktree half-prepared.
+  'pnpm install --prefer-offline 2>/dev/null || npm install 2>/dev/null || true',
+]
+
+# Template for the next repo — copy, don't guess:
+#
+# [[project]]
+# path = "~/Code/andyhite/rafters"
+# steps = [
+#   'cp "$HERDR_MAIN_REPO"/.env* . 2>/dev/null || true',
+#   "mise trust --quiet",
+#   "direnv allow",
+#   "pnpm install",
+# ]

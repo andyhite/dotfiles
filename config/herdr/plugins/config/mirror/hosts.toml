@@ -1,0 +1,87 @@
+# herdr-mirror — mirror a REMOTE herdr server into this one's sidebar.
+#
+# Each remote workspace becomes a real local workspace named "<prefix>: <name>",
+# remote pane output streams into local panes, and remote agents show up in the
+# local agent list. Transport is outbound ssh (or `docker exec` for a container
+# on this machine) over unix sockets — the plugin opens no port and runs no
+# listener, so ssh access is the entire security boundary.
+#
+# Config search order, first match wins — these do NOT merge:
+#   1. $HERDR_PLUGIN_CONFIG_DIR/hosts.toml   <- this file
+#   2. ~/.config/herdr/plugins/config/mirror/hosts.toml  (same path, unlinked)
+#   3. ~/.config/herdr-mirror/hosts.toml
+# The plugin logs a warning naming any file it shadowed. #3 is where this
+# config used to live; it was moved here so it's tracked with everything else,
+# and the old copy was deleted rather than left to generate that warning.
+
+## The daemon starts itself on the workspace.focused event. Leaving this true is
+## what makes mirrors appear without running `start` by hand; an explicit
+## `pause` action still sticks until `start`.
+autostart = true
+
+## Full reconciliation sweep, in seconds. Events drive nearly every update, so
+## this is the backstop for anything that didn't emit one. Default.
+poll_seconds = 60
+
+## Which host `remote-new-workspace` targets when invoked from a local (non-
+## mirrored) workspace. Only one host is configured, so this is redundant today
+## — it's here so adding a second host doesn't silently change where new remote
+## workspaces land, which is what would happen with the "first enabled host"
+## default.
+default_host = "fab"
+
+## Closing a mirrored pane locally closes the REMOTE pane too when true, which
+## is the upstream default and means an ordinary ctrl+b q can kill a remote
+## agent mid-run. False makes a local close purely a local dismissal, and the
+## `restore` action brings the mirror back with the remote work still going.
+## That's the safer half of the tradeoff and the reason for overriding here.
+close_remote_on_local_close = false
+
+## Mirror panes are writable by default and resize the remote pane to match the
+## local viewport. Correct for a machine only this laptop drives; set false
+## (globally, or per host below) for a box someone else is also sitting at —
+## that starts read-only, takes control on first input, and releases after an
+## hour idle or immediately on ctrl+\.
+always_control = true
+
+[hosts.fab]
+## An ssh target: an alias from ~/.ssh/config, or user@host. The remote needs
+## herdr >= 0.7.2 installed and its server running; it does NOT need this
+## plugin. Auth is non-interactive only — the plugin forces BatchMode=yes, so
+## key/agent auth must already work and a password or host-key prompt will just
+## fail rather than ask.
+target = "andyhite-fab"
+
+## Sidebar label prefix, giving "work: <remote workspace name>". Defaults to the
+## table key, so this line is only here to make the naming explicit.
+prefix = "Fab"
+
+## Where herdr lives on the remote. This is the default; the tilde is expanded
+## by the remote shell, not locally.
+# remote_bin = "~/.local/bin/herdr"
+
+## How the remote herdr API is reached: "socket" pins an ssh stream-local unix
+## socket forward, "exec" pins a stdio relay through `ssh exec` (which needs
+## socat or python3 on the remote), "auto" tries the socket and falls back.
+## Left at auto — the socket probe currently fails against this host and the
+## python3 relay takes over, which is exactly what auto is for.
+# api_transport = "auto"
+
+## Per-host override of the global switch above.
+# always_control = false
+
+## Set false to keep a host's config but stop syncing it, without deleting the
+## table. Existing mirrored objects stay put.
+# enabled = true
+
+# ── A local devcontainer, for reference ──────────────────────────────────────
+# Docker hosts need socat inside the container (not on this Mac) and no ssh at
+# all. Set exactly one of `folder` or `container`; `folder` matches the
+# devcontainer.local_folder label and survives a rebuild, whereas the generated
+# container name does not.
+#
+# [hosts.dev]
+# kind = "docker"
+# folder = "/Users/user/Code/andyhite/example"
+# prefix = "dev"
+# docker_bin = "docker"

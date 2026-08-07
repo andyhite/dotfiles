@@ -720,6 +720,12 @@ link_configs() {
     "zsh_plugins.txt:$HOME/.zsh_plugins.txt"
     "tmux.conf:$HOME/.tmux.conf"
     "config/starship.toml:$HOME/.config/starship.toml"
+    # The `osolmaz/ghzinga` herdr plugin is pure declarative wiring — it reads
+    # nothing itself, just shells out to `gzg`. All behaviour and config belong
+    # to that separately-installed binary, which reads this path directly, so
+    # `dutifuldev.ghzinga`'s dir under plugins/config below is legitimately
+    # empty and this file has to be linked on its own rather than living there.
+    "config/ghzinga/config.toml:$HOME/.config/ghzinga/config.toml"
     "config/herdr/config.toml:$HOME/.config/herdr/config.toml"
     "config/ghostty/config:$HOME/.config/ghostty/config"
     "config/atuin/config.toml:$HOME/.config/atuin/config.toml"
@@ -742,6 +748,7 @@ link_configs() {
     # the parent would hide them. `atuin hook install` has no omp target, so this
     # one is maintained here by hand.
     "omp/agent/extensions/atuin.ts:$HOME/.omp/agent/extensions/atuin.ts"
+    "omp/agent/extensions/herdr-subagent-panes.ts:$HOME/.omp/agent/extensions/herdr-subagent-panes.ts"
     # Runtime pins. mise finds this by walking up from whatever directory it's
     # invoked in, so the symlink sitting at $HOME is what makes it the default
     # for everything that doesn't carry its own.
@@ -760,7 +767,20 @@ link_configs() {
     # Per-file for the same reason as the extensions above — anything omp or
     # another tool drops into ~/.omp/agent/rules stays visible alongside it.
     "omp/agent/rules/output-style.md:$HOME/.omp/agent/rules/output-style.md"
+    "omp/agent/rules/herdr-worktrees.md:$HOME/.omp/agent/rules/herdr-worktrees.md"
   )
+
+  # AeroSpace drives the macOS window server, so on Linux this wouldn't be an
+  # unused config — it'd be a config for a program that cannot exist there.
+  # Appended conditionally rather than sitting in the array above, same
+  # reasoning as the bin/tailscale block further down.
+  #
+  # AeroSpace searches exactly two locations and *errors on ambiguity* if it
+  # finds both, so ~/.aerospace.toml must stay absent for this link to be the
+  # one that loads. Nothing in this repo creates it.
+  if [ "$OS" = "Darwin" ]; then
+    links+=("config/aerospace/aerospace.toml:$HOME/.config/aerospace/aerospace.toml")
+  fi
 
   # An unescaped `~` in the replacement half of ${var/#pat/rep} is tilde-expanded
   # back to $HOME, making the substitution a silent no-op. `\~` keeps it literal.
@@ -786,6 +806,29 @@ link_configs() {
     ln -s "$src" "$dst"
     added "$shown" "-> ${pair%%:*}"
   done
+
+  # bin/tailscale — a PATH shim for the Mac App Store build of Tailscale (see
+  # that file for why a plain symlink to the app bundle doesn't work). Not in
+  # the links array above because it can't be unconditional: Darwin only, and
+  # only when the App Store bundle is actually installed, so this stays a
+  # no-op on Linux and on a Mac running the Homebrew/open-source tailscale —
+  # that build drops a real binary straight onto PATH and needs no shim.
+  if [ "$OS" = "Darwin" ] && [ -x "/Applications/Tailscale.app/Contents/MacOS/Tailscale" ]; then
+    src="$DOTFILES_DIR/bin/tailscale"
+    dst="$HOME/.local/bin/tailscale"
+    shown="${dst/#$HOME/\~}"
+    if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]; then
+      ok "$shown"
+    elif [ -e "$dst" ] || [ -L "$dst" ]; then
+      backup="$dst.bak.$(date +%s)"
+      mv "$dst" "$backup"
+      ln -s "$src" "$dst"
+      warned "$shown" "backed up to ${backup##*/}"
+    else
+      ln -s "$src" "$dst"
+      added "$shown" "-> bin/tailscale"
+    fi
+  fi
 
   # Templates are copied, not linked: each holds machine-local values, and two of
   # them hold credentials. Copied only when absent, so a re-run can never
@@ -857,8 +900,17 @@ install_herdr_plugins() {
     return 0
   fi
 
-  local line plugin_spec plugin_ref
+  local line comment plugin_spec plugin_ref
   while IFS= read -r line || [ -n "$line" ]; do
+    # Capture whatever follows the first `#` before stripping it, so a
+    # trailing `# local-only` marker survives long enough to be checked
+    # below. A full-line comment captures here too, but it never reaches
+    # that check: the empty-after-strip guard right below sends it to
+    # `continue` first.
+    comment=""
+    case "$line" in
+      *'#'*) comment="${line#*#}" ;;
+    esac
     line="${line%%#*}"
     line="${line#"${line%%[![:space:]]*}"}"
     line="${line%"${line##*[![:space:]]}"}"
@@ -867,6 +919,22 @@ install_herdr_plugins() {
     plugin_spec="${line%%@*}"
     plugin_ref=""
     [ "$line" != "$plugin_spec" ] && plugin_ref="${line#*@}"
+
+    # herdr-mirror is the plugin this exists for: it mirrors a *remote*
+    # herdr into this one's sidebar over ssh, which inverts the moment this
+    # script itself runs inside an ssh session — installed on a box you've
+    # ssh'd into, it would mirror some other machine's herdr back into the
+    # session you're already viewing remotely. `# local-only` marks specs
+    # that only make sense on the machine you physically sit at, so skip
+    # them here rather than install something self-defeating.
+    case "$comment" in
+      *local-only*)
+        if [ -n "${SSH_CONNECTION:-}" ]; then
+          skipped "$plugin_spec" "local-only — ssh session"
+          continue
+        fi
+        ;;
+    esac
 
     # Flags must follow the positional argument — herdr's plugin parser
     # rejects `herdr plugin install --yes <spec>` with a usage error.
@@ -883,6 +951,46 @@ install_herdr_plugins() {
       fi
     fi
   done < "$DOTFILES_DIR/herdr_plugins.txt"
+
+  # Plugins developed in this repo itself, not fetched from GitHub — currently
+  # just omp.subagents, under config/herdr/plugins/local/. `herdr plugin link`
+  # instead of `install`: `install` only knows how to resolve a GitHub spec,
+  # and even a local variant of it would have to copy the plugin out of the
+  # repo to install it somewhere content-hashed, same as the GitHub ones under
+  # ~/.config/herdr/plugins/github/ — `link` instead points herdr straight at
+  # this working copy, so an edit lands on herdr's next read with no reinstall.
+  # Verified empirically that re-linking an already-linked plugin is a no-op
+  # success (`plugin_linked`, exit 0, both times) rather than an error, so —
+  # same as the loop above — this just links every local plugin dir on every
+  # run instead of trying to detect "already linked" itself.
+  #
+  # Not listed in herdr_plugins.txt: that file's `<owner>/<repo>[@ref]` format
+  # has no way to spell a local path, and there's no ref to pin against a repo
+  # that isn't on GitHub. The local/ directory itself is the manifest instead.
+  local plugin_dir
+  for plugin_dir in "$DOTFILES_DIR"/config/herdr/plugins/local/*/; do
+    # Same glob-with-no-match guard as link_omp_skills below: when
+    # config/herdr/plugins/local/ doesn't exist yet, bash leaves $plugin_dir
+    # as the literal unexpanded pattern (no nullglob is set anywhere in this
+    # script), which fails the -f check and continues — so an absent
+    # directory is silently a no-op, not a failure.
+    [ -f "$plugin_dir/herdr-plugin.toml" ] || continue
+
+    if run_quiet "local/$(basename "$plugin_dir")" herdr plugin link "$plugin_dir" </dev/null; then
+      updated "local/$(basename "$plugin_dir")"
+      # `herdr plugin link` reads a manifest's [[build]] step back in its own
+      # JSON response but does not run it — verified empirically (see
+      # omp.subagents/herdr-plugin.toml's [[build]] comment): a fresh link
+      # against a plugin with no node_modules leaves node_modules absent.
+      # scripts/install.sh is this repo's own build-step convention for a
+      # local plugin's [[build]] command; run it directly here (bypassing
+      # herdr entirely) so a linked plugin's dependencies actually land.
+      if [ -x "$plugin_dir/scripts/install.sh" ] &&
+        run_quiet "local/$(basename "$plugin_dir") deps" "$plugin_dir/scripts/install.sh"; then
+        ok "local/$(basename "$plugin_dir")" "dependencies installed"
+      fi
+    fi
+  done
 }
 
 # ── omp skills from herdr plugins ───────────────────────────────────────────

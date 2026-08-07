@@ -1,0 +1,13 @@
+#!/bin/sh
+# The Mac App Store build of Tailscale hides its CLI inside the app bundle
+# instead of putting it on PATH. A plain symlink to that binary doesn't work
+# around it either — it resolves its own app bundle from argv[0], so invoking
+# it through a symlink named `tailscale` fails at runtime with:
+#
+#   Tailscale/BundleIdentifiers.swift:47: Fatal error: The current
+#   bundleIdentifier is unknown to the registry
+#
+# `exec`ing the absolute path keeps argv[0] pointed inside the real bundle,
+# which is what makes bundle resolution succeed. That a symlink doesn't work
+# is this file's entire reason for existing — don't "simplify" it back to one.
+exec /Applications/Tailscale.app/Contents/MacOS/Tailscale "$@"
