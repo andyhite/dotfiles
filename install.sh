@@ -128,7 +128,7 @@ confirm() {
 
 # ── Steps ────────────────────────────────────────────────────────────────────
 
-STEPS=(tools completions configs atuin herdr skills nvim)
+STEPS=(tools completions configs runtimes atuin herdr skills nvim)
 ASSUME_YES=0
 VERBOSE=0
 ONLY=""
@@ -149,12 +149,13 @@ ${C_BOLD}Options${C_RESET}
   -h, --help           Show this
 
 ${C_BOLD}Steps${C_RESET}
-  tools        Package-manager installs/upgrades, fonts, neovim, omp
+  tools        Package installs/upgrades (Brewfile on macOS), fonts, editors, agents
   completions  Generate zsh completions into ~/.local/share/zsh/site-functions
   configs      Symlink this repo's config files into place
+  runtimes     Install the language versions pinned in tool-versions, with mise
   atuin        Offer to log in to Atuin sync when not already logged in
   herdr        Install/update the Herdr plugins in herdr_plugins.txt
-  skills       Link omp skills shipped by installed Herdr plugins
+  skills       Install agent skills from agent_skills.txt, link Herdr-shipped ones
   nvim         Headless NvChad plugin sync
 
 ${C_BOLD}Examples${C_RESET}
@@ -335,6 +336,7 @@ ensure_completions() {
     "omp|_omp|omp completions zsh"
     "herdr|_herdr|herdr completion zsh"
     "tree-sitter|_tree-sitter|tree-sitter complete --shell zsh"
+    "mise|_mise|mise completion zsh"
   )
 
   local wrote=0 spec bin out gen tmp
@@ -376,6 +378,29 @@ ensure_completions() {
 
 # ── Cross-platform via GitHub releases (no package manager needed) ─────────
 
+# Resolves a repo's latest release tag, or prints nothing when it can't.
+#
+# Two reasons this isn't a bare curl at each call site. The unauthenticated API
+# allows 60 requests an hour per IP, and a shared or NAT'd network burns through
+# that — the result is a 403, which reads as "no releases" rather than as the
+# rate limit it is. And a failing curl inside `$(... | ...)` takes the entire
+# script down under `set -e -o pipefail`, aborting the run before the install it
+# was only trying to version-check. gh raises the limit to 5000/hour when
+# authenticated, and the tracked gitconfig already names it as its credential
+# helper, so it's usually present.
+#
+# Callers must treat empty output as "couldn't tell", never as "no release".
+github_latest_tag() {
+  local repo="$1"
+  if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+    gh api "repos/$repo/releases/latest" --jq .tag_name 2>/dev/null || true
+    return 0
+  fi
+  curl -fsSL -H "User-Agent: dotfiles-install-script (github.com/andyhite/dotfiles)" \
+    "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null \
+    | grep -o '"tag_name":"[^"]*"' | head -1 | cut -d'"' -f4 || true
+}
+
 ensure_tree_sitter_cli() {
   local os_part current latest tmp
   case "$(uname -s)" in
@@ -395,9 +420,15 @@ ensure_tree_sitter_cli() {
 
   current=""
   command -v tree-sitter >/dev/null 2>&1 && current="$(tree-sitter --version | awk '{print $2}')"
-  latest="$(curl -fsSL -H "User-Agent: dotfiles-install-script (github.com/andyhite/dotfiles)" \
-    https://api.github.com/repos/tree-sitter/tree-sitter/releases/latest \
-    | grep -o '"tag_name":"[^"]*"' | head -1 | cut -d'"' -f4 | sed 's/^v//')"
+  latest="$(github_latest_tag tree-sitter/tree-sitter | sed 's/^v//')"
+  if [ -z "$latest" ]; then
+    if [ -n "$current" ]; then
+      ok "tree-sitter-cli" "$current — skipped the update check (GitHub API unavailable)"
+    else
+      warned "tree-sitter-cli" "GitHub API unavailable — re-run to install it"
+    fi
+    return 0
+  fi
 
   if [ -n "$current" ] && [ "$current" = "$latest" ]; then
     ok "tree-sitter-cli" "up to date ($current)"
@@ -423,41 +454,51 @@ ensure_tree_sitter_cli() {
 
 # ── macOS: Homebrew ──────────────────────────────────────────────────────────
 
-brew_ensure() {
-  if brew list --formula "$1" &>/dev/null; then
-    local out
-    out="$(brew upgrade "$1" 2>&1 | tail -1)"
-    case "$out" in
-      *"already installed"*|*"up-to-date"*|*"up to date"*) ok "$1" "up to date" ;;
-      *) updated "$1" "${out:-upgraded}" ;;
-    esac
-  else
-    # `run_quiet` already reported the failure and replayed the log tail, so
-    # swallow the status: one broken formula shouldn't abort the run and cost the
-    # summary. A non-zero N_ERR still makes the script exit 1 at the end.
-    if run_quiet "$1" brew install "$1"; then added "$1" "installed"; fi
+# One Brewfile for formulae and casks together, instead of a hand-maintained
+# loop per package type. `brew bundle` only ever adds: dropping a line never
+# uninstalls anything (that's `brew bundle cleanup`), so pruning the file is
+# safe, and anything installed by hand outside it is left alone.
+ensure_brewfile() {
+  local file="$DOTFILES_DIR/Brewfile" missing
+  if [ ! -f "$file" ]; then
+    skipped "Brewfile" "not present"
+    return 0
   fi
-}
 
-brew_ensure_cask() {
-  if brew list --cask "$1" &>/dev/null; then
-    local out
-    out="$(brew upgrade --cask "$1" 2>&1 | tail -1)"
-    case "$out" in
-      *"already installed"*|*"up-to-date"*|*"up to date"*) ok "$1" "up to date" ;;
-      *) updated "$1" "${out:-upgraded}" ;;
-    esac
-  else
-    if run_quiet "$1" brew install --cask "$1"; then added "$1" "installed"; fi
+  # `check` is the cheap path, and the common one on a machine that has run this
+  # before: it exits 0 only when every entry is installed and current, so the
+  # multi-minute `bundle install` below is reached only when there's real work.
+  if brew bundle check --file "$file" >/dev/null 2>&1; then
+    ok "Brewfile" "every entry installed and current"
+    return 0
+  fi
+
+  # --verbose turns that one-line failure into a list of what's outstanding,
+  # which is worth naming before a long install starts. It writes that list to
+  # stderr, not stdout, so 2>&1 is load-bearing — without it the pipeline reads
+  # an empty stream. The sed keeps just the name out of each
+  # "→ Formula jq needs to be installed or updated." line.
+  # The trailing `|| true` is required, not defensive: `check` exits non-zero
+  # precisely *because* something is missing, and pipefail would propagate that
+  # through the pipeline into the assignment, aborting the script under set -e
+  # right before the install that fixes it.
+  missing="$(brew bundle check --file "$file" --verbose 2>&1 \
+    | sed -n 's/^→ [A-Za-z]* \(.*\) needs to be installed or updated\./\1/p' \
+    | paste -sd' ' - || true)"
+  # An `if`, not `[ -n … ] && say …`, so the test's exit status can't leak out as
+  # this function's own return value if it ever ends up last.
+  if [ -n "$missing" ]; then
+    say "installing/upgrading: $missing"
+  fi
+
+  if run_quiet Brewfile brew bundle install --file "$file"; then
+    added "Brewfile" "${missing:-entries installed}"
   fi
 }
 
 install_tools_macos() {
   command -v brew >/dev/null 2>&1 || { failed "Homebrew" "not found — install from https://brew.sh first"; return 1; }
-  # direnv is required by zshrc's hook; the rest are what the configs call out.
-  for f in starship zoxide atuin fzf eza bat direnv tmux neovim ripgrep; do brew_ensure "$f"; done
-  brew_ensure_cask ghostty
-  brew_ensure_cask font-jetbrains-mono-nerd-font
+  ensure_brewfile
   ensure_antidote
   ensure_tpm
   ensure_tree_sitter_cli
@@ -500,8 +541,20 @@ cargo_ensure_latest() {
   ensure_rustup
   current=""
   command -v "$bin" >/dev/null 2>&1 && current="$("$bin" --version | awk '{print $2}')"
+  # Same reasoning as github_latest_tag: a failed probe must not abort the run,
+  # and an empty result means "couldn't tell", not "no such crate".
   latest="$(curl -fsSL -H "User-Agent: dotfiles-install-script (github.com/andyhite/dotfiles)" \
-    "https://crates.io/api/v1/crates/$crate" | grep -o '"newest_version":"[^"]*"' | head -1 | cut -d'"' -f4)"
+    "https://crates.io/api/v1/crates/$crate" 2>/dev/null \
+    | grep -o '"newest_version":"[^"]*"' | head -1 | cut -d'"' -f4 || true)"
+  if [ -z "$latest" ]; then
+    # A local copy plus no way to compare is not worth a multi-minute rebuild.
+    if [ -n "$current" ]; then
+      ok "$crate" "$current — skipped the update check (crates.io unavailable)"
+      return 0
+    fi
+    # Nothing installed, so build anyway: cargo resolves the version itself.
+    latest="latest"
+  fi
 
   if [ -n "$current" ] && [ "$current" = "$latest" ]; then
     ok "$crate" "up to date ($current)"
@@ -526,9 +579,15 @@ ensure_neovim_linux() {
 
   current=""
   command -v nvim >/dev/null 2>&1 && current="$(nvim --version | head -1 | awk '{print $2}')"
-  latest="$(curl -fsSL -H "User-Agent: dotfiles-install-script (github.com/andyhite/dotfiles)" \
-    https://api.github.com/repos/neovim/neovim/releases/latest \
-    | grep -o '"tag_name":"[^"]*"' | head -1 | cut -d'"' -f4)"
+  latest="$(github_latest_tag neovim/neovim)"
+  if [ -z "$latest" ]; then
+    if [ -n "$current" ]; then
+      ok "neovim" "$current — skipped the update check (GitHub API unavailable)"
+    else
+      warned "neovim" "GitHub API unavailable — re-run to install it"
+    fi
+    return 0
+  fi
 
   if [ -n "$current" ] && [ "$current" = "$latest" ]; then
     ok "neovim" "up to date ($current)"
@@ -572,16 +631,39 @@ ensure_nerd_font_linux() {
   added "JetBrainsMono Nerd Font" "installed"
 }
 
+# macOS gets mise from the Brewfile. Linux has no equally universal package for
+# it, so use the upstream installer, which drops a single binary into
+# ~/.local/bin — already on PATH via zshrc. `self-update` is the supported
+# upgrade path for exactly that install method and is refused on a
+# package-manager-managed mise, which is why this function is Linux-only.
+ensure_mise_linux() {
+  if command -v mise >/dev/null 2>&1; then
+    if run_quiet mise mise self-update --yes; then
+      ok "mise" "$(mise --version 2>/dev/null | awk '{print $1}')"
+    fi
+    return 0
+  fi
+  if run_quiet mise sh -c "curl -sS https://mise.run | sh"; then
+    added "mise" "installed to ~/.local/bin"
+  fi
+}
+
 install_tools_linux() {
   if command -v apt-get >/dev/null 2>&1; then
     run_quiet apt sudo apt-get update -y || true
     # zsh: the shell these dotfiles configure, not guaranteed on a minimal box.
     # fzf: apt's build may predate `fzf --zsh`; zshrc falls back to the
     #      key-binding scripts apt drops in /usr/share, so old is fine.
+    # git-lfs, gh: gitconfig declares the lfs filter and names gh as its
+    #      credential helper, so both are requirements of the tracked config
+    #      rather than conveniences.
+    # jq, yq, shellcheck, shfmt: the Brewfile's counterparts. The last two only
+    #      exist in recent archives; apt_ensure skips whatever isn't there.
     # build-essential/pkg-config: needed by the cargo builds below.
     # fontconfig: fc-list/fc-cache for the Nerd Font install.
     # ncurses-bin: infocmp, for ghostty's ssh-terminfo shell integration.
     for p in zsh git curl zoxide eza bat fzf direnv tmux unzip ripgrep \
+             git-lfs gh jq yq shellcheck shfmt tree wget moreutils rsync \
              fontconfig ncurses-bin build-essential pkg-config; do
       apt_ensure "$p" || true
     done
@@ -608,6 +690,7 @@ install_tools_linux() {
     ok "atuin" "installed/updated (installer always fetches latest)"
   fi
 
+  ensure_mise_linux
   ensure_tree_sitter_cli
   ensure_neovim_linux
   ensure_antidote
@@ -659,6 +742,24 @@ link_configs() {
     # the parent would hide them. `atuin hook install` has no omp target, so this
     # one is maintained here by hand.
     "omp/agent/extensions/atuin.ts:$HOME/.omp/agent/extensions/atuin.ts"
+    # Runtime pins. mise finds this by walking up from whatever directory it's
+    # invoked in, so the symlink sitting at $HOME is what makes it the default
+    # for everything that doesn't carry its own.
+    "tool-versions:$HOME/.tool-versions"
+    "gitconfig:$HOME/.gitconfig"
+    # git reads $XDG_CONFIG_HOME/git/ignore on its own, which is why gitconfig
+    # declares no core.excludesFile.
+    "config/git/ignore:$HOME/.config/git/ignore"
+    # config.yml only: hosts.yml sits beside it and holds gh's OAuth tokens.
+    "config/gh/config.yml:$HOME/.config/gh/config.yml"
+    # One file, not the directory: ~/.ssh holds private keys. Machine-specific
+    # hosts go in ~/.ssh/config.local, which this config includes first.
+    "ssh/config:$HOME/.ssh/config"
+    # settings.json only: ~/.config/zed also stores conversations and prompts.
+    "config/zed/settings.json:$HOME/.config/zed/settings.json"
+    # Per-file for the same reason as the extensions above — anything omp or
+    # another tool drops into ~/.omp/agent/rules stays visible alongside it.
+    "omp/agent/rules/output-style.md:$HOME/.omp/agent/rules/output-style.md"
   )
 
   # An unescaped `~` in the replacement half of ${var/#pat/rep} is tilde-expanded
@@ -686,16 +787,57 @@ link_configs() {
     added "$shown" "-> ${pair%%:*}"
   done
 
+  # Templates are copied, not linked: each holds machine-local values, and two of
+  # them hold credentials. Copied only when absent, so a re-run can never
+  # overwrite an already filled-in file.
+  #
   # Same $HOME -> ~ display transform as the loop above, rather than a literal
   # "~/..." string: that reads as an unexpanded path to both shellcheck and the
   # next person, and drifts if the location ever changes.
-  local local_rc="$HOME/.zshrc.local"
-  if [ ! -f "$local_rc" ]; then
-    cp "$DOTFILES_DIR/zshrc.local.example" "$local_rc"
-    added "${local_rc/#$HOME/\~}" "created from example — fill in your secrets"
-  else
-    ok "${local_rc/#$HOME/\~}" "present"
+  local example target
+  for example in zshrc.local.example gitconfig.local.example ssh/config.local.example; do
+    # ssh's lives in a subdirectory on both sides; the rest are dotfiles at $HOME.
+    case "$example" in
+      ssh/*) target="$HOME/.ssh/${example#ssh/}"; target="${target%.example}" ;;
+      *)     target="$HOME/.${example%.example}" ;;
+    esac
+
+    if [ -f "$target" ]; then
+      ok "${target/#$HOME/\~}" "present"
+      continue
+    fi
+    mkdir -p "$(dirname "$target")"
+    cp "$DOTFILES_DIR/$example" "$target"
+    chmod 600 "$target"
+    added "${target/#$HOME/\~}" "created from ${example##*/} — fill in your values"
+  done
+}
+
+# ── Language runtimes ────────────────────────────────────────────────────────
+
+# Runs after the symlinks: the pins mise reads live in ~/.tool-versions, which
+# is the symlink link_configs just created.
+ensure_runtimes() {
+  if ! command -v mise >/dev/null 2>&1; then
+    skipped "mise" "not on PATH — run the tools step, then re-run"
+    return 0
   fi
+
+  # Invoked from $HOME rather than wherever this script was started, so the pins
+  # that get installed are always the global ones. mise takes the nearest config
+  # walking upward, so running it from inside some other checkout would install
+  # that project's versions instead.
+  if ! run_quiet mise sh -c "cd '$HOME' && mise install --yes"; then
+    return 0
+  fi
+
+  # Cheap confirmation that every line of tool-versions resolved to a real
+  # install, rather than trusting the installer's exit code alone.
+  local tool version
+  while read -r tool version _; do
+    [ -n "$tool" ] || continue
+    ok "$tool" "$version"
+  done < <(cd "$HOME" && mise ls --current --quiet 2>/dev/null)
 }
 
 # ── Herdr plugins ────────────────────────────────────────────────────────────
@@ -728,12 +870,15 @@ install_herdr_plugins() {
 
     # Flags must follow the positional argument — herdr's plugin parser
     # rejects `herdr plugin install --yes <spec>` with a usage error.
+    #
+    # </dev/null for the same reason as the skills loop below: this loop's stdin
+    # is the manifest, and any prompt-reading child would eat the rest of it.
     if [ -n "$plugin_ref" ]; then
-      if run_quiet "$plugin_spec" herdr plugin install "$plugin_spec" --ref "$plugin_ref" --yes; then
+      if run_quiet "$plugin_spec" herdr plugin install "$plugin_spec" --ref "$plugin_ref" --yes </dev/null; then
         updated "$plugin_spec" "@$plugin_ref"
       fi
     else
-      if run_quiet "$plugin_spec" herdr plugin install "$plugin_spec" --yes; then
+      if run_quiet "$plugin_spec" herdr plugin install "$plugin_spec" --yes </dev/null; then
         updated "$plugin_spec" "default branch"
       fi
     fi
@@ -784,6 +929,69 @@ link_omp_skills() {
   return 0
 }
 
+# ── Cross-agent skills ───────────────────────────────────────────────────────
+
+# `npx skills` keeps one canonical copy of each skill in ~/.agents/skills and
+# symlinks every agent it detects at that tree. omp reads it directly (its
+# `agents` skill provider), so there's no omp-specific install target to pass.
+# Re-adding an installed skill is how the CLI updates one, so this runs every
+# time rather than skipping what's already present.
+install_agent_skills() {
+  local manifest="$DOTFILES_DIR/agent_skills.txt"
+  if [ ! -f "$manifest" ]; then
+    skipped "agent_skills.txt" "not present"
+    return 0
+  fi
+
+  # npx needs node, and this script runs under bash — where `mise activate` never
+  # ran, so the pinned node is installed but not on PATH. `mise exec` loads it for
+  # the length of one command.
+  #
+  # mise is tried *first*, not as the fallback: `command -v npx` also matches a
+  # leftover shim from another version manager, and a shim that resolves to
+  # nothing exits 126 with its own error instead of failing the lookup. Asking
+  # mise means the node that runs this is the one tool-versions pins.
+  local runner
+  if command -v mise >/dev/null 2>&1; then
+    runner="mise exec -- npx"
+  elif command -v npx >/dev/null 2>&1; then
+    runner="npx"
+  else
+    skipped "agent skills" "no node — run the tools and runtimes steps first"
+    return 0
+  fi
+
+  local line source skill
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%%#*}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [ -n "$line" ] || continue
+
+    # `<owner>/<repo> --skill <name>`, so the source is the first field and the
+    # skill name the last.
+    source="${line%% *}"
+    skill="${line##* }"
+
+    # -g installs for every agent on the machine instead of into a project, and
+    # -y answers the CLI's prompts so this works with no tty.
+    #
+    # </dev/null is load-bearing: this loop's stdin *is* the manifest, and the
+    # CLI reads stdin looking for prompt answers — draining the rest of the file
+    # and silently reducing the loop to a single iteration.
+    if run_quiet "$skill" sh -c "cd '$HOME' && $runner --yes skills add '$source' --skill '$skill' -g -y" </dev/null; then
+      updated "$skill" "from $source"
+    fi
+  done < "$manifest"
+}
+
+# One step, two sources: the manifest above, then whatever the installed Herdr
+# plugins ship.
+setup_skills() {
+  install_agent_skills
+  link_omp_skills
+}
+
 # ── NvChad ───────────────────────────────────────────────────────────────────
 
 sync_nvchad() {
@@ -824,23 +1032,28 @@ fi
 #                              just landed. Tools this script doesn't install
 #                              (herdr) are picked up too — see the per-entry
 #                              command -v guard.
+#   runtimes after configs     mise reads its pins from ~/.tool-versions, and
+#                              that symlink is created by the configs step.
 #   atuin after configs        a login writes session state that should sit
 #                              alongside the committed settings in
 #                              config/atuin/config.toml, not ahead of them.
 #   herdr after configs        each plugin's config dir then gets created inside
 #                              this repo rather than in a real directory that
 #                              would have to be adopted later.
+#   skills after runtimes      the skills CLI runs under npx, which needs the
+#                              node that the runtimes step installs.
 #   skills after herdr         herdr stores each plugin under a content-hashed
 #                              directory, so a link made before an update points
 #                              at a path that no longer exists.
 #   nvim last                  it needs both neovim and config/nvim in place.
-run_step tools       "Tools"        "package manager, fonts, editors, agents"          install_tools
-run_step completions "Completions"  "generated into ~/.local/share/zsh/site-functions" ensure_completions
-run_step configs     "Configs"      "symlink this repo into place"                     link_configs
-run_step atuin       "Atuin sync"   "account state — the only thing not committed"     ensure_atuin_account
-run_step herdr       "Herdr plugins" "from herdr_plugins.txt"                          install_herdr_plugins
-run_step skills      "omp skills"   "linked from installed Herdr plugins"              link_omp_skills
-run_step nvim        "NvChad"       "headless plugin sync"                             sync_nvchad
+run_step tools       "Tools"         "Brewfile/apt, fonts, editors, agents"             install_tools
+run_step completions "Completions"   "generated into ~/.local/share/zsh/site-functions" ensure_completions
+run_step configs     "Configs"       "symlink this repo into place"                     link_configs
+run_step runtimes    "Runtimes"      "language versions pinned in tool-versions"        ensure_runtimes
+run_step atuin       "Atuin sync"    "account state — the only thing not committed"     ensure_atuin_account
+run_step herdr       "Herdr plugins" "from herdr_plugins.txt"                           install_herdr_plugins
+run_step skills      "Skills"        "agent_skills.txt, plus Herdr-shipped omp skills"  setup_skills
+run_step nvim        "NvChad"        "headless plugin sync"                             sync_nvchad
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 

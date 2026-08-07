@@ -1,0 +1,30 @@
+# Copy to ~/.ssh/config.local (outside the repo — never committed) and fill in
+# per-machine hosts. ssh/config Includes this automatically, before its own
+# Host blocks, so anything set here wins over the tracked config.
+#
+# chmod 600 ~/.ssh/config.local — ssh silently ignores config files that are
+# group/world-readable/writable.
+
+# dstack (github.com/dstackai/dstack) regenerates this file per machine as it
+# provisions/tears down runpod instances — it is not portable and would just
+# be stale noise if tracked.
+# Include ~/.dstack/ssh/config
+
+# Host devbox
+#   User andyhite
+
+# Throwaway localhost port-forward for testing tmux/moor over ssh instead of
+# a real network host. StrictHostKeyChecking/UserKnownHostsFile/LogLevel below
+# turn off host-key verification entirely — safe only because the "host" is a
+# local process that gets torn down and rebuilt (a new key every time would
+# otherwise fail the known_hosts check). Never point these three settings at
+# a real remote host.
+# Host moor-tmux-test
+#   HostName localhost
+#   Port 2222
+#   User bash
+#   IdentityFile ~/.ssh/moor_tmux_test_ed25519
+#   IdentitiesOnly yes
+#   StrictHostKeyChecking no
+#   UserKnownHostsFile /dev/null
+#   LogLevel ERROR

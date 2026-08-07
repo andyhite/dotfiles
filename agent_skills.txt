@@ -1,0 +1,16 @@
+# Cross-agent skills, one per line: <owner>/<repo> --skill <name>
+# install.sh parses each line and runs:
+#   npx skills add <owner>/<repo> --skill <name> -g -y
+# -g installs globally rather than into a single project, and -y accepts the
+# CLI's prompts unattended so this can run inside install.sh without a tty.
+#
+# The canonical copies land in ~/.agents/skills; the CLI then symlinks each
+# configured agent's own skills directory into that tree, which is how omp
+# (and every other agent) picks them up without a separate install per tool.
+#
+# ~/.agents/.skill-lock.json stays untracked — it's generated state (content
+# hashes, install/update timestamps), exactly like herdr's own plugins.json
+# next to herdr_plugins.txt.
+herdrdev/herdr --skill herdr
+vercel-labs/skills --skill find-skills
+ayghri/i-have-adhd --skill i-have-adhd

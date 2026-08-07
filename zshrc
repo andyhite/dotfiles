@@ -21,17 +21,15 @@ export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 # uv / pipx drop an env script here; it extends PATH and nothing else.
 [ -f "$HOME/.local/bin/env" ] && source "$HOME/.local/bin/env"
 
-# ── Version manager (asdf) ───────────────────────────────────────────────────
-# Supports both the Go rewrite (0.16+, shims only) and the older shell
-# implementation (asdf.sh). Absent asdf = clean no-op.
-export ASDF_DATA_DIR="${ASDF_DATA_DIR:-$HOME/.asdf}"
-if [ -d "$ASDF_DATA_DIR" ]; then
-  export PATH="$ASDF_DATA_DIR/shims:$PATH"
-  [ -d "$ASDF_DATA_DIR/completions" ] && fpath=("$ASDF_DATA_DIR/completions" $fpath)
-  [ -f "$HOME/.asdf/asdf.sh" ] && source "$HOME/.asdf/asdf.sh"
-  # asdf's golang plugin exports GOROOT/GOPATH/GOBIN for the selected version.
-  [ -f "$ASDF_DATA_DIR/plugins/golang/set-env.zsh" ] && source "$ASDF_DATA_DIR/plugins/golang/set-env.zsh"
-fi
+# ── Version manager (mise) ───────────────────────────────────────────────────
+# Replaces asdf. One binary with no per-tool `plugin add`, and it activates by
+# rewriting PATH on each prompt instead of installing shims — so a version
+# change takes effect in the shell you're standing in, with no `reshim` step.
+#
+# Pins live in ~/.tool-versions (symlinked from this repo). mise walks parent
+# directories to find config, so that file is the default for everything under
+# $HOME while a project's own .tool-versions or mise.toml still wins inside it.
+command -v mise >/dev/null 2>&1 && eval "$(mise activate zsh)"
 
 # ── Completion ──────────────────────────────────────────────────────────────
 # fpath additions must land before compinit, and compinit must run before
@@ -72,7 +70,7 @@ unset _antidote _c
 
 # ── Machine-local secrets/overrides — never committed ───────────────────────
 # See zshrc.local.example for the template. Sourced before the tool blocks
-# below so it can set inputs they read (CLAUDE_WORK_PATH, PNPM_HOME, …).
+# below so it can set inputs they read (PNPM_HOME, build flags, …).
 [ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
 
 # ── Editor ───────────────────────────────────────────────────────────────────
@@ -167,40 +165,12 @@ if command -v go >/dev/null 2>&1; then
   export PATH="$PATH:${GOPATH:-$HOME/go}/bin"
 fi
 
-# Separate config dirs for work vs personal, switched on cwd. Opt in by setting
-# CLAUDE_WORK_PATH (the root of your work checkouts) in ~/.zshrc.local.
-set-claude-profile() {
-  if [[ "$1" == "work" || "$1" == "personal" ]]; then
-    local new_config="$HOME/.claude-$1"
-    if [[ "$CLAUDE_CONFIG_DIR" != "$new_config" ]]; then
-      export CLAUDE_CONFIG_DIR="$new_config"
-      local color="36"                   # cyan for personal
-      [[ "$1" == "work" ]] && color="33" # yellow for work
-      print -P "🤖 Claude profile: %F{$color}%B$1%b%f"
-    fi
-  else
-    echo "Usage: set-claude-profile [work|personal]"
-    return 1
-  fi
-}
-
-if [ -n "${CLAUDE_WORK_PATH:-}" ]; then
-  autoload -U add-zsh-hook
-  auto_claude_profile() {
-    if [[ "$PWD" == "$CLAUDE_WORK_PATH"* ]]; then
-      set-claude-profile work
-    else
-      set-claude-profile personal
-    fi
-  }
-  add-zsh-hook chpwd auto_claude_profile
-  auto_claude_profile
-fi
-
 # ── macOS-only fixups ────────────────────────────────────────────────────────
 if [[ "$_os" == "Darwin" ]]; then
-  # Apple ships GNU make 3.81 (2006). Prefer a modern one when installed.
-  command -v gnumake >/dev/null 2>&1 && alias make="gnumake"
+  # Apple ships GNU make 3.81 (2006) as *both* `make` and `gnumake`, so the
+  # obvious `alias make=gnumake` is a no-op. Homebrew's make installs as
+  # `gmake` (4.x) to avoid the clash — that's the one worth reaching for.
+  command -v gmake >/dev/null 2>&1 && alias make="gmake"
   alias disable-chrome-updater='sudo "/Library/Application Support/Google/GoogleUpdater/Current/GoogleUpdater.app/Contents/MacOS/GoogleUpdater" --uninstall --system'
 fi
 

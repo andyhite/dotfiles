@@ -1,0 +1,15 @@
+# Global gitignore, symlinked to ~/.config/git/ignore — git's own default
+# location for core.excludesFile when that setting is unset (see gitconfig's
+# comment on why it's left unset). Only entries that are about THIS machine's
+# tools belong here; project-specific ignores (build output, dependencies)
+# stay in each project's own .gitignore, not leaked into every repo checked
+# out on this machine.
+
+# macOS Finder metadata.
+.DS_Store
+.AppleDouble
+
+# Editor/tool droppings that show up regardless of which project it is.
+*.swp
+.idea/
+.vscode/

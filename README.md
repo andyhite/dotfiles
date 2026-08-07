@@ -9,6 +9,7 @@ NvChad for editing.
 | Path | Links to | What it is |
 |---|---|---|
 | `zshrc` | `~/.zshrc` | zsh config: completion, antidote plugin load, history, aliases, tool init hooks |
+| `tool-versions` | `~/.tool-versions` | mise runtime pins (node, python, go, bun, pnpm) — mise walks up from the current directory to find this, so the symlink is the global default under `$HOME`; see [mise](#mise) below |
 | `zsh_plugins.txt` | `~/.zsh_plugins.txt` | antidote's plugin list (zsh-autosuggestions, zsh-syntax-highlighting, fzf-tab, zsh-vi-mode) |
 | `tmux.conf` | `~/.tmux.conf` | tmux config, plugins managed by TPM |
 | `config/starship.toml` | `~/.config/starship.toml` | prompt — One Dark Pro preset, hostname shown only over SSH |
@@ -19,8 +20,18 @@ NvChad for editing.
 | `config/atuin/config.toml` | `~/.config/atuin/config.toml` | Atuin (shell history): overrides only — daemon, fuzzy search, full-style UI, vi keymap, tmux popup, `atuin ai`. Also the answers `atuin setup` would otherwise re-ask on every install |
 | `config/atuin/themes/one-dark.toml` | `~/.config/atuin/themes/one-dark.toml` | One Dark for Atuin; foreground colors only, background comes from Ghostty |
 | `config/nvim` | `~/.config/nvim` | [NvChad](https://nvchad.com) starter — vendored once, `.git` stripped, fully mine to edit from here |
-| `omp/agent/config.yml` | `~/.omp/agent/config.yml` | [omp](https://omp.sh) coding agent settings — only this file; the rest of `~/.omp/agent` is databases, sessions, and a secrets key |
-| `omp/agent/extensions/atuin.ts` | `~/.omp/agent/extensions/atuin.ts` | records omp's `bash` commands into Atuin history as `--author omp`, with omp's intent string as `--intent`. Hand-maintained: `atuin hook install` has no omp target |
+| `config/zed/settings.json` | `~/.config/zed/settings.json` | Zed editor settings — `disable_ai: true` since agents run from the terminal via omp, not inside the editor, so the `agent`/`agent_servers` keys go undefined rather than tracked as dead config. `ssh_connections` is also deliberately dropped: it's per-machine session state Zed rewrites on every connect |
+| `gitconfig` | `~/.gitconfig` | tracked git identity, LFS/xet filter wiring, and defaults meant to hold on every machine; anything that varies per machine layers in through `gitconfig.local.example` below |
+| `gitconfig.local.example` | (copy, not linked) | template for `~/.gitconfig.local` — work identity via `includeIf "gitdir:…"`, private-registry credentials. `gitconfig`'s trailing `[include]` applies last, so anything set here wins over every default in the tracked file |
+| `config/git/ignore` | `~/.config/git/ignore` | global gitignore — git's own default `core.excludesFile` location when that setting is unset, so machine-tool droppings (`.DS_Store`, `.idea/`) never have to live in a project's own `.gitignore` |
+| `config/gh/config.yml` | `~/.config/gh/config.yml` | gh CLI defaults and aliases; `git_protocol: https` is deliberate — `ssh/config` maps `github.com` to the work SSH key, so an ssh remote here would silently authenticate as the wrong account |
+| `ssh/config` | `~/.ssh/config` | portable ssh identity config — per-key `Host` blocks for github.com (`IdentitiesOnly yes` so the agent can't offer the wrong key first), github.com-personal, hf.co, runpod.io; machine-specific hosts live in `~/.ssh/config.local` instead |
+| `ssh/config.local.example` | (copy, not linked) | template for `~/.ssh/config.local` — dstack's generated `Include`, throwaway test hosts. `ssh/config`'s first real line is `Include ~/.ssh/config.local`, because ssh takes the first value it finds for any option and this is the only way the local file can override rather than be shadowed |
+| `omp/agent/config.yml` | `~/.omp/agent/config.yml` | [omp](https://omp.sh) coding agent settings — besides this file and `rules/output-style.md` below, the rest of `~/.omp/agent` is databases, sessions, and a secrets key |
+| `omp/agent/extensions/atuin.ts` | `~/.omp/agent/extensions/atuin.ts` | records omp's `bash` commands into Atuin history as `--author pi` (a `KNOWN_AGENTS` name, so `$all-user` hides them), with omp's intent string as `--intent`. Hand-maintained: `atuin hook install` has no omp target |
+| `omp/agent/rules/output-style.md` | `~/.omp/agent/rules/output-style.md` | `alwaysApply: true` rule that shapes every omp response for an ADHD reader — answer first, numbered steps, one next action, no preamble or recap |
+| `Brewfile` | (not linked — read by `install.sh`) | macOS formulae + casks for every tool this config drives, applied with `brew bundle` — replaced the old hand-maintained `brew_ensure`/`brew_ensure_cask` loop |
+| `agent_skills.txt` | (not linked — read by `install.sh`) | cross-agent skill manifest, one `<owner>/<repo> --skill <name>` per line; `install.sh` runs `npx skills add … -g -y` for each |
 | `zshrc.local.example` | (copy, not linked) | template for machine-local secrets — never committed |
 | `install.sh` | — | installs/updates every tool below, then symlinks all the config above into place |
 
@@ -31,7 +42,7 @@ git clone https://github.com/andyhite/dotfiles.git ~/dotfiles
 ~/dotfiles/install.sh
 ```
 
-`install.sh` runs seven steps, and is safe to re-run any time (installs what's missing,
+`install.sh` runs eight steps, and is safe to re-run any time (installs what's missing,
 updates what's already there). With a terminal attached each step asks first and Enter
 accepts; without one, or with `--yes`, it runs everything unattended:
 
@@ -55,9 +66,16 @@ reordering doesn't:
 
 1. **Installs/updates the tools this config drives**: starship, zoxide, atuin,
    fzf, eza, bat, direnv, tmux, antidote, TPM, the JetBrains Mono Nerd Font, neovim,
-   ripgrep, tree-sitter-cli, omp, and NvChad. macOS goes through Homebrew (formulae + casks,
-   including Ghostty itself); Linux goes through `apt` where a package exists, and falls
-   back to each tool's official installer otherwise:
+   ripgrep, tree-sitter-cli, mise, omp, and NvChad. macOS applies `Brewfile` with
+   `brew bundle` (formulae + casks, including Ghostty itself); Linux goes through
+   `apt` where a package exists, and falls back to each tool's official installer
+   otherwise:
+   - `brew bundle check --file Brewfile` runs first and is the common path on a
+     repeat install: it exits clean only when every formula/cask is already
+     installed and current, so the slower `brew bundle install` runs only when
+     there's real work outstanding. `brew bundle` itself only ever adds — dropping
+     a line from `Brewfile` never uninstalls anything already on the machine; that
+     takes a manual `brew bundle cleanup`.
    - starship/atuin ship curl-able install scripts.
    - eza predates its Ubuntu packaging (24.04+), so on older releases it's built from
      source via `cargo` — bootstrapping `rustup` first if needed, and only rebuilding
@@ -69,6 +87,9 @@ reordering doesn't:
      `rquickjs-sys`, which needs bindgen/clang to resolve its resource-dir correctly and
      fails to build on stock Ubuntu (`fatal error: 'stdbool.h' file not found`). Uses
      tree-sitter's own prebuilt release binary instead.
+   - mise: macOS gets it from `Brewfile` like everything above it; Linux has no
+     equally universal package for it, so this runs the upstream `mise.run` installer,
+     which drops a single binary into `~/.local/bin` — already on `PATH` via `zshrc`.
    - The Nerd Font is fetched straight from its GitHub release and installed under
      `~/.local/share/fonts`.
    - NvChad: clones `NvChad/starter` straight into this repo the first time
@@ -90,14 +111,29 @@ reordering doesn't:
    version. See [Completions](#completions) below.
 3. **Symlinks every config file** in the table above into place. Backs up
    (`.bak.<timestamp>`) anything real that's already sitting where a symlink needs to
-   go.
-4. **Offers to log in to Atuin sync**, but only when not already logged in and only when
+   go. Also copies `zshrc.local.example`, `gitconfig.local.example`, and
+   `ssh/config.local.example` to their `~/.*.local` targets at mode 600 the first time
+   only — a re-run never overwrites an already filled-in file. See [The `*.local`
+   templates](#the-local-templates) below.
+4. **Installs the language runtimes pinned in `~/.tool-versions`**, via `mise install`.
+   Runs right after the symlinks step and not before: mise reads its pins by walking up
+   from wherever it's invoked, and `~/.tool-versions` is the symlink the configs step
+   above just created — swap the order and this step runs against nothing on a fresh
+   machine. See [mise](#mise) below.
+5. **Offers to log in to Atuin sync**, but only when not already logged in and only when
    a terminal is actually attached. Everything else about Atuin lives in
    `config/atuin/config.toml`; sync is account state, so it can't be committed. See
    [Atuin](#atuin) below.
-5. **Installs/updates every Herdr plugin** listed in `herdr_plugins.txt`. Skipped with a
+6. **Installs/updates every Herdr plugin** listed in `herdr_plugins.txt`. Skipped with a
    note if `herdr` isn't on `PATH` — this repo configures Herdr but doesn't install it.
-6. **Headlessly syncs NvChad's plugins** (`nvim --headless "+Lazy! sync" +qa`) once
+7. **Installs cross-agent skills**, from two sources. `agent_skills.txt` first — one
+   `npx skills add <owner>/<repo> --skill <name> -g -y` per line — which needs the
+   `runtimes` step above to have already put node on `PATH`, hence the ordering. Then
+   any skill an installed Herdr plugin ships in its own `skills/` directory, symlinked
+   into `~/.omp/agent/skills` — unchanged from before, and run after Herdr because a
+   link made before a plugin's first install would point at a path that doesn't exist
+   yet.
+8. **Headlessly syncs NvChad's plugins** (`nvim --headless "+Lazy! sync" +qa`) once
    neovim and the config are both in place.
 
 ### Completions
@@ -115,6 +151,7 @@ per tool that has a generator:
 | omp | `omp completions zsh` |
 | herdr | `herdr completion zsh` |
 | tree-sitter | `tree-sitter complete --shell zsh` |
+| mise | `mise completion zsh` |
 
 Deliberately absent, because generating a file would be worse than what already works:
 `eza` and `zoxide` have no generator (Homebrew ships `_eza`/`_zoxide`); `direnv` and
@@ -126,6 +163,57 @@ target when the output is non-empty, so a tool that starts erroring can't blank 
 completion. And because `zshrc` runs `compinit -C` — which trusts a cached dump rather
 than rescanning `fpath` on every shell start — `install.sh` deletes `~/.zcompdump*`
 whenever it writes something new, so the next shell rebuilds once.
+
+### The `*.local` templates
+
+Three tracked templates, one convention: `zshrc.local.example`, `gitconfig.local.example`,
+and `ssh/config.local.example` are copied — never linked — to their `~/.*.local` targets
+at mode 600 the first time `install.sh` runs, and left alone on every run after that, so
+a filled-in file is never clobbered. Each one holds real secrets or per-machine values
+that have no business in a public repo.
+
+The two config templates exist because of how their tracked file reads the copy back, not
+just as a place to dump overrides:
+
+- `gitconfig` ends with `[include]` / `path = ~/.gitconfig.local`. Git applies repeated
+  keys in file order, so an include at the very end wins over every default set above it
+  — `~/.gitconfig.local` doesn't need to know what it's overriding, it just wins by
+  coming last.
+- `ssh/config` *starts* with `Include ~/.ssh/config.local`, before any `Host` block. ssh
+  takes the first value it finds for a given option, so the include has to come first or
+  a later `Host github.com` block would shadow it instead of losing to it. A missing
+  include target isn't an error in `ssh_config`, so this line is safe on a machine that
+  hasn't run `install.sh` yet.
+
+`zshrc.local.example` needs no such trick — `zshrc` just sources `~/.zshrc.local` near
+the top, before the tool blocks that read values like `AWS_PROFILE`.
+
+### mise
+
+Replaces the old per-language version manager: one binary instead of a plugin per
+language (no `plugin add node`/`plugin add golang` to run on every machine), and it
+activates by rewriting `PATH` on every prompt instead of installing shims — a version
+change in `~/.tool-versions` is live in the shell you're already sitting in, with no
+`reshim` step.
+
+`tool-versions` pins exact versions on purpose — `node 26.7.0`, not "latest" — so a
+machine doesn't silently drift to whatever happened to be current the day someone ran
+`install.sh`. mise resolves `.tool-versions`/`mise.toml` by walking up from the current
+directory to `$HOME` and beyond, which is exactly what makes the `~/.tool-versions`
+symlink the global default everywhere that doesn't have its own: mise takes the nearest
+file, so a project with its own pins still wins inside that project.
+
+A trailing `t` on a python version — `3.14.7t` versus the `3.14.7` pinned here — selects
+the free-threaded (no-GIL) build. That's a distinct, opt-in variant, not a typo, so don't
+"fix" it if it turns up somewhere else.
+
+### `make` on macOS — `gmake`, not `gnumake`
+
+Apple ships GNU make 3.81, from 2006, as *both* `make` and `gnumake` — so the obvious
+`alias make=gnumake` looks like an upgrade but is a silent no-op, still 3.81. Homebrew's
+`make` formula installs GNU make 4.x as `gmake` instead, specifically to dodge that name
+clash, so `zshrc`'s macOS block aliases `make` to `gmake` once it finds Homebrew's copy —
+`gnumake` was never the one worth reaching for.
 
 ### Atuin
 
@@ -141,15 +229,25 @@ for it, but only while genuinely logged out (`atuin status` exits non-zero) and 
 piped run can't hang on it.
 
 `omp/agent/extensions/atuin.ts` records commands omp runs through its `bash` tool into
-the same history, tagged `--author omp`:
+the same history, tagged `--author pi` — omp is a distribution of pi, and "pi" is one of
+the five names in Atuin's `KNOWN_AGENTS`, which is what makes the agent pseudo-filters
+work:
 
 ```sh
-atuin search --author omp    # just the agent
-atuin search --author user   # just me
+atuin search --author pi            # just the agent
+atuin search --author '$all-agent'  # any known agent
+atuin search --author '$all-user'   # just me
 ```
 
-Prefer those literal author names: on Atuin 18.19.0 the `$all-user` pseudo-filter also
-returns agent rows, so it does not mean "exclude agents".
+`$all-user` is applied to every interactive search, so agent rows stay out of `Ctrl+R`
+and out of the up-arrow list without any configuration. The one gap is a *typed* `Ctrl+R`
+query: it's answered by the daemon's index, which has no author column, so agent rows
+reappear there. The up-arrow search is exempt because it's pinned to the sqlite engine
+(`search_mode_shell_up_key_binding`).
+
+Rows recorded before this switch keep `--author omp` and behave like hand-typed commands.
+Retagging them isn't worth it: `history.db` is a projection of the record store, so a
+sqlite `UPDATE` would be reverted by the next `atuin store rebuild history`.
 
 Two things had to be fixed for Atuin to behave under `zsh-vi-mode`, and both fail
 silently, so they're worth knowing about if either ever regresses.
@@ -203,6 +301,25 @@ is a usage error.) To remove one, delete the line and run
 `herdr plugin uninstall <plugin-id>` — nothing prunes plugins automatically, since
 removing a plugin also throws away whatever config it had.
 
+### Agent skills — the list is tracked, the lockfile isn't
+
+Same shape as Herdr plugins above: `agent_skills.txt` is the tracked source of truth, one
+`<owner>/<repo> --skill <name>` per line, and the state the CLI generates alongside it —
+`~/.agents/.skill-lock.json`, content hashes and install/update timestamps — stays
+untracked.
+
+`install.sh` runs `npx skills add <owner>/<repo> --skill <name> -g -y` for each line.
+`-g` writes one canonical copy of the skill into `~/.agents/skills` and symlinks every
+agent the CLI detects at that tree, instead of installing into a single project; `-y`
+accepts its prompts so this can run with no tty attached. omp needs no install target of
+its own here — it picks skills up through its `agents` skill provider, reading
+`~/.agents/skills` directly rather than needing anything copied into
+`~/.omp/agent/skills`.
+
+(`~/.omp/agent/skills` is a separate, narrower thing: the same `skills` step also
+symlinks any skill an installed Herdr plugin ships in its own `skills/` directory there —
+unrelated to `agent_skills.txt`, and the one part of this step that isn't new.)
+
 ### NvChad's Mason/Treesitter setup — do this yourself, on purpose
 
 NvChad's own quickstart docs say to run `:MasonInstallAll` and `:TSInstallAll` after the
@@ -252,10 +369,12 @@ infocmp -x xterm-ghostty | ssh host -- tic -x -
 
 After that:
 
-- Fill in secrets. The installer copies `zshrc.local.example` to `~/.zshrc.local` if it
-  doesn't already exist. Edit that file with real values — `zshrc` sources it
-  automatically and it's git-ignored, so secrets never end up in this repo or its
-  history.
+- Fill in secrets. The installer copies `zshrc.local.example`, `gitconfig.local.example`,
+  and `ssh/config.local.example` to their `~/.*.local` targets (mode 600) if they don't
+  already exist. Edit those files with real values — `zshrc`/`gitconfig`/`ssh/config`
+  each source or include the copy automatically, and all three are git-ignored, so
+  secrets never end up in this repo or its history. See [The `*.local`
+  templates](#the-local-templates) below.
 - Restart your shell (or `exec zsh`). Antidote clones its plugins on first run.
 - Open tmux and press `prefix+I` to have TPM install its plugins on first run.
 
