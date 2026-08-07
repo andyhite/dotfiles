@@ -20,3 +20,97 @@ hide_tab_bar_when_single_tab = false
 mouse_scroll_lines = 1
 accent = "#71b9f4"
 agent_panel_sort = "spaces"
+
+# ── Keybindings ──────────────────────────────────────────────────────────────
+
+# These mirror this repo's nvim setup (config/nvim + NvChad defaults) with
+# herdr's prefix standing in for nvim's <C-…> and <leader>, so one set of
+# muscle memory drives both. nvim side, for reference:
+#
+#   <C-h/j/k/l>     switch window          -> focus_pane_*      prefix+h/j/k/l
+#   <C-w>s / <C-w>v :split / :vsplit       -> split_*           prefix+s / prefix+v
+#   <C-w>H/J/K/L    move window            -> swap_pane_*       prefix+shift+h/j/k/l
+#   <C-w>q          close window           -> close_pane        prefix+q
+#   <C-n>           NvimTreeToggle         -> toggle_sidebar    prefix+n
+#   <tab>/<S-tab>   buffer next/prev       -> next/previous_tab prefix+tab/shift+tab
+#
+# Overrides only, so herdr's other defaults keep flowing through. The prefix is
+# untouched (ctrl+b), and focus_pane_* already matches nvim by default so it's
+# deliberately absent below.
+#
+# Non-navigate bindings MUST include `prefix+`; herdr rejects a bare key as an
+# "unsafe direct keybinding" because it would intercept typing. The navigate_*
+# family is the inverse — it must NOT include the prefix.
+[keys]
+## :split — a horizontal divider, new pane below. Replaces prefix+minus, whose
+## `-` glyph is where the direction semantics came from: minus is the divider,
+## not the axis, so this is vim's :split and not tmux's -h.
+split_horizontal = "prefix+s"
+## :vsplit — already prefix+v by default; restated only because leaving it out
+## next to the line above reads like an oversight.
+split_vertical = "prefix+v"
+
+## Displaced by :split above. `,` is the neovim convention for config UI.
+settings = "prefix+,"
+
+## <C-w>H/J/K/L — move the pane itself, shift-mirroring the h/j/k/l that move
+## focus. Unbound by default, so nothing is lost here.
+swap_pane_left = "prefix+shift+h"
+swap_pane_down = "prefix+shift+j"
+swap_pane_up = "prefix+shift+k"
+swap_pane_right = "prefix+shift+l"
+
+## <C-w>q closes the window in vim, and q is the strongest "close this" key
+## there is. That displaces detach onto prefix+d, which is where tmux has always
+## put it, and leaves prefix+shift+d as close_workspace.
+close_pane = "prefix+q"
+detach = "prefix+d"
+
+## <C-n> in nvim. Not <leader>e — that's NvimTreeFocus, and herdr has no
+## focus_sidebar action, so the sidebar can be shown and hidden but cursor focus
+## can't be moved into it. What the sidebar *lists* is reachable though: see the
+## workspace and agent bindings below. Takes prefix+n from next_tab, which moves
+## to nvim's own buffer-cycling keys. edit_scrollback keeps its default prefix+e.
+toggle_sidebar = "prefix+n"
+
+## <tab> / <S-tab> cycle buffers along nvim's tabufline, and herdr's tab bar is
+## the same row of things. This takes prefix+tab from cycle_pane_next, which is
+## the one binding here that loses its key: directional focus_pane_* covers the
+## same ground, which is why <C-w>w goes unused in vim too.
+next_tab = "prefix+tab"
+previous_tab = "prefix+shift+tab"
+
+## The sidebar's two lists, by keyboard. Workspaces already had prefix+w
+## (the "workspaces / tabs" picker) and prefix+g (the session navigator, whose
+## bare up/down are the navigate_workspace_* pair) — these add direct jumps.
+## Every action below is unbound by default, so nothing is displaced.
+##
+## Bracket pairs follow vim's "next/previous thing of a kind" convention (]q,
+## ]c, ]d …); shift widens the same motion from agents to workspaces.
+next_agent = "prefix+]"
+previous_agent = "prefix+["
+next_workspace = "prefix+shift+]"
+previous_workspace = "prefix+shift+["
+
+## Indexed actions: these take a 1..9 range rather than a single key, the same
+## shape as the built-in switch_tab = "prefix+1..9". Modifiers keep the three
+## index families apart — plain digits are tabs, shift is workspaces, alt is
+## agents.
+switch_workspace = "prefix+shift+1..9"
+focus_agent = "prefix+alt+1..9"
+
+## Inside the navigator (prefix+g). These are the one family that must NOT carry
+## the prefix — they're keys within the mode, not global bindings.
+##
+## herdr splits the mode across two axes: navigate_pane_* owns h/j/k/l, so j/k
+## walks panes and the agents listed in them, while the spaces list is a
+## separate axis that defaults to the bare arrow keys. That's why j/k appears to
+## work in the agents list and do nothing in the spaces list — they're different
+## actions, and j/k can't drive both.
+##
+## ctrl+j / ctrl+k for the outer axis, because that's already what <C-j>/<C-k>
+## mean in nvim: move between containers, not within one. Plain j/k stays
+## within a list. This replaces the arrow-key default rather than adding to it —
+## one key per action — so up/down no longer move between spaces.
+navigate_workspace_up = "ctrl+k"
+navigate_workspace_down = "ctrl+j"
