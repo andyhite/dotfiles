@@ -87,6 +87,20 @@ cask "font-monaspace"
 # output, powerline separators in the prompt); this is the one font both need.
 cask "font-jetbrains-mono-nerd-font"
 cask "1password-cli"
+# Paseo — daemon that supervises coding agents (Claude, Codex, omp) and exposes
+# them to desktop/mobile/CLI clients. Configured by config/paseo/config.json and
+# config/paseo/orchestration-preferences.json.
+#
+# The cask is the desktop app, which bundles the daemon and the `paseo` CLI at
+# Paseo.app/Contents/Resources/bin/paseo. Installing the cask does not launch
+# it, and the CLI symlink into ~/.local/bin is created by the app's first-run
+# hook — so install.sh's `ensure_paseo_cli` creates that link itself rather than
+# requiring a GUI launch to put `paseo` on PATH.
+#
+# No Linux counterpart in install.sh's apt branch: on a headless box the
+# desktop app is the wrong artifact, so that branch installs the standalone
+# `@getpaseo/cli` npm package (same 0.3.0 daemon, no Electron) instead.
+cask "paseo"
 # AeroSpace — i3-like tiling window manager, configured by
 # config/aerospace/aerospace.toml. macOS-only by nature, which is also why the
 # Linux branch of install.sh has no counterpart.
