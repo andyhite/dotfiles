@@ -128,7 +128,7 @@ confirm() {
 
 # ── Steps ────────────────────────────────────────────────────────────────────
 
-STEPS=(tools completions configs runtimes atuin herdr skills nvim)
+STEPS=(tools completions configs runtimes paseo atuin herdr skills nvim)
 ASSUME_YES=0
 VERBOSE=0
 ONLY=""
@@ -153,6 +153,7 @@ ${C_BOLD}Steps${C_RESET}
   completions  Generate zsh completions into ~/.local/share/zsh/site-functions
   configs      Symlink this repo's config files into place
   runtimes     Install the language versions pinned in tool-versions, with mise
+  paseo        Merge config/paseo into ~/.paseo, ensure the CLI, supervise the daemon
   atuin        Offer to log in to Atuin sync when not already logged in
   herdr        Install/update the Herdr plugins in herdr_plugins.txt
   skills       Install agent skills from agent_skills.txt, link Herdr-shipped ones
@@ -768,6 +769,13 @@ link_configs() {
     # another tool drops into ~/.omp/agent/rules stays visible alongside it.
     "omp/agent/rules/output-style.md:$HOME/.omp/agent/rules/output-style.md"
     "omp/agent/rules/herdr-worktrees.md:$HOME/.omp/agent/rules/herdr-worktrees.md"
+    # Read by the Paseo orchestration skills, never by Paseo itself — grepping
+    # getpaseo/paseo for the name turns up only the five shipped SKILL.md
+    # files. That's what makes it safe to link when its neighbour
+    # ~/.paseo/config.json isn't: nothing rewrites it behind the symlink. The
+    # rest of ~/.paseo is a keypair, a server id, push tokens, and ~1GB of
+    # local speech models, so this is linked per-file like omp's.
+    "config/paseo/orchestration-preferences.json:$HOME/.paseo/orchestration-preferences.json"
   )
 
   # AeroSpace drives the macOS window server, so on Linux this wouldn't be an
@@ -830,19 +838,25 @@ link_configs() {
     fi
   fi
 
-  # Templates are copied, not linked: each holds machine-local values, and two of
-  # them hold credentials. Copied only when absent, so a re-run can never
+  # Templates are copied, not linked: each holds machine-local values, and three
+  # of them hold credentials. Copied only when absent, so a re-run can never
   # overwrite an already filled-in file.
   #
   # Same $HOME -> ~ display transform as the loop above, rather than a literal
   # "~/..." string: that reads as an unexpanded path to both shellcheck and the
   # next person, and drifts if the location ever changes.
   local example target
-  for example in zshrc.local.example gitconfig.local.example ssh/config.local.example; do
-    # ssh's lives in a subdirectory on both sides; the rest are dotfiles at $HOME.
+  for example in zshrc.local.example gitconfig.local.example ssh/config.local.example \
+                 config/paseo/daemon.env.example; do
+    # ssh's and paseo's live in a subdirectory on both sides; the rest are
+    # dotfiles at $HOME. paseo's is the odd one out in that its target isn't a
+    # dotfile at all — config/paseo/paseo.service names it as an
+    # EnvironmentFile, and systemd resolves that path itself, so it has to land
+    # where the unit says rather than where this loop's default would put it.
     case "$example" in
-      ssh/*) target="$HOME/.ssh/${example#ssh/}"; target="${target%.example}" ;;
-      *)     target="$HOME/.${example%.example}" ;;
+      ssh/*)          target="$HOME/.ssh/${example#ssh/}"; target="${target%.example}" ;;
+      config/paseo/*) target="$HOME/.config/paseo/${example#config/paseo/}"; target="${target%.example}" ;;
+      *)              target="$HOME/.${example%.example}" ;;
     esac
 
     if [ -f "$target" ]; then
@@ -881,6 +895,227 @@ ensure_runtimes() {
     [ -n "$tool" ] || continue
     ok "$tool" "$version"
   done < <(cd "$HOME" && mise ls --current --quiet 2>/dev/null)
+}
+
+# ── Paseo ────────────────────────────────────────────────────────────────────
+
+# Paseo supervises coding agents (Claude, Codex, omp) and exposes them to
+# desktop, mobile and CLI clients. The two machines this repo bootstraps use it
+# from opposite ends: the Mac runs the GUI app as a client, the Linux box runs
+# the daemon the Mac connects to. Everything below is written to do the right
+# thing on either.
+
+# macOS gets the binary from the Brewfile cask and only needs it on PATH; Linux
+# has no desktop app worth installing, so it gets the standalone npm package —
+# @getpaseo/cli depends on @getpaseo/server, so that single package really is
+# the whole daemon and not a thin remote client.
+#
+# --prefix "$HOME/.local" rather than a bare `npm install -g`: a plain global
+# install lands inside whichever node mise currently has active and disappears
+# the moment tool-versions bumps node, whereas ~/.local/bin is where every
+# other manually-installed tool here already lives and is already on PATH. The
+# launcher's shebang is `env -S node`, so it resolves node at run time either
+# way.
+ensure_paseo_cli() {
+  local bundled="/Applications/Paseo.app/Contents/Resources/bin/paseo"
+  local dst="$HOME/.local/bin/paseo"
+  # Same $HOME -> ~ display transform link_configs uses; a literal "~/..."
+  # string in a label doesn't expand and reads as a bug to shellcheck.
+  local shown="${dst/#$HOME/\~}" backup
+
+  if [ "$OS" = "Darwin" ]; then
+    if [ ! -x "$bundled" ]; then
+      skipped "paseo" "Paseo.app not installed — run the tools step, then re-run"
+      return 1
+    fi
+    # The app's own first-run hook makes this link, but only when the GUI has
+    # actually been launched at least once — `brew bundle` alone never opens it,
+    # so on a fresh machine `paseo` would be missing from PATH until someone
+    # double-clicked the icon.
+    #
+    # Same back-up-anything-unexpected shape as the bin/tailscale block in
+    # link_configs, rather than an unconditional rm: a real binary sitting here
+    # is someone's own install, and this script doesn't get to delete it.
+    mkdir -p "$(dirname "$dst")"
+    if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$bundled" ]; then
+      ok "$shown"
+    elif [ -e "$dst" ] || [ -L "$dst" ]; then
+      backup="$dst.bak.$(date +%s)"
+      mv "$dst" "$backup"
+      ln -s "$bundled" "$dst"
+      warned "$shown" "backed up to ${backup##*/}"
+    else
+      ln -s "$bundled" "$dst"
+      added "$shown" "-> Paseo.app bundled CLI"
+    fi
+    return 0
+  fi
+
+  # Same mise-first reasoning as install_agent_skills: `command -v npm` also
+  # matches a dead shim from another version manager, so ask mise for the node
+  # that tool-versions pins.
+  local runner
+  if command -v mise >/dev/null 2>&1; then
+    runner="mise exec -- npm"
+  elif command -v npm >/dev/null 2>&1; then
+    runner="npm"
+  else
+    skipped "paseo" "no node — run the tools and runtimes steps first"
+    return 1
+  fi
+
+  if run_quiet paseo sh -c "$runner install -g --prefix '$HOME/.local' @getpaseo/cli" </dev/null; then
+    ok "paseo" "$(cd "$HOME" && mise exec -- "$HOME/.local/bin/paseo" --version 2>/dev/null || echo installed)"
+    return 0
+  fi
+  return 1
+}
+
+# config/paseo/config.json is merged into ~/.paseo/config.json rather than
+# symlinked over it, which is the one place Paseo breaks this repo's usual
+# pattern. Two independent reasons, both verified against the upstream source:
+#
+#   1. Paseo saves config atomically. persisted-config.ts's savePersistedConfig
+#      calls writePrivateFileAtomicSync, which writes a sibling tempfile and
+#      renameSync()s it over the target — and rename *replaces* a symlink with a
+#      real file. So the first settings change made in the app would silently
+#      detach the link, leaving the repo showing a tracked config that no longer
+#      has any effect.
+#   2. The live file legitimately holds things that must never be committed:
+#      `paseo daemon set-password` writes a bcrypt hash into daemon.auth, and
+#      custom providers keep API keys under agents.providers.*.env.
+#
+# A merge solves both: the tracked file is authoritative for the keys it names,
+# and every other key in the live file — secrets and per-machine settings
+# included — is left exactly as Paseo wrote it. jq's `*` is a recursive object
+# merge with the right side winning, which is why the tracked file is the second
+# argument. Verified idempotent: merging an already-merged file changes nothing.
+merge_paseo_config() {
+  local src="$DOTFILES_DIR/config/paseo/config.json"
+  local dst="$HOME/.paseo/config.json"
+  local shown="${dst/#$HOME/\~}"
+
+  if [ ! -f "$src" ]; then
+    skipped "config/paseo/config.json" "not present"
+    return 0
+  fi
+  if ! command -v jq >/dev/null 2>&1; then
+    skipped "$shown" "jq not on PATH — run the tools step, then re-run"
+    return 0
+  fi
+
+  # 0700 to match what Paseo's own ensurePrivateDirectory sets, so a fresh
+  # machine doesn't end up with a laxer mode than the daemon would have chosen.
+  mkdir -p "$HOME/.paseo"
+  chmod 700 "$HOME/.paseo" 2>/dev/null || true
+  [ -f "$dst" ] || printf '{}\n' > "$dst"
+
+  local merged
+  merged="$(mktemp "$dst.merge.XXXXXX")" || return 1
+  if ! jq -s '.[0] * .[1]' "$dst" "$src" > "$merged" 2>/dev/null; then
+    rm -f "$merged"
+    failed "$shown" "invalid JSON in it or in config/paseo/config.json"
+    return 1
+  fi
+
+  # Compared semantically, not byte-wise: the daemon rewrites this file with its
+  # own key order and formatting, so a textual diff would report drift on every
+  # run and the "restart to apply" note below would cry wolf.
+  if jq -e --slurpfile want "$merged" '. == $want[0]' "$dst" >/dev/null 2>&1; then
+    rm -f "$merged"
+    ok "$shown" "matches config/paseo/config.json"
+    return 0
+  fi
+
+  mv "$merged" "$dst"
+  chmod 600 "$dst"
+  updated "$shown" "merged config/paseo/config.json"
+  # Deliberately not restarting it here: config is read at startup, but a
+  # restart kills every agent currently running under the daemon — including,
+  # when an agent is the one running this script, itself.
+  say "restart the daemon to apply: paseo daemon restart"
+}
+
+# Linux only. The Mac's daemon is started and supervised by the desktop app, so
+# there is nothing to install there; the Linux box is the one that has to bring
+# a daemon up on its own and keep it up across reboots.
+#
+# Copied rather than symlinked, unlike everything else in this repo: systemd
+# reads units through its own path resolution and `systemctl --user daemon-reload`
+# is what publishes a change, so a symlink would buy nothing and a stale
+# in-memory unit would hide edits made here anyway. The copy is re-made on every
+# run, so editing config/paseo/paseo.service and re-running is the update path.
+ensure_paseo_service() {
+  [ "$OS" = "Linux" ] || return 0
+
+  local src="$DOTFILES_DIR/config/paseo/paseo.service"
+  local dst="$HOME/.config/systemd/user/paseo.service"
+  local shown="${dst/#$HOME/\~}"
+
+  if [ ! -f "$src" ]; then
+    skipped "paseo.service" "not present"
+    return 0
+  fi
+  if ! command -v systemctl >/dev/null 2>&1; then
+    skipped "paseo.service" "no systemd — start the daemon with: paseo daemon start"
+    return 0
+  fi
+
+  mkdir -p "$(dirname "$dst")"
+  if cmp -s "$src" "$dst"; then
+    ok "$shown"
+  else
+    cp "$src" "$dst"
+    added "$shown" "<- config/paseo/paseo.service"
+  fi
+
+  # --user units normally start at login, which never happens on a box that's
+  # only ever reached over ssh. Lingering is what makes the user manager come up
+  # at boot instead. It needs root, so ask rather than assume: a machine where
+  # the daemon only has to be running while you're logged in doesn't need it.
+  if command -v loginctl >/dev/null 2>&1; then
+    if [ "$(loginctl show-user "$USER" --property=Linger --value 2>/dev/null)" = "yes" ]; then
+      ok "linger" "enabled for $USER"
+    elif ! confirm "Enable systemd lingering for $USER, so the Paseo daemon starts at boot?"; then
+      skipped "linger" "daemon will start at login instead of at boot"
+    # `sudo -n` first, deliberately not run_quiet: an unattended run has no tty
+    # for a password prompt, and confirm() returns true in exactly that case, so
+    # without this gate every ssh'd `--yes` install would record a hard error for
+    # something entirely optional. A warning that names the command is the right
+    # severity — the daemon still works, it just waits for a login.
+    elif ! sudo -n true 2>/dev/null; then
+      warned "linger" "needs sudo — run: sudo loginctl enable-linger $USER"
+    elif sudo -n loginctl enable-linger "$USER" >/dev/null 2>&1; then
+      added "linger" "enabled for $USER"
+    else
+      warned "linger" "enable-linger failed — run: sudo loginctl enable-linger $USER"
+    fi
+  fi
+
+  run_quiet "systemd reload" systemctl --user daemon-reload || return 0
+
+  # enable, not `enable --now`: starting the daemon here would be a surprise on
+  # a box that has one running already under a different launch override, and
+  # `restart` on an active unit kills its agents. Enable the unit so a reboot
+  # brings it up, and hand the first start to the user.
+  if run_quiet "paseo.service" systemctl --user enable paseo.service; then
+    if systemctl --user is-active --quiet paseo.service; then
+      ok "paseo.service" "enabled, running"
+      say "restart to pick up config changes: systemctl --user restart paseo"
+    else
+      updated "paseo.service" "enabled, not started"
+      say "set PASEO_LISTEN in ~/.config/paseo/daemon.env, then: systemctl --user start paseo"
+    fi
+  fi
+}
+
+setup_paseo() {
+  # The config merge and the unit are worth doing even when the CLI is missing —
+  # they're both just files on disk, and doing them anyway means a box that
+  # installs Paseo later is already configured for it.
+  ensure_paseo_cli || true
+  merge_paseo_config
+  ensure_paseo_service
 }
 
 # ── Herdr plugins ────────────────────────────────────────────────────────────
@@ -1142,6 +1377,15 @@ fi
 #                              command -v guard.
 #   runtimes after configs     mise reads its pins from ~/.tool-versions, and
 #                              that symlink is created by the configs step.
+#   paseo after configs        the orchestration-preferences symlink is made by
+#                              the configs step, and config/paseo/paseo.service
+#                              names ~/.config/paseo/daemon.env, which the same
+#                              step copies from its template.
+#   paseo after runtimes       on Linux the CLI is an npm package, so it needs
+#                              the node that the runtimes step installs. On
+#                              macOS it comes from the Brewfile cask instead,
+#                              which makes the tools step the real prerequisite
+#                              there — after runtimes satisfies both.
 #   atuin after configs        a login writes session state that should sit
 #                              alongside the committed settings in
 #                              config/atuin/config.toml, not ahead of them.
@@ -1158,6 +1402,7 @@ run_step tools       "Tools"         "Brewfile/apt, fonts, editors, agents"     
 run_step completions "Completions"   "generated into ~/.local/share/zsh/site-functions" ensure_completions
 run_step configs     "Configs"       "symlink this repo into place"                     link_configs
 run_step runtimes    "Runtimes"      "language versions pinned in tool-versions"        ensure_runtimes
+run_step paseo       "Paseo"         "merge config/paseo, ensure the CLI and daemon"     setup_paseo
 run_step atuin       "Atuin sync"    "account state — the only thing not committed"     ensure_atuin_account
 run_step herdr       "Herdr plugins" "from herdr_plugins.txt"                           install_herdr_plugins
 run_step skills      "Skills"        "agent_skills.txt, plus Herdr-shipped omp skills"  setup_skills

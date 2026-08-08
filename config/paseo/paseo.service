@@ -1,0 +1,63 @@
+# systemd --user unit for the Paseo daemon. Linux only, installed and enabled by
+# install.sh's `paseo` step; on macOS the desktop app supervises its own daemon
+# and nothing here is used.
+#
+# Paseo ships no unit of its own (verified: no systemd artifact anywhere in
+# getpaseo/paseo, and `paseo daemon` exposes only start/pair/status/stop/
+# restart/set-password — no install-service command), so this is maintained
+# here rather than adopted from upstream.
+#
+# --user rather than a system unit: the daemon launches agent CLIs that read
+# per-user credentials (~/.claude, ~/.codex, ~/.omp) and writes to
+# ~/.paseo, so it has to run as the login user. Note that a user unit normally
+# starts at login, not at boot — install.sh runs `loginctl enable-linger` so a
+# headless box brings the daemon up without anyone logging in.
+
+[Unit]
+Description=Paseo daemon (supervises coding agents)
+Documentation=https://paseo.sh/docs
+# network-online rather than plain network: the daemon binds a specific
+# Tailscale address on this box (see daemon.env), and that address doesn't
+# exist until tailscaled has brought the interface up.
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+# --foreground is load-bearing. `paseo daemon start` *daemonizes by default*
+# (packages/cli/src/commands/daemon/start.ts calls startLocalDaemonDetached
+# with detached: true + child.unref()), so without this flag systemd would
+# watch the launcher exit immediately and declare the service dead while the
+# real daemon kept running unsupervised.
+#
+# Deliberately no PIDFile=: $PASEO_HOME/paseo.pid is JSON, not the bare
+# integer systemd expects, so pointing systemd at it fails to parse.
+#
+# `mise exec` wraps the call for the same reason install.sh uses it — systemd
+# never runs a login shell, so `mise activate` has not put the pinned node on
+# PATH, and the npm-installed launcher's shebang is `env -S node`.
+ExecStart=%h/.local/bin/mise exec -- %h/.local/bin/paseo daemon start --foreground
+
+# systemd does not source ~/.zshrc, so the PATH the daemon hands to the agent
+# CLIs it launches has to be spelled out. ~/.local/bin first: that's where the
+# npm --prefix installs (paseo itself, claude, codex) and where omp and mise
+# live.
+Environment=PATH=%h/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PASEO_HOME=%h/.paseo
+
+# Per-machine listen address, tailnet hostnames, and the daemon password. The
+# leading `-` makes it optional, so the unit still starts on a box that only
+# ever wants the loopback default. Created from
+# config/paseo/daemon.env.example by install.sh at mode 600 — never tracked,
+# because PASEO_PASSWORD is a plaintext secret.
+EnvironmentFile=-%h/.config/paseo/daemon.env
+
+Restart=on-failure
+RestartSec=5
+# Agent CLIs are subprocesses of the daemon; killing only the main process
+# would leave them orphaned holding their sessions open.
+KillMode=control-group
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target
