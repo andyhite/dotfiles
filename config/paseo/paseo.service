@@ -16,11 +16,21 @@
 [Unit]
 Description=Paseo daemon (supervises coding agents)
 Documentation=https://paseo.sh/docs
-# network-online rather than plain network: the daemon binds a specific
-# Tailscale address on this box (see daemon.env), and that address doesn't
-# exist until tailscaled has brought the interface up.
+# network-online rather than plain network. Note this only orders against the
+# *user* manager's view of the network — a --user unit cannot order against the
+# system's tailscaled.service, they're different managers — so at boot this
+# unit can still start before tailscaled has brought tailscale0 up, and binding
+# the PASEO_LISTEN address then fails.
 Wants=network-online.target
 After=network-online.target
+
+# Which makes the restart rate limit load-bearing, not boilerplate. systemd
+# defaults to giving up after 5 starts in 10s, and with RestartSec=5 below a
+# slow tailscaled would burn all five retries inside the first half-minute of
+# boot and leave the unit `failed` — down until someone notices and runs
+# `systemctl --user reset-failed`. 0 disables the limit, so the daemon simply
+# retries every 5s until the address it wants exists.
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
