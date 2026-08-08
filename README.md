@@ -34,6 +34,10 @@ NvChad for editing.
 | `omp/agent/extensions/atuin.ts` | `~/.omp/agent/extensions/atuin.ts` | records omp's `bash` commands into Atuin history as `--author pi` (a `KNOWN_AGENTS` name, so `$all-user` hides them), with omp's intent string as `--intent`. Hand-maintained: `atuin hook install` has no omp target |
 | `omp/agent/extensions/herdr-subagent-panes.ts` | `~/.omp/agent/extensions/herdr-subagent-panes.ts` | opens a read-only Herdr pane per omp subagent the moment it spawns, tailing its live session transcript as it works; see [Subagent panes](#subagent-panes) below |
 | `omp/agent/rules/output-style.md` | `~/.omp/agent/rules/output-style.md` | `alwaysApply: true` rule that shapes every omp response for an ADHD reader — answer first, numbered steps, one next action, no preamble or recap |
+| `config/paseo/config.json` | (not linked — **merged** into `~/.paseo/config.json`) | [Paseo](https://paseo.sh) daemon settings: which agent providers are enabled, MCP/browser-tool flags, relay off. Merged rather than symlinked because Paseo rewrites this file atomically and would replace the link, and because the live file also holds secrets; see [Paseo](#paseo) below |
+| `config/paseo/orchestration-preferences.json` | `~/.paseo/orchestration-preferences.json` | which provider/model each delegated role gets (`impl`, `ui`, `research`, `planning`, `audit`). Read by Paseo's five orchestration skills, never by Paseo itself — which is what makes this one safe to link when its neighbour isn't |
+| `config/paseo/paseo.service` | (copied to `~/.config/systemd/user/`) | `systemd --user` unit that supervises the Paseo daemon on Linux. Paseo ships no unit of its own. Unused on macOS, where the desktop app supervises its own daemon |
+| `config/paseo/daemon.env.example` | (copy, not linked) | template for `~/.config/paseo/daemon.env`, the unit's `EnvironmentFile` — this box's `PASEO_LISTEN`, `PASEO_HOSTNAMES`, and the plaintext `PASEO_PASSWORD`. The per-machine half of Paseo's config, kept out of the tracked file above |
 | `Brewfile` | (not linked — read by `install.sh`) | macOS formulae + casks for every tool this config drives, applied with `brew bundle` — replaced the old hand-maintained `brew_ensure`/`brew_ensure_cask` loop |
 | `bin/tailscale` | `~/.local/bin/tailscale` | PATH shim for the Mac App Store build of Tailscale — `exec`s the bundled CLI directly, since a plain symlink to it fails at runtime (see the file itself for why). The `AltanS/collie` herdr plugin shells out to bare `tailscale`, so without this on `$PATH` its bridge can't publish itself. Linked only on macOS, and only when the App Store app is actually installed |
 | `agent_skills.txt` | (not linked — read by `install.sh`) | cross-agent skill manifest, one `<owner>/<repo> --skill <name>` per line; `install.sh` runs `npx skills add … -g -y` for each |
@@ -47,7 +51,7 @@ git clone https://github.com/andyhite/dotfiles.git ~/dotfiles
 ~/dotfiles/install.sh
 ```
 
-`install.sh` runs eight steps, and is safe to re-run any time (installs what's missing,
+`install.sh` runs nine steps, and is safe to re-run any time (installs what's missing,
 updates what's already there). With a terminal attached each step asks first and Enter
 accepts; without one, or with `--yes`, it runs everything unattended:
 
@@ -72,9 +76,9 @@ reordering doesn't:
 1. **Installs/updates the tools this config drives**: starship, zoxide, atuin,
    fzf, eza, bat, direnv, tmux, antidote, TPM, the JetBrains Mono Nerd Font, neovim,
    ripgrep, tree-sitter-cli, mise, omp, and NvChad. macOS applies `Brewfile` with
-   `brew bundle` (formulae + casks, including Ghostty itself); Linux goes through
-   `apt` where a package exists, and falls back to each tool's official installer
-   otherwise:
+   `brew bundle` (formulae + casks, including Ghostty and Paseo themselves); Linux goes
+   through `apt` where a package exists, and falls back to each tool's official
+   installer otherwise:
    - `brew bundle check --file Brewfile` runs first and is the common path on a
      repeat install: it exits clean only when every formula/cask is already
      installed and current, so the slower `brew bundle install` runs only when
@@ -125,22 +129,29 @@ reordering doesn't:
    from wherever it's invoked, and `~/.tool-versions` is the symlink the configs step
    above just created — swap the order and this step runs against nothing on a fresh
    machine. See [mise](#mise) below.
-5. **Offers to log in to Atuin sync**, but only when not already logged in and only when
+5. **Sets up Paseo**: merges `config/paseo/config.json` into `~/.paseo/config.json`,
+   makes sure the `paseo` CLI is on `PATH` — a symlink to the cask's bundled binary on
+   macOS, `npm install -g --prefix ~/.local @getpaseo/cli` on Linux — and on Linux
+   installs and enables the `systemd --user` unit that keeps the daemon up. After the
+   configs step because the unit reads `~/.config/paseo/daemon.env`, which that step
+   creates from its template; after runtimes because the Linux CLI is an npm package.
+   See [Paseo](#paseo) below.
+6. **Offers to log in to Atuin sync**, but only when not already logged in and only when
    a terminal is actually attached. Everything else about Atuin lives in
    `config/atuin/config.toml`; sync is account state, so it can't be committed. See
    [Atuin](#atuin) below.
-6. **Installs/updates every Herdr plugin** listed in `herdr_plugins.txt`, then links any
+7. **Installs/updates every Herdr plugin** listed in `herdr_plugins.txt`, then links any
    plugin developed in this repo itself (`config/herdr/plugins/local/*/`, currently just
    `omp.subagents`) straight from its working copy with `herdr plugin link`. Skipped with
    a note if `herdr` isn't on `PATH` — this repo configures Herdr but doesn't install it.
-7. **Installs cross-agent skills**, from two sources. `agent_skills.txt` first — one
+8. **Installs cross-agent skills**, from two sources. `agent_skills.txt` first — one
    `npx skills add <owner>/<repo> --skill <name> -g -y` per line — which needs the
    `runtimes` step above to have already put node on `PATH`, hence the ordering. Then
    any skill an installed Herdr plugin ships in its own `skills/` directory, symlinked
    into `~/.omp/agent/skills` — unchanged from before, and run after Herdr because a
    link made before a plugin's first install would point at a path that doesn't exist
    yet.
-8. **Headlessly syncs NvChad's plugins** (`nvim --headless "+Lazy! sync" +qa`) once
+9. **Headlessly syncs NvChad's plugins** (`nvim --headless "+Lazy! sync" +qa`) once
    neovim and the config are both in place.
 
 ### Completions
@@ -306,6 +317,157 @@ bad key notations and TOML mistakes before AeroSpace ever starts.
 That's also why the `on-window-detected` rules are written as single-line inline tables
 rather than upstream's multi-line form — multi-line inline tables are a TOML 1.1 feature,
 and staying within 1.0 syntax keeps the file loadable by a stock parser.
+
+### Paseo
+
+[Paseo](https://paseo.sh) is a daemon that supervises coding agents — it launches Claude,
+Codex and omp as child processes, keeps their sessions, and exposes them over an HTTP/WS
+API that a desktop, mobile, web or CLI client drives. This repo's two machines use it from
+opposite ends: **the Mac runs the GUI app as a client, the Linux VM runs the daemon** the
+Mac connects to. Everything under `config/paseo/` is written to do the right thing on
+either, and `install.sh`'s `paseo` step branches on the OS rather than on which role the
+box happens to play.
+
+How the binary arrives differs by platform, because upstream ships two very different
+artifacts. macOS gets `cask "paseo"` — the Electron desktop app, which bundles the daemon
+*and* a CLI at `Paseo.app/Contents/Resources/bin/paseo`. Linux gets
+`npm install -g --prefix ~/.local @getpaseo/cli`, which is what upstream's own docs point
+headless machines at; despite the name it isn't a thin client, since `@getpaseo/cli`
+depends on `@getpaseo/server` and so carries the whole daemon. The DEB/RPM/AppImage
+downloads are the Electron app again, which is the wrong artifact for a box with no
+display.
+
+Two details in that Linux install are deliberate. `--prefix ~/.local` rather than a bare
+`npm install -g`: a plain global install lands inside whichever node mise currently has
+active and vanishes the next time `tool-versions` bumps node, whereas `~/.local/bin` is
+where every other manually-installed tool here already lives and is already on `PATH`.
+And on macOS `install.sh` makes the `~/.local/bin/paseo` symlink itself rather than
+relying on the app's first-run hook to do it — that hook only fires once the GUI has been
+opened, and `brew bundle` never opens anything, so on a fresh machine `paseo` would be
+missing from `PATH` until someone double-clicked the icon.
+
+#### `config.json` is merged, not symlinked
+
+This is the one place Paseo breaks the pattern the rest of this repo follows, and it's
+worth spelling out because the symlink *looks* like it works right up until it doesn't.
+
+Paseo saves its config atomically. `savePersistedConfig` calls
+`writePrivateFileAtomicSync`, which writes a sibling tempfile and `renameSync()`s it over
+the target — and rename **replaces a symlink with a real file**. So a symlinked
+`~/.paseo/config.json` survives exactly until the first settings change made in the app,
+at which point the link is silently gone: the repo still shows a tracked config, git still
+shows it clean, and it no longer has any effect on anything. Nothing warns you.
+
+There's a second, independent reason. The live file legitimately holds things that must
+never be committed — `paseo daemon set-password` writes a bcrypt hash into `daemon.auth`,
+and custom providers keep API keys under `agents.providers.*.env`.
+
+A merge answers both. `install.sh` runs `jq -s '.[0] * .[1]' <live> <tracked>`, a
+recursive object merge with the right side winning, so the tracked file is authoritative
+for the keys it names and every other key in the live file — secrets and per-machine
+settings alike — is left exactly as Paseo wrote it. It's idempotent, and the comparison
+before writing is semantic rather than textual (`jq -e '. == $want[0]'`) because the daemon
+rewrites the file with its own key order, and a byte diff would otherwise report drift on
+every single run.
+
+The step never restarts the daemon to apply what it merged, it just prints the command.
+Config is read at startup, but a restart kills every agent running under the daemon —
+including, when an agent is the thing running `install.sh`, itself.
+
+`config/paseo/orchestration-preferences.json` *is* symlinked, and the difference is the
+point: grepping `getpaseo/paseo` for that filename turns up only the five shipped
+`SKILL.md` files. Paseo itself never reads or writes it, so nothing can replace the link
+behind your back. It's the dial that decides which provider/model each delegated role gets
+— `impl`, `ui`, `research`, `planning`, `audit` — and the values are `provider/model`
+pairs split on the *first* slash, where the provider half comes from `paseo provider ls`
+and the model half from `paseo provider models <provider>`. A bare provider id is rejected:
+`create_agent`'s schema refuses any value without a slash. (That first-slash-only split is
+what lets omp's own slash-containing model ids, like
+`omp/amazon-bedrock/anthropic.claude-opus-5`, work at all.)
+
+#### Per-machine settings live outside the tracked file
+
+One tracked `config.json` shared by two machines can't hold anything that has to differ
+between them, and Paseo's config precedence — defaults < `config.json` < env < CLI flags —
+is the escape hatch. So `config/paseo/config.json` carries only portable policy (which
+providers are enabled, MCP and browser-tool flags, relay off, CORS), and the rest goes in
+environment variables:
+
+| Where | Holds | Read by |
+|---|---|---|
+| `~/.config/paseo/daemon.env` (mode 600, from `config/paseo/daemon.env.example`) | `PASEO_LISTEN`, `PASEO_HOSTNAMES`, `PASEO_PASSWORD` | the Linux daemon, via the unit's `EnvironmentFile` |
+| `~/.zshrc.local` | `PASEO_HOST`, `PASEO_PASSWORD` | the Mac's `paseo` CLI, to drive the Linux daemon |
+
+The Mac's *app* isn't in that table on purpose: it keeps its list of remote hosts in app
+storage under the `@paseo:daemon-registry` key, not in any config file, so adding the Linux
+box is a one-time **Settings → Add host → Direct connection** and there's nothing here to
+track.
+
+#### Reaching the Linux daemon from the Mac
+
+The daemon binds `127.0.0.1:6767` by default, which no other machine can reach. Set
+`PASEO_LISTEN` to this box's **Tailscale** address (`tailscale ip -4`) rather than
+`0.0.0.0`, which would also publish it on every LAN and coffee-shop Wi-Fi the box ever
+joins. Bare IP literals are accepted unconditionally, so `PASEO_HOSTNAMES` is only needed
+when a client connects by MagicDNS name; a leading dot there is a suffix match — the daemon
+tests `host === base || host.endsWith('.' + base)` — so `.your-tailnet.ts.net` covers every
+host in the tailnet.
+
+Then set `PASEO_PASSWORD`. Tailscale encrypts the transport and its ACLs gate who can route
+to the box, but Paseo does no authentication of its own: anything that can reach the listen
+address can drive every agent on that machine. Supply it as plaintext in `daemon.env`
+rather than running `paseo daemon set-password`, which writes a bcrypt hash into the very
+file `install.sh` merges from this repo.
+
+No relay needed for any of this — `daemon.relay.enabled` is `false` in the tracked config,
+because a direct Tailscale connection is already end-to-end. Relay is for reaching the box
+from *outside* the tailnet. Note that setting `PASEO_RELAY_ENABLED` pins the value as a
+launch override, and Paseo then refuses to let the app change relay at runtime until the
+override is gone.
+
+#### The systemd unit, and why it's needed at all
+
+Paseo ships no unit: there's no systemd artifact anywhere in `getpaseo/paseo`, and
+`paseo daemon` exposes only `start`/`pair`/`status`/`stop`/`restart`/`set-password` with no
+service installer. So `config/paseo/paseo.service` is maintained here, copied (not
+symlinked — systemd resolves unit paths itself and `daemon-reload` is what publishes a
+change) to `~/.config/systemd/user/`.
+
+Three things in it are load-bearing:
+
+- **`--foreground`.** `paseo daemon start` *daemonizes by default*; the launcher spawns the
+  supervisor `detached: true` and `unref()`s it. Without the flag systemd would watch the
+  launcher exit immediately and declare the service dead while the real daemon kept running
+  unsupervised.
+- **No `PIDFile=`.** `$PASEO_HOME/paseo.pid` is JSON, not the bare integer systemd expects.
+- **An explicit `Environment=PATH=`, and `mise exec`.** systemd never sources `~/.zshrc`, so
+  neither the pinned node the npm launcher's `env -S node` shebang needs, nor the agent CLIs
+  the daemon launches, would otherwise be findable.
+
+A `--user` unit rather than a system one, because the daemon runs agent CLIs that read
+per-user credentials (`~/.claude`, `~/.codex`, `~/.omp`). The catch is that user units
+normally start at *login*, which never happens on a box only reached over ssh — so the step
+offers to run `loginctl enable-linger`, which is what brings the user manager up at boot.
+It asks rather than assumes, since that needs root and a box where the daemon only has to
+run while you're logged in doesn't need it. The unit is `enable`d but not started: starting
+it would be a surprise on a box already running a daemon under different launch overrides,
+and `restart` on an active unit kills its agents.
+
+#### The five skills come from the manifest, not the app
+
+`agent_skills.txt` lists Paseo's five orchestration skills (`paseo`, `paseo-advisor`,
+`paseo-committee`, `paseo-handoff`, `paseo-loop`) from `getpaseo/paseo`. The macOS app also
+copies them into `~/.agents/skills` on first GUI launch, but that hook is useless here
+twice over: it never fires on the Linux box, which has no desktop app at all, and on the
+Mac it only fires once someone opens the app, which `brew bundle` never does. Going through
+the manifest means both machines get them from `install.sh` alone, and they update on the
+same schedule as everything else rather than whenever the app is next launched.
+
+One dial deliberately left off: `daemon.mcp.injectIntoAgents` stays `false`. Turning it on
+gives every agent Paseo launches the full `create_agent`/`create_workspace` tool surface,
+which is what those skills drive — but it's a behaviour change to every agent on the
+machine, so it's a decision to make on purpose rather than something a dotfiles install
+flips for you.
 
 ### Atuin
 
@@ -557,6 +719,11 @@ its own here — it picks skills up through its `agents` skill provider, reading
 (`~/.omp/agent/skills` is a separate, narrower thing: the same `skills` step also
 symlinks any skill an installed Herdr plugin ships in its own `skills/` directory there —
 unrelated to `agent_skills.txt`, and the one part of this step that isn't new.)
+
+Paseo's five orchestration skills come through this manifest rather than through the
+desktop app's own copy hook, which can't reach either machine reliably — see [The five
+skills come from the manifest, not the
+app](#the-five-skills-come-from-the-manifest-not-the-app).
 
 ### NvChad's Mason/Treesitter setup — do this yourself, on purpose
 
