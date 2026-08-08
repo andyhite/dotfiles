@@ -17,6 +17,22 @@
 # export AWS_PROFILE='...'
 # export AWS_REGION='us-east-2'
 
+# ── Paseo: which daemon the CLI talks to ─────────────────────────────────────
+# Only needed to drive a daemon on *another* machine — with both unset, `paseo`
+# uses the local socket and then localhost:6767, which is what you want on the
+# box the daemon runs on.
+#
+# So: set these on the Mac to point its CLI at the Linux box, and leave them
+# unset on the Linux box itself. They affect the CLI only; the desktop app keeps
+# its own list of hosts in app storage, added under Settings -> Add host.
+#
+# PASEO_PASSWORD is the same plaintext value as in that box's
+# ~/.config/paseo/daemon.env. Keep it out of PASEO_HOST's query string
+# (`?password=...`) — the URI form wins over this variable, but it also lands in
+# `ps` output and shell history.
+# export PASEO_HOST='linux-box.your-tailnet.ts.net:6767'
+# export PASEO_PASSWORD='...'
+
 # ── Machine-specific build flags ─────────────────────────────────────────────
 # Each `brew --prefix` is a subprocess on every shell start — only add the
 # ones you actually build against.
