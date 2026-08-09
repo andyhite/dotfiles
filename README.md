@@ -621,6 +621,86 @@ desktop app's own copy hook, which can't reach either machine reliably — see [
 skills come from the manifest, not the
 app](#the-five-skills-come-from-the-manifest-not-the-app).
 
+### `fleet` — dispatching agents herdr can reach, because omp can't
+
+`bin/fleet` creates a git worktree per task, starts an `omp` in it, and lets one
+orchestrator agent dispatch to the rest. The reason it exists as a shell script rather
+than an omp extension is that the two halves of the problem live in different processes.
+
+omp's own coordination surface stops at the process boundary. `hub` messaging runs over
+a process-global mailbox bus, and `history://` / `agent://` resolve through the same
+process-global registry, so none of them can see an `omp` running in another pane. Two
+worktrees are also two directories, which puts them in different session-storage buckets
+and different launch-broker scopes — there is no omp-level channel between them at all.
+
+herdr has one. Every agent it recognises is addressable by name, and `herdr agent prompt
+<name>` writes into that agent's live input. That makes the channel symmetric: a worker
+answers its orchestrator with the same command the orchestrator used to reach it. So the
+transport is herdr's, and `fleet` is the part that makes it usable — `worktree create`
+returns before the workspace-manager plugin has started an agent, the agent has to be
+discovered rather than predicted, renamed to something addressable, and only then
+prompted. Six commands and a race, per dispatch.
+
+Two details worth knowing before reading the script:
+
+A worker's report travels through a file under `~/.local/state/fleet/<handle>/`, not
+through its terminal. omp runs on the alternate screen, and rows that leave the alternate
+screen never enter herdr's host scrollback — so `herdr agent read` cannot recover a
+response that has scrolled, no matter how large `--lines` is. The file is the only
+reliable transport for a report of any length.
+
+A worker's `fleet reply` **preempts the orchestrator's current tool call**. herdr delivers
+it as ordinary agent input, which omp treats as a steering interjection and which
+backgrounds whatever the orchestrator was blocked on. That is the right behaviour for a
+worker asking a question — it shouldn't queue behind another worker's build — but it's
+why the skill tells workers to use `fleet report` for results and `fleet reply` only for
+decisions.
+
+### The worktree rule was wrong in a way `fleet` made visible
+
+`omp/agent/rules/herdr-worktrees.md` used to say, with `alwaysApply: true`, that inside
+herdr you always use `herdr worktree` and never `git worktree`. Writing `fleet` on top of
+it exposed the flaw: **an agent cannot move itself into the worktree it just created.** An
+omp process keeps the directory it launched in, and `herdr pane move` relocates a pane's
+display rather than its shell's cwd. So for an agent's own use — building another ref,
+diffing two versions — `herdr worktree create` buys a sidebar entry it did not want and,
+on a repo covered by a workspace-manager layout, a second idle `omp` burning tokens.
+
+The rule is now organised around who will occupy the worktree. Someone else will sit in
+it, human or agent: `herdr worktree create`, which is the only path that runs
+`tdi.worktree-setup` (the `.env*` copy, `mise trust`, `direnv allow`) and starts an agent.
+Nobody will, and you only need the files: plain `git worktree add` in a temp directory,
+plain `git worktree remove` after. Removal has to match creation — `git worktree remove`
+on a herdr-created worktree orphans the workspace, leaving a sidebar entry pointing at
+nothing.
+
+One measured trap, on 0.8.0: `herdr worktree open` is *not* a way to promote a plain
+`git worktree add` into a real workspace. `tdi.worktree-setup` hooks `worktree.created`
+only, so an opened worktree never gets its `.env*`; and `workspace.created` fires before
+the new pane reaches a shell prompt, so the plugin's `herdr agent start` fails with
+`agent target pane <id> is not an available shell` and — having already marked the layout
+applied — never retries. The result is a workspace with a tab labelled `agent` and no
+agent in it.
+
+### The orchestrator is opt-in
+
+Dropping `alwaysApply` was also what kept `fleet` from becoming ambient. An always-on rule
+about worktrees is one short step from every session deciding to dispatch a fleet at its
+own discretion. The rule is now a rulebook entry — it keeps its `description`, and the
+model reads it through `rule://herdr-worktrees` when it is actually about to touch a
+worktree. Orchestration is a separate, deliberate opt-in: `/fleet <objective>`, a slash
+command in `omp/agent/commands/`, which adopts the role and points at
+`skill://herdr-fleet` for the procedure. Nothing loads that skill on its own; a session
+that never asks for a fleet never hears about one.
+
+Worth being clear about what is *not* doing the gating here, because all three look like
+they should. Rules have no per-agent scoping — there is no frontmatter field binding one
+to an agent, and `scope:` scopes TTSR stream surfaces, not agents. Skills are session-wide
+for the same reason: every documented filter (`ignoredSkills`, `disabledExtensions`,
+the per-source toggles) applies to the whole session. And omp has no `--agent` flag, so a
+task-agent definition can't back a top-level session either. The launch is identical for
+orchestrator and worker; the only difference is that one of them was told to be one.
+
 ### NvChad's Mason/Treesitter setup — do this yourself, on purpose
 
 NvChad's own quickstart docs say to run `:MasonInstallAll` and `:TSInstallAll` after the

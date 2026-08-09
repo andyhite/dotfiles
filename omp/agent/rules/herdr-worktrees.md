@@ -1,42 +1,86 @@
 ---
-description: inside herdr, worktrees go through `herdr worktree`, never `git worktree` — the git command fires no event and creates no workspace
-alwaysApply: true
+description: creating or removing a git worktree while inside herdr (HERDR_ENV=1) — which of `herdr worktree` and `git worktree` to use depends on who will occupy the worktree, and removal has to match creation
 ---
 
 ## Worktrees inside herdr
 
-When `HERDR_ENV=1`, create, open, and remove git worktrees with `herdr
-worktree` — never `git worktree add|remove|move|prune`. This **overrides the
-`worktree` skill and the foreman dev loop**, which spell out raw `git worktree`
-commands; the naming conventions there still stand, only the command changes.
+The question is not which command is correct. It is **who is going to sit in
+this worktree.**
 
-`git worktree add` still produces a valid checkout, which is why the mistake is
-easy to miss. What it silently skips is everything downstream: herdr emits no
-`worktree.created` event, so `tdi.worktree-setup` never copies `.env*`, runs
-`mise trust` or `direnv allow`, and `herdr-plugin-workspace-manager` never
-applies the layout or starts the agent. No herdr workspace is created either,
-so the worktree is invisible in the sidebar and `herdr worktree remove` cannot
-clean it up later.
+`herdr worktree create` does not produce a directory. It produces a *workspace*:
+a sidebar entry, a tab, a pane, `tdi.worktree-setup` copying `.env*` and running
+`mise trust` / `direnv allow`, and — for a repo listed in
+`herdr-plugin-workspace-manager`'s config — an `omp` started in it. That whole
+apparatus exists to give a person or an agent somewhere to work.
+
+None of it is reachable by the agent that runs the command. An omp process keeps
+the directory it launched in; `herdr pane move` relocates a pane's display, not
+its shell's cwd. So an agent cannot move itself into the worktree it just made.
+Calling `herdr worktree create` for its own use gets it a directory it will
+address by absolute path anyway, plus a workspace it did not want and an idle
+second `omp` burning tokens in the corner.
+
+**A worktree a person or another agent will occupy** — `herdr worktree create`:
 
 ```sh
-# Create. --path keeps the foreman sibling convention; herdr would otherwise
-# use ~/.herdr/worktrees. --no-focus leaves the operator where they were.
+# --path keeps the sibling convention; herdr would otherwise use
+# ~/.herdr/worktrees. --no-focus leaves the operator where they were.
 herdr worktree create --cwd "$PRIMARY" \
   --branch <type>/<issue>-<slug> \
   --base origin/<mainBranch> \
   --path "$PRIMARY/../<repo-slug>-<issue>-<slug>" \
   --no-focus
 
-# Adopt a worktree that already exists on disk.
-herdr worktree open --cwd "$PRIMARY" --branch <type>/<issue>-<slug> --no-focus
-
 # Remove. Takes a workspace id, not a path — read it from the list first.
 herdr worktree list --cwd "$PRIMARY"   # .result.worktrees[] -> open_workspace_id
 herdr worktree remove --workspace <id>
 ```
 
-Two things that do not change: `git worktree list` stays fine for reading state,
-and every other git operation inside the worktree — commit, rebase, push — is
-ordinary git. Only worktree lifecycle goes through herdr.
+Dispatching an agent into one is a level up again: `fleet spawn` sequences
+create, agent discovery, rename, and dispatch in one command, and
+`skill://herdr-fleet` covers when that is worth doing.
 
-Outside herdr (`HERDR_ENV` unset), use `git worktree` exactly as the skill says.
+**A worktree you will only read and write through the filesystem** — building
+another ref, diffing two versions, running a test suite against a branch —
+plain `git worktree`:
+
+```sh
+git worktree add /tmp/<slug> <ref>
+# ... work by absolute path ...
+git worktree remove /tmp/<slug>
+```
+
+No workspace, no pane, no agent, and no setup hooks — none of which you want for
+a checkout whose lifetime is shorter than the task. herdr still lists it under
+`herdr worktree list` with a null `open_workspace_id`, so it is not invisible,
+just unmanaged.
+
+### Remove with whatever created it
+
+`git worktree remove` on a herdr-created worktree deletes the checkout and
+orphans the workspace: a sidebar entry pointing at nothing, with the agent that
+was living there now homeless. Going the other way is fine —
+`herdr worktree remove --workspace <id>` works on any worktree that has a
+workspace, however it got one.
+
+### `herdr worktree open` is not a promotion path
+
+It re-opens a worktree that already has a herdr history, and that is all it is
+good for. It does **not** run `tdi.worktree-setup` — that plugin hooks
+`worktree.created` only, so an opened worktree never gets its `.env*` or its
+`mise trust`. Its agent start is racy on top of that: measured on 0.8.0,
+`workspace.created` fires before the new pane reaches a shell prompt, so
+`herdr agent start` fails with `agent target pane <id> is not an available
+shell` — and the plugin has already marked the layout applied, so it never
+retries. You get a workspace, a tab labelled `agent`, and no agent in it.
+
+If a plain `git worktree` checkout turns out to need a real workspace, delete it
+and `herdr worktree create` the branch properly.
+
+### Unchanged
+
+`git worktree list` is always fine for reading state. Every other git operation
+inside a worktree — commit, rebase, push — is ordinary git regardless of how the
+worktree was made. Only creation and removal are provenance-sensitive.
+
+Outside herdr (`HERDR_ENV` unset), all of this collapses: use `git worktree`.

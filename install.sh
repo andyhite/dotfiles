@@ -807,6 +807,15 @@ link_configs() {
     # another tool drops into ~/.omp/agent/rules stays visible alongside it.
     "omp/agent/rules/output-style.md:$HOME/.omp/agent/rules/output-style.md"
     "omp/agent/rules/herdr-worktrees.md:$HOME/.omp/agent/rules/herdr-worktrees.md"
+    # The orchestrator surface, three files that only work together: `fleet` is
+    # the CLI, the skill is how an agent learns to drive it, and the command is
+    # the opt-in that turns an ordinary session into an orchestrator. The rule
+    # above deliberately does NOT mention dispatching — it stays a plain
+    # "use herdr worktree, not git worktree" note so every session keeps it
+    # without every session trying to run a fleet.
+    "bin/fleet:$HOME/.local/bin/fleet"
+    "omp/agent/skills/herdr-fleet:$HOME/.omp/agent/skills/herdr-fleet"
+    "omp/agent/commands/fleet.md:$HOME/.omp/agent/commands/fleet.md"
     # Read by the Paseo orchestration skills, never by Paseo itself — grepping
     # getpaseo/paseo for the name turns up only the five shipped SKILL.md
     # files. That's what makes it safe to link when its neighbour
