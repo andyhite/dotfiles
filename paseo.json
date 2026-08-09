@@ -1,0 +1,10 @@
+{
+  "metadataGeneration": {
+    "branchName": {
+      "instructions": "Use a short kebab-case slug describing the change, e.g. add-nvchad, fix-paseo-host-allowlist, polish-dotfiles. Lead with a verb (add/fix/drop/update/polish/...), no type prefix (no feat/, fix/), and no issue number segment — this repo has no issue tracker integration."
+    },
+    "commitMessage": {
+      "instructions": "Write a single-line, imperative-mood summary starting with a capitalized verb (Add, Fix, Drop, Track, Document, Bump, ...), no trailing period, and no Conventional Commits type prefix (no feat:, fix:). Prefer a full descriptive sentence over a terse fragment when the change needs context, e.g. 'Fix the Paseo daemon's host allowlist and boot-time restart limit' or 'Put the base PATH in zshenv so non-interactive shells get it'. No commit body is expected for typical changes."
+    }
+  }
+}
