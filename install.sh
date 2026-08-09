@@ -816,6 +816,11 @@ link_configs() {
     "bin/fleet:$HOME/.local/bin/fleet"
     "omp/agent/skills/herdr-fleet:$HOME/.omp/agent/skills/herdr-fleet"
     "omp/agent/commands/fleet.md:$HOME/.omp/agent/commands/fleet.md"
+    # Reads skill://paseo-config-authoring to detect and write a project's
+    # paseo.json (worktree setup/teardown, workspace scripts, and commit/
+    # branch conventions for Paseo's metadata generation). The skill itself
+    # is a managed skill (~/.omp/agent/managed-skills), not tracked here.
+    "omp/agent/commands/paseo-init.md:$HOME/.omp/agent/commands/paseo-init.md"
     # Read by the Paseo orchestration skills, never by Paseo itself — grepping
     # getpaseo/paseo for the name turns up only the five shipped SKILL.md
     # files. That's what makes it safe to link when its neighbour
