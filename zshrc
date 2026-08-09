@@ -14,6 +14,12 @@ if [[ "$_os" == "Darwin" ]] && ! command -v brew >/dev/null 2>&1; then
 fi
 
 # ── PATH ─────────────────────────────────────────────────────────────────────
+# The base entries are set in zshenv, which every zsh reads — this repeats them
+# because on macOS /etc/zprofile runs path_helper between zshenv and this file
+# and reorders PATH so system directories come first. zshenv's `typeset -U path`
+# is what keeps the repeat from duplicating: re-prepending an existing entry
+# moves it back to the front instead of adding a second copy.
+#
 # Base entries first so ~/.zshrc.local (sourced below) can still prepend
 # machine-specific paths that need to win.
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"

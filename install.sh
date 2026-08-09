@@ -740,6 +740,10 @@ install_tools() {
 
 link_configs() {
   local links=(
+    # Must be linked alongside zshrc, not instead of it: zshenv is the only file
+    # a non-interactive `ssh host 'cmd'` reads, and it's what puts ~/.local/bin
+    # (herdr, omp, paseo) on PATH for one-shot remote commands.
+    "zshenv:$HOME/.zshenv"
     "zshrc:$HOME/.zshrc"
     "zsh_plugins.txt:$HOME/.zsh_plugins.txt"
     "tmux.conf:$HOME/.tmux.conf"
