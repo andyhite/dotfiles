@@ -20,7 +20,7 @@ modelProviderOrder:
   - amazon-bedrock
 symbolPreset: nerd
 theme: 
-  dark: dark-one
+  dark: dark-one-tuned
   light: light-one
 setupVersion: 1
 dev: 
@@ -30,7 +30,7 @@ statusLine:
   separator: slash
   showHookStatus: true
   compactThinkingLevel: true
-  transparent: false
+  transparent: true
   sessionAccent: true
   leftSegments: 
     - pi
