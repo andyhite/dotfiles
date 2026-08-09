@@ -751,6 +751,12 @@ link_configs() {
     # empty and this file has to be linked on its own rather than living there.
     "config/ghzinga/config.toml:$HOME/.config/ghzinga/config.toml"
     "config/herdr/config.toml:$HOME/.config/herdr/config.toml"
+    # The command palette bound to prefix+p in the config above. A directory
+    # link because the script travels with the upstream MIT notice it's derived
+    # from, and `type = "popup"` needs a real path to exec — this is the only
+    # keybinding in that file pointing at this repo rather than a herdr
+    # subcommand, so the link is what makes the binding work at all.
+    "config/herdr/palette:$HOME/.config/herdr/palette"
     "config/ghostty/config:$HOME/.config/ghostty/config"
     "config/atuin/config.toml:$HOME/.config/atuin/config.toml"
     # Themes live in a subdirectory atuin resolves by name; linked per-file so a
@@ -772,6 +778,12 @@ link_configs() {
     # the parent would hide them. `atuin hook install` has no omp target, so this
     # one is maintained here by hand.
     "omp/agent/extensions/atuin.ts:$HOME/.omp/agent/extensions/atuin.ts"
+    # Same per-file rule for themes. dark-one-tuned.json is omp's built-in
+    # dark-one with its block backgrounds re-based onto Ghostty's canvas:
+    # upstream hardcodes userMessageBg to #21252b, which is byte-identical to
+    # One Dark Two's `background`, so the user-message block renders invisible.
+    # Built-ins win name collisions, hence the distinct name.
+    "omp/agent/themes/dark-one-tuned.json:$HOME/.omp/agent/themes/dark-one-tuned.json"
     # Runtime pins. mise finds this by walking up from whatever directory it's
     # invoked in, so the symlink sitting at $HOME is what makes it the default
     # for everything that doesn't carry its own.

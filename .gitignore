@@ -2,18 +2,10 @@
 *.local
 *.bak.*
 
-# Herdr plugins write runtime logs into their own config dirs (collie.log, and
-# whatever else a plugin decides to drop there). The config in that tree is
-# worth tracking; the logs aren't.
+# Herdr plugins write runtime logs into their own config dirs — whatever a
+# plugin decides to drop beside its config. The config in that tree is worth
+# tracking; the logs aren't.
 config/herdr/plugins/config/**/*.log
-
-# Collie records the ONE `tailscale serve` mapping it published so teardown can
-# prove it owns what it's about to remove. That record names this machine's
-# MagicDNS host, and serve.out is just the last serve command's output — both
-# are per-machine runtime state, and a committed handler record would let one
-# machine's install tear down a mapping another machine created.
-config/herdr/plugins/config/**/tailscale-managed-handler
-config/herdr/plugins/config/**/serve.out
 
 # omp takes a lock next to its config while writing through the symlink. It's
 # transient (and empty), so it shows up as a stray untracked file after any

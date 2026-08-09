@@ -22,13 +22,6 @@ ogulcancelik/herdr-browser
 # reviewer. Also opens on the worktree.created event. Config: config.toml.
 persiyanov/herdr-reviewr
 
-# Mobile web UI for the herd, served over Tailscale: watch every agent and reply
-# from a phone. Runs as a launchd agent on macOS, not a herdr pane, so it
-# outlives herdr restarts. Config: .env (gitignored, holds secrets; see
-# env.example beside it). Needs the tailscale CLI, which the Mac App Store
-# build hides inside its app bundle — install.sh shims it onto PATH.
-AltanS/collie
-
 # Mirrors a *remote* herdr server into this one's sidebar over ssh or
 # `docker exec` — remote panes appear as local workspaces. No listener, no port.
 #
@@ -58,11 +51,13 @@ douglascorrea/herdr-agent-inbox
 # Codex support. Exposes no configuration at all.
 Davidcreador/herdr-token-dashboard
 
-# fzf over every action of every installed plugin, enumerated at run time from
-# `herdr plugin action list`. Bound to prefix+p, and the reason so many plugin
-# actions here are deliberately left unbound — 42 of them are one fuzzy search
-# away rather than needing a key each.
-JanTvrdik/herdr-command-palette
+# JanTvrdik/herdr-command-palette was here until the palette became
+# config/herdr/palette/palette.sh, run straight from a `type = "popup"`
+# keybinding. It has to be a keybinding rather than a plugin because fzf needs
+# a TTY and a plugin action doesn't get one — as a plugin it had to host the
+# picker in an `overlay` pane, which covers the whole canvas. Still the reason
+# most plugin actions here are deliberately left unbound: all 41 of them are
+# one fuzzy search away rather than needing a key each.
 
 # Runs setup steps in a new worktree on worktree.created: copies .env* from the
 # main checkout, `mise trust`, `direnv allow`, installs deps. A worktree per

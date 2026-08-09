@@ -8,16 +8,67 @@ delivery = "system"
 name = "one-dark"
 auto_switch = false
 
+## Herdr's own accent, pinned to Ghostty's palette 4 (config/ghostty/config ->
+## One Dark Two, `palette = 4=#71b9f4`) so herdr's chrome and everything running
+## inside a pane agree on what "blue" is. herdr's own one-dark accent is #61afef.
+##
+## There is also a `[ui] accent` key documented in `herdr --default-config`. It's
+## the same knob: when both are set theme.custom wins and ui.accent paints
+## nothing, so only one belongs in this file.
 [theme.custom]
-overlay0 = "#ffffff"
 accent = "#71b9f4"
+
+## The five below are contrast repairs, not taste. herdr's one-dark assumes its
+## own base (#282c34) is the background, but the sidebar, pane borders and
+## status rows all render on bg=default — which is Ghostty's background,
+## #21252b. Everything herdr dims lands ~10% darker than the theme intended.
+##
+## Ratios are WCAG contrast against #21252b. 3:1 is the floor for borders and
+## icons, 4.5:1 for text. Foregrounds are raised along one-dark's own grey axis
+## (hue 219, sat 9.8%) so the palette stays one-dark, and the four dim tiers
+## stay ordered and distinct: 4.03 < 4.72 < 5.58 (subtext0) < 7.22 (text).
+##
+##   overlay0     2.55 -> 4.03  sidebar headers, UNFOCUSED PANE BORDERS, hint
+##                              text, overlay scrollbar track, `unknown` state
+##                              icon, branch on unselected rows. This is the one
+##                              that was actually unreadable.
+##   overlay1     3.56 -> 4.72  scrollbar thumb, inactive settings-tab labels,
+##                              the tab bar's `+`
+##
+## The other three are surfaces. Stock one-dark makes panel_bg and surface_dim
+## the SAME colour (#282c34) and puts surface0 one step off it, so on a #21252b
+## canvas all three read as "nothing": the tab bar, every overlay, the selected
+## sidebar row and the sidebar divider were all within 1.10 of the background.
+## Lifting them is zero-sum — every point of separation costs the text on top —
+## so these are the smallest values that stop them disappearing.
+##
+##   panel_bg     1.10 -> 1.25  tab bar, overlay/modal/toast surface, mode bar.
+##                              Also serves as the FG on accent chips, which
+##                              stays at 5.83 here.
+##   surface_dim  1.10 -> 1.27  sidebar<->content divider and the SELECTED
+##                              SIDEBAR ROW band
+##   surface0     1.07 -> 1.22  (measured against panel_bg) inactive tab chips,
+##                              input fields, selected rows inside overlays
+##
+## Worst case across all of it: the branch name on a selected row goes
+## 4.75 -> 4.12, overlay hint text 2.32 -> 3.22. Nothing lands below 3.
+##
+## Deliberately NOT set: `text` and `subtext0` already clear 5.5:1, and `red`,
+## `green`, `yellow`, `teal`, `blue`, `mauve` are the agent-state and git colors
+## — all above 4:1 and worth keeping recognisable. `peach` and `surface1` are
+## accepted by the parser but paint nothing in any herdr surface, so they are
+## not worth carrying here.
+overlay0    = "#7a8393"
+overlay1    = "#878f9c"
+panel_bg    = "#31353c"
+surface_dim = "#32363e"
+surface0    = "#3d424b"
 
 [ui]
 show_agent_labels_on_pane_borders = true
 hide_tab_bar_when_single_tab = false
 mouse_scroll_lines = 1
 agent_panel_sort = "spaces"
-accent = "#71b9f4"
 
 ## herdr-agent-inbox's sidebar-grow / sidebar-shrink actions (prefix+alt+l and
 ## prefix+alt+h below) rewrite these three numbers in place and reload. They
@@ -343,13 +394,27 @@ command = "herdr plugin action invoke remote-split-down --plugin mirror"
 ## prefix+p is free here: herdr's default previous_tab lives there, and this
 ## config moved that to prefix+shift+tab.
 ##
-## The action opens an overlay pane because a herdr action runs server-side
-## with no TTY and so can't host fzf itself; the overlay inherits the origin
-## cwd, and herdr tears it down on exit.
+## The one binding in this file that isn't `type = "shell"`, and the only one
+## that runs a script from this repo rather than the herdr CLI. Both follow
+## from fzf needing a TTY: a herdr action runs server-side without one, so the
+## jt.command-palette plugin this replaces had to bounce its action through an
+## `overlay` plugin pane to get a terminal, and an overlay covers the whole
+## canvas. `type = "popup"` is a session-modal terminal that leaves the tab
+## layout alone, and a keybinding can point straight at the script.
+## config/herdr/palette/palette.sh has the rest of that story, including what
+## the plugin was doing about cwd and why a popup doesn't need it.
+##
+## Sized in cells rather than percent because the content is a fixed width:
+## the widest row is a 37-column title, two spaces and a 30-column plugin id,
+## plus fzf's pointer and the popup border — 73, with the rest as slack. A
+## percentage would be narrower than that on the Linux VM and pointlessly wide
+## on this display. Height stays proportional; the list scrolls.
 [[keys.command]]
 key = "prefix+p"
-type = "shell"
-command = "herdr plugin action invoke open --plugin jt.command-palette"
+type = "popup"
+command = "$HOME/.config/herdr/palette/palette.sh"
+width = 80
+height = "70%"
 
 ## gh-pr — open the focused agent's branch PR in a browser. prefix+o is herdr's
 ## open_notification_target, so this takes the shift variant. The plugin's own
@@ -368,8 +433,6 @@ command = "herdr plugin action invoke open-pr --plugin gh-pr"
 #   ghzinga            its `open` action reads HERDR_PLUGIN_CLICKED_URL, which
 #                      only link-handler dispatch populates. Ctrl-click a
 #                      github.com issue or PR link instead; no binding needed.
-#   collie             workspace lifecycle only (start/stop/url/status), run
-#                      rarely and never in a hurry.
 #   workspace-manager  apply/validate are occasional, and `remove-gone` deletes
 #                      worktrees — a preview-first action does not belong one
 #                      keypress from your fingers.

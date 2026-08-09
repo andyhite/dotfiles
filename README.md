@@ -15,6 +15,7 @@ NvChad for editing.
 | `config/starship.toml` | `~/.config/starship.toml` | prompt — One Dark Pro preset, hostname shown only over SSH |
 | `config/ghzinga/config.toml` | `~/.config/ghzinga/config.toml` | [ghzinga](https://github.com/osolmaz/ghzinga) — GitHub issue/PR viewer TUI that the herdr plugin shells out to |
 | `config/herdr/config.toml` | `~/.config/herdr/config.toml` | Herdr (agent terminal workspace manager), `one-dark` theme + accent/border overrides |
+| `config/herdr/palette` | `~/.config/herdr/palette` | the `prefix+p` command palette — an fzf script run by a `type = "popup"` keybinding, plus the MIT notice of the plugin it's derived from |
 | `herdr_plugins.txt` | (not linked — read by `install.sh`) | Herdr plugin list, one `owner/repo[@ref]` per line; `install.sh` installs/updates each one |
 | `config/herdr/plugins/config` | `~/.config/herdr/plugins/config` | per-plugin Herdr config, one directory per plugin id — the whole tree is linked, so new plugins land here on install |
 | `config/ghostty/config` | `~/.config/ghostty/config` | Ghostty terminal: `One Dark Two` theme, shell integration — same path on macOS and Linux |
@@ -36,7 +37,7 @@ NvChad for editing.
 | `config/paseo/paseo.service` | (copied to `~/.config/systemd/user/`) | `systemd --user` unit that supervises the Paseo daemon on Linux. Paseo ships no unit of its own. Unused on macOS, where the desktop app supervises its own daemon |
 | `config/paseo/daemon.env.example` | (copy, not linked) | template for `~/.config/paseo/daemon.env`, the unit's `EnvironmentFile` — this box's `PASEO_LISTEN`, `PASEO_HOSTNAMES`, and the plaintext `PASEO_PASSWORD`. The per-machine half of Paseo's config, kept out of the tracked file above |
 | `Brewfile` | (not linked — read by `install.sh`) | macOS formulae + casks for every tool this config drives, applied with `brew bundle` — replaced the old hand-maintained `brew_ensure`/`brew_ensure_cask` loop |
-| `bin/tailscale` | `~/.local/bin/tailscale` | PATH shim for the Mac App Store build of Tailscale — `exec`s the bundled CLI directly, since a plain symlink to it fails at runtime (see the file itself for why). The `AltanS/collie` herdr plugin shells out to bare `tailscale`, so without this on `$PATH` its bridge can't publish itself. Linked only on macOS, and only when the App Store app is actually installed |
+| `bin/tailscale` | `~/.local/bin/tailscale` | PATH shim for the Mac App Store build of Tailscale — `exec`s the bundled CLI directly, since a plain symlink to it fails at runtime (see the file itself for why). Linked only on macOS, and only when the App Store app is actually installed |
 | `agent_skills.txt` | (not linked — read by `install.sh`) | cross-agent skill manifest, one `<owner>/<repo> --skill <name>` per line; `install.sh` runs `npx skills add … -g -y` for each |
 | `zshrc.local.example` | (copy, not linked) | template for machine-local secrets — never committed |
 | `install.sh` | — | installs/updates every tool below, then symlinks all the config above into place — locally, or on another machine with `--host` |
@@ -514,22 +515,24 @@ mirrors a *remote* herdr into this one's sidebar over ssh, which inverts the mom
 mirror some other machine's herdr back into the session you're already viewing
 remotely.
 
-One plugin on the list is installed but not yet running: `AltanS/collie` starts
-stopped on purpose (see `config/herdr/plugins/config/herdr.collie/env.example`) —
-bring the bridge up yourself with `herdr plugin action invoke start --plugin
-herdr.collie` once `COLLIE_TRUSTED_USER`/`COLLIE_PUBLIC_HOSTS` are filled in. It needs
-the `tailscale` CLI on `$PATH` to publish itself, which `bin/tailscale` now provides
-(see the config table above) — the App Store build hides that CLI inside its own app
-bundle otherwise.
+Two plugins used to be listed here and aren't any more. `ribbons-digital/pi-herd`
+hardcoded `--name` and `--session-id` into every harness launch, and omp — the agent
+this setup drives — hard-errors on `unknown flags: --name, --session-id`; it also
+shipped a Pi-only extension. It couldn't drive omp without patching, so it was dropped
+from `herdr_plugins.txt` rather than carried as permanently broken.
 
-`ribbons-digital/pi-herd` used to be listed here too; it's gone. It hardcoded `--name`
-and `--session-id` into every harness launch, and omp — the agent this setup drives —
-hard-errors on `unknown flags: --name, --session-id`; it also shipped a Pi-only
-extension. It couldn't drive omp without patching, so it was dropped from
-`herdr_plugins.txt` rather than carried as permanently broken.
+`AltanS/collie` — a mobile web UI for the herd, served over Tailscale — was removed
+because it wasn't wanted, not because it was broken. Worth recording is that taking it
+out was three steps, not one: a plugin that installs a service owns state herdr knows
+nothing about. `herdr plugin action invoke uninstall --plugin herdr.collie` came first,
+to pull the `herdr.collie` LaunchAgent and the `tailscale serve` mapping the bridge had
+published to the tailnet; then `herdr plugin uninstall herdr.collie`; then its config
+directory, which `herdr plugin uninstall` leaves behind and which held a `.env` of VAPID
+push keys. Uninstalling the plugin alone would have left a service running against a
+plugin that no longer existed.
 
-With twelve plugins and forty-two registered actions between them, keybindings stopped
-being a per-plugin question and became one decision: `command-palette`'s `open` action,
+With ten plugins and thirty-three registered actions between them, keybindings stopped
+being a per-plugin question and became one decision: `config/herdr/palette/palette.sh`,
 bound to `prefix+p` — free because this config moved herdr's own `previous_tab` off it
 and onto `prefix+shift+tab` — builds its fzf list at run time from `herdr plugin action
 list`, so every action of every installed plugin is one fuzzy search away whether or not
@@ -537,6 +540,18 @@ it has a key. Only the ones reached for constantly earn a `[[keys.command]]` ent
 ghzinga's click-driven `open`, workspace-manager's `apply`/`validate`/`remove-gone`, and
 worktree-setup's total absence of actions all stay reachable through the palette instead
 of crowding the keymap.
+
+That palette started as the `JanTvrdik/herdr-command-palette` plugin and is now a script
+in this repo, for two reasons that are really one. fzf needs a TTY; a herdr plugin action
+runs on the server without one, so the plugin had to host the picker in an `overlay`
+plugin pane, and an overlay covers the whole canvas — a command palette that takes the
+screen is a tab, not a palette. A `type = "popup"` keybinding gets a TTY directly and is
+session-modal, so the plugin's only job disappeared along with the full-screen overlay.
+The fork also rewrote the rows: upstream led each one with a `plugin.action` id up to 42
+characters wide, which buried the words you actually read behind an id and left the
+titles in a ragged column. Titles come first now, in a fixed column, with the plugin id
+trailing and dimmed. It stays visible rather than hidden in the invoke-only field
+because fzf matches against what it displays, so a hidden field can't be searched.
 
 Herdr's packed sidebar renders only the tokens named in a `[ui.sidebar.agents]`/
 `[ui.sidebar.spaces]` row — a plugin can write a custom token correctly and still be
