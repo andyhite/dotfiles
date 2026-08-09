@@ -133,6 +133,12 @@ ASSUME_YES=0
 VERBOSE=0
 ONLY=""
 SKIP=""
+REMOTE_HOSTS=()
+REMOTE_DIR="~/.dotfiles"
+
+# Every flag except the remote ones is replayed verbatim on the far side, so
+# `--host vm --only configs` means the same thing there as it would here.
+FORWARD_ARGS=()
 
 usage() {
   cat <<EOF
@@ -146,6 +152,8 @@ ${C_BOLD}Options${C_RESET}
   -v, --verbose        Show each installer's own output instead of only failures
       --only a,b       Run only these steps
       --skip a,b       Run everything except these steps
+  -H, --host h[,h]     Install on these ssh hosts instead of here (repeatable)
+      --remote-path p  Where the repo lives on a host (default ~/.dotfiles)
   -h, --help           Show this
 
 ${C_BOLD}Steps${C_RESET}
@@ -159,10 +167,19 @@ ${C_BOLD}Steps${C_RESET}
   skills       Install agent skills from agent_skills.txt, link Herdr-shipped ones
   nvim         Headless NvChad plugin sync
 
+${C_BOLD}Remote${C_RESET}
+  With --host this machine installs nothing. It ssh's to each host in turn,
+  clones or fast-forwards the repo at --remote-path from origin, and runs that
+  copy's install.sh with every other flag passed through. The remote pulls from
+  origin, not from this working copy — commit and push first. DOTFILES_REPO
+  overrides the URL used for a first-time clone.
+
 ${C_BOLD}Examples${C_RESET}
   ./install.sh --yes                 unattended, everything
   ./install.sh --only configs        just re-link the dotfiles
   ./install.sh --skip tools,nvim     skip the slow parts
+  ./install.sh --host vm             install on 'vm' over ssh, prompting as usual
+  ./install.sh --host vm,box --yes   unattended, on two hosts in turn
 EOF
 }
 
@@ -170,12 +187,18 @@ die() { printf '%s%s%s %s\n' "$C_RED" "$G_ERR" "$C_RESET" "$*" >&2; exit 1; }
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    -y|--yes)     ASSUME_YES=1 ;;
-    -v|--verbose) VERBOSE=1 ;;
-    --only)       ONLY="${2:-}"; shift ;;
-    --only=*)     ONLY="${1#*=}" ;;
-    --skip)       SKIP="${2:-}"; shift ;;
-    --skip=*)     SKIP="${1#*=}" ;;
+    -y|--yes)     ASSUME_YES=1; FORWARD_ARGS+=("$1") ;;
+    -v|--verbose) VERBOSE=1;    FORWARD_ARGS+=("$1") ;;
+    --only)       ONLY="${2:-}"; FORWARD_ARGS+=("$1" "${2:-}"); shift ;;
+    --only=*)     ONLY="${1#*=}"; FORWARD_ARGS+=("$1") ;;
+    --skip)       SKIP="${2:-}"; FORWARD_ARGS+=("$1" "${2:-}"); shift ;;
+    --skip=*)     SKIP="${1#*=}"; FORWARD_ARGS+=("$1") ;;
+    # Unquoted on purpose: the comma split is the point, and a hostname can't
+    # contain whitespace. Repeating the flag accumulates instead of replacing.
+    -H|--host)    REMOTE_HOSTS+=(${2//,/ }); shift ;;
+    --host=*)     _hosts="${1#*=}"; REMOTE_HOSTS+=(${_hosts//,/ }) ;;
+    --remote-path)   REMOTE_DIR="${2:-}"; shift ;;
+    --remote-path=*) REMOTE_DIR="${1#*=}" ;;
     -h|--help)    usage; exit 0 ;;
     *)            die "unknown option '$1' — try --help" ;;
   esac
@@ -749,7 +772,6 @@ link_configs() {
     # the parent would hide them. `atuin hook install` has no omp target, so this
     # one is maintained here by hand.
     "omp/agent/extensions/atuin.ts:$HOME/.omp/agent/extensions/atuin.ts"
-    "omp/agent/extensions/herdr-subagent-panes.ts:$HOME/.omp/agent/extensions/herdr-subagent-panes.ts"
     # Runtime pins. mise finds this by walking up from whatever directory it's
     # invoked in, so the symlink sitting at $HOME is what makes it the default
     # for everything that doesn't carry its own.
@@ -777,18 +799,6 @@ link_configs() {
     # local speech models, so this is linked per-file like omp's.
     "config/paseo/orchestration-preferences.json:$HOME/.paseo/orchestration-preferences.json"
   )
-
-  # AeroSpace drives the macOS window server, so on Linux this wouldn't be an
-  # unused config — it'd be a config for a program that cannot exist there.
-  # Appended conditionally rather than sitting in the array above, same
-  # reasoning as the bin/tailscale block further down.
-  #
-  # AeroSpace searches exactly two locations and *errors on ambiguity* if it
-  # finds both, so ~/.aerospace.toml must stay absent for this link to be the
-  # one that loads. Nothing in this repo creates it.
-  if [ "$OS" = "Darwin" ]; then
-    links+=("config/aerospace/aerospace.toml:$HOME/.config/aerospace/aerospace.toml")
-  fi
 
   # An unescaped `~` in the replacement half of ${var/#pat/rep} is tilde-expanded
   # back to $HOME, making the substitution a silent no-op. `\~` keeps it literal.
@@ -1186,46 +1196,6 @@ install_herdr_plugins() {
       fi
     fi
   done < "$DOTFILES_DIR/herdr_plugins.txt"
-
-  # Plugins developed in this repo itself, not fetched from GitHub — currently
-  # just omp.subagents, under config/herdr/plugins/local/. `herdr plugin link`
-  # instead of `install`: `install` only knows how to resolve a GitHub spec,
-  # and even a local variant of it would have to copy the plugin out of the
-  # repo to install it somewhere content-hashed, same as the GitHub ones under
-  # ~/.config/herdr/plugins/github/ — `link` instead points herdr straight at
-  # this working copy, so an edit lands on herdr's next read with no reinstall.
-  # Verified empirically that re-linking an already-linked plugin is a no-op
-  # success (`plugin_linked`, exit 0, both times) rather than an error, so —
-  # same as the loop above — this just links every local plugin dir on every
-  # run instead of trying to detect "already linked" itself.
-  #
-  # Not listed in herdr_plugins.txt: that file's `<owner>/<repo>[@ref]` format
-  # has no way to spell a local path, and there's no ref to pin against a repo
-  # that isn't on GitHub. The local/ directory itself is the manifest instead.
-  local plugin_dir
-  for plugin_dir in "$DOTFILES_DIR"/config/herdr/plugins/local/*/; do
-    # Same glob-with-no-match guard as link_omp_skills below: when
-    # config/herdr/plugins/local/ doesn't exist yet, bash leaves $plugin_dir
-    # as the literal unexpanded pattern (no nullglob is set anywhere in this
-    # script), which fails the -f check and continues — so an absent
-    # directory is silently a no-op, not a failure.
-    [ -f "$plugin_dir/herdr-plugin.toml" ] || continue
-
-    if run_quiet "local/$(basename "$plugin_dir")" herdr plugin link "$plugin_dir" </dev/null; then
-      updated "local/$(basename "$plugin_dir")"
-      # `herdr plugin link` reads a manifest's [[build]] step back in its own
-      # JSON response but does not run it — verified empirically (see
-      # omp.subagents/herdr-plugin.toml's [[build]] comment): a fresh link
-      # against a plugin with no node_modules leaves node_modules absent.
-      # scripts/install.sh is this repo's own build-step convention for a
-      # local plugin's [[build]] command; run it directly here (bypassing
-      # herdr entirely) so a linked plugin's dependencies actually land.
-      if [ -x "$plugin_dir/scripts/install.sh" ] &&
-        run_quiet "local/$(basename "$plugin_dir") deps" "$plugin_dir/scripts/install.sh"; then
-        ok "local/$(basename "$plugin_dir")" "dependencies installed"
-      fi
-    fi
-  done
 }
 
 # ── omp skills from herdr plugins ───────────────────────────────────────────
@@ -1357,7 +1327,165 @@ sync_nvchad() {
   ok "NvChad plugins" "synced"
 }
 
+# ── Remote hosts ─────────────────────────────────────────────────────────────
+
+# With --host this script installs nothing locally — it becomes a driver for
+# the *remote's own copy* of install.sh. That's deliberate: the remote clone is
+# the thing being bootstrapped, and piping this file over the wire would
+# happily install a version that was never committed, leaving the box in a
+# state no git ref describes.
+
+# Quotes one argument for a remote Bourne shell. ssh joins its command
+# arguments with spaces and hands the string to the login shell, so everything
+# has to survive one extra round of word splitting on the far side. Single
+# quotes are the only quoting every shell agrees on: printf %q emits bash/zsh
+# $'...' for anything with a newline in it, which a dash login shell doesn't
+# understand — and the bootstrap below is one big multi-line argument.
+shquote() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
+
+# The URL a first-time `git clone` on a remote is given. The tracked origin is
+# an ssh Host alias defined in this repo's own ssh/config (github.com-personal)
+# — which a machine that hasn't been bootstrapped yet doesn't have, nor the key
+# it names. So resolve the alias to its real hostname through `ssh -G` (exact,
+# and no hostname is hardcoded here) and hand over the public https URL, which
+# needs no credentials at all. A remote that already has a clone keeps whatever
+# origin it has; this only ever feeds `git clone`. DOTFILES_REPO overrides it,
+# for a fork or a private mirror the remote can reach on its own.
+remote_clone_url() {
+  local url host path
+  if [ -n "${DOTFILES_REPO:-}" ]; then printf '%s\n' "$DOTFILES_REPO"; return 0; fi
+
+  url="$(git -C "$DOTFILES_DIR" remote get-url origin 2>/dev/null)" || return 1
+  case "$url" in
+    git@*:*)
+      host="${url%%:*}"; host="${host#git@}"; path="${url#*:}"
+      host="$(ssh -G "$host" 2>/dev/null | awk '$1 == "hostname" { print $2; exit }')"
+      [ -n "$host" ] || return 1
+      printf 'https://%s/%s\n' "$host" "$path" ;;
+    *)
+      printf '%s\n' "$url" ;;
+  esac
+}
+
+# The script that runs on the far side. Kept small and POSIX-ish on purpose:
+# all it does is get the repo into place and hand over to the real install.sh,
+# which prints everything you actually read.
+remote_bootstrap() {
+  cat <<'REMOTE_SCRIPT'
+set -eu
+
+repo=$1 dir=$2 branch=$3
+shift 3
+
+# --remote-path defaults to a literal ~/… string; only this side knows $HOME.
+case $dir in
+  "~/"*) dir="$HOME/${dir#\~/}" ;;
+  "~")   dir="$HOME" ;;
+esac
+
+# ssh runs a non-login, non-interactive shell, so none of the PATH that zshrc
+# assembles exists here: ~/.local/bin (omp, mise, paseo, herdr, tree-sitter),
+# the mise shims that provide node, Homebrew on a macOS host. Without them
+# install.sh's `command -v` guards would each decide their tool is missing and
+# reinstall it from scratch — a correct result reached the slowest way.
+PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.local/share/mise/shims:$PATH"
+for brew in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+  if [ -x "$brew" ]; then eval "$("$brew" shellenv)"; break; fi
+done
+export PATH
+
+if ! command -v git >/dev/null 2>&1; then
+  echo "no git on this host — install it, then run this again" >&2
+  exit 1
+fi
+
+if [ -d "$dir/.git" ]; then
+  git -C "$dir" fetch --quiet origin
+  # A dirty worktree is left exactly as it is and installed from anyway: this
+  # is how you try a change on the remote before committing it, and silently
+  # resetting someone's edits to match origin would be unforgivable.
+  if [ -n "$(git -C "$dir" status --porcelain)" ]; then
+    echo "! $dir has uncommitted changes — installing it as-is, without updating" >&2
+  else
+    git -C "$dir" checkout --quiet "$branch"
+    git -C "$dir" merge --ff-only --quiet "origin/$branch"
+  fi
+else
+  mkdir -p "$(dirname "$dir")"
+  git clone --quiet --branch "$branch" "$repo" "$dir"
+fi
+
+exec "$dir/install.sh" "$@"
+REMOTE_SCRIPT
+}
+
+# The remote pulls from origin, so anything that exists only in this working
+# copy is not part of what lands there. Worth one line before a run that would
+# otherwise look like it had picked up the change you just made.
+warn_unpushed() {
+  local dirty ahead
+  dirty="$(git -C "$DOTFILES_DIR" status --porcelain 2>/dev/null || true)"
+  ahead="$(git -C "$DOTFILES_DIR" rev-list --count '@{upstream}..HEAD' 2>/dev/null || echo 0)"
+
+  [ -z "$dirty" ]        || warned "uncommitted changes" "won't reach the remote — commit and push first"
+  [ "${ahead:-0}" -eq 0 ] || warned "$ahead unpushed commit(s)" "won't reach the remote — push first"
+  return 0
+}
+
+# Runs the bootstrap on one host. Everything it prints is the remote's own
+# install.sh output, so the only thing added is the heading naming where it
+# went — two hosts' transcripts would otherwise be impossible to tell apart.
+install_remote() {
+  local host=$1 repo=$2 branch=$3 cmd arg
+  local -a ssh_flags
+
+  heading "$host" "$REMOTE_DIR ← $repo ($branch)"
+
+  # `bash -c SCRIPT NAME ARGS…` — NAME lands in $0, so the positional
+  # parameters the bootstrap reads start at the repo URL.
+  cmd="bash -c $(shquote "$(remote_bootstrap)") install.sh"
+  for arg in "$repo" "$REMOTE_DIR" "$branch" ${FORWARD_ARGS+"${FORWARD_ARGS[@]}"}; do
+    cmd="$cmd $(shquote "$arg")"
+  done
+
+  # A tty is only worth asking for when there's a human on this end to answer
+  # the remote's prompts. Forcing one with -tt when nobody is watching would
+  # make every step sit out its 60s read timeout instead of running unattended.
+  if [ -t 0 ] && [ -t 1 ]; then ssh_flags=(-t); else ssh_flags=(-T); fi
+
+  ssh "${ssh_flags[@]}" "$host" "$cmd"
+}
+
+# One host failing doesn't cancel the rest, matching how a failed step behaves
+# inside a single run; the exit status still reflects it.
+install_remote_all() {
+  local repo branch host rc=0
+
+  repo="$(remote_clone_url)" ||
+    die "couldn't work out a clone URL from origin — set DOTFILES_REPO"
+  branch="$(git -C "$DOTFILES_DIR" symbolic-ref --short HEAD 2>/dev/null)" ||
+    die "not on a branch here, so there's nothing for the remote to track"
+
+  printf '\n%s%sdotfiles%s %s→ %s%s\n' \
+    "$C_BOLD" "$C_CYAN" "$C_RESET" "$C_DIM" "${REMOTE_HOSTS[*]}" "$C_RESET"
+  say "installing remotely; this machine is left untouched"
+  warn_unpushed
+
+  for host in "${REMOTE_HOSTS[@]}"; do
+    install_remote "$host" "$repo" "$branch" || { failed "$host" "install failed"; rc=1; }
+  done
+  return "$rc"
+}
+
 # ── Run ──────────────────────────────────────────────────────────────────────
+
+# --host redirects the whole run elsewhere rather than adding to it, so this
+# sits ahead of every local step. It lands after the step-name validation above
+# on purpose: a typo in --only is caught here, before any network round trip.
+if [ "${#REMOTE_HOSTS[@]}" -gt 0 ]; then
+  install_remote_all
+  exit $?
+fi
 
 printf '\n%s%sdotfiles%s %s%s%s\n' \
   "$C_BOLD" "$C_CYAN" "$C_RESET" "$C_DIM" "$DOTFILES_DIR" "$C_RESET"

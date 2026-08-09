@@ -2,17 +2,13 @@
 # install.sh feeds each line to `herdr plugin install`, which is also how herdr
 # updates an already-installed plugin. Pin a tag/branch/commit with @<ref>;
 # without one you get the repo's default branch at install time.
-# Three things live outside this file:
+# Two things live outside this file:
 #   - Per-plugin settings, in config/herdr/plugins/config/<plugin_id>/, which is
 #     symlinked to ~/.config/herdr/plugins/config. Not every plugin uses it —
 #     ghzinga reads its config from elsewhere entirely (see its note).
 #   - Keybindings, in config/herdr/config.toml. herdr has no [keys] entry for
 #     plugin actions, so each one is a [[keys.command]] block shelling out to
 #     `herdr plugin action invoke`.
-#   - Plugins developed in this repo, in config/herdr/plugins/local/<id>/.
-#     install.sh links each one straight from its working copy with
-#     `herdr plugin link`, since there's no GitHub spec for it to resolve —
-#     so this file stays the source of truth for GitHub-hosted plugins only.
 #
 # A spec line ending in `# local-only` is skipped when install.sh runs inside an
 # ssh session ($SSH_CONNECTION set), for plugins that only make sense on the

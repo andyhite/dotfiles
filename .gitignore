@@ -27,12 +27,3 @@ omp/agent/*.lock
 # template is needed; this file is per-machine.
 config/herdr/plugins/config/**/provider.env
 config/herdr/plugins/config/**/*.env
-
-# Local herdr plugins (config/herdr/plugins/local/*/) that ship real npm deps —
-# currently just omp-subagents, whose scripts/install.sh (run by its
-# [[build]] step) pins them to whatever `omp` binary is on PATH. Both
-# node_modules and the lockfile are per-machine, regenerated-on-every-build
-# artifacts as a result — tracking either would just be cross-machine merge
-# noise for a lockfile that gets rewritten the moment omp itself is upgraded.
-config/herdr/plugins/local/*/node_modules/
-config/herdr/plugins/local/*/bun.lock
