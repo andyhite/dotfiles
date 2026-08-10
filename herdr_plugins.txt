@@ -76,3 +76,13 @@ razajamil/herdr-plugin-workspace-manager
 # in [ui.sidebar.agents] rows to render at all. Ambient status only; ghzinga is
 # still the thing that opens a PR to read it.
 wyattjoh/herdr-plugin-gh-pr
+
+# Jira issues in a pane: JQL filters, search, status transitions, and `d` to
+# hand an issue to any agent herdr can see. That last part is why it's here —
+# `boss` (the fleet orchestrator) is a delegate target for free, so an issue
+# becomes a worktree and a dispatched worker without any glue. Its own
+# "+ start new agent" wizard is deliberately near-empty in config.toml; it
+# makes a tab at an existing cwd with no branch, which fleet does better.
+# Builds with cargo on install. Config: config.toml — base_url and
+# default_project are machine-specific and start as CHANGEME.
+a2u/herdr-jira

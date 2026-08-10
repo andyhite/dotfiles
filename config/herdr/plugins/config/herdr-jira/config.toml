@@ -1,0 +1,103 @@
+# herdr-jira — Jira issues in a pane, and a one-key handoff to an agent.
+#
+# The interesting half is `[delegate]`. `d` on an issue lists every agent herdr
+# currently knows about and sends the rendered prompt below into the one you
+# pick. That means the fleet orchestrator (`fleet boss`, handle `boss`) is
+# already a delegate target with no wiring at all — pick it and it gets the
+# issue as an instruction, then runs `fleet spawn` itself. Worktree, branch,
+# and `fleet join` collection all come from that side; this plugin only has to
+# name the issue.
+#
+# Which is why `[[delegate.agents]]` — the "+ start new agent…" wizard — is
+# deliberately minimal here. That path is a plain `herdr tab create` at an
+# existing cwd: no worktree, no branch, and the agent is started with
+# `pane run` + `agent rename` rather than `agent start --kind`, so herdr has to
+# infer the agent type on a timer. For anything that wants a branch, delegating
+# to `boss` is strictly better. The `omp` entry stays for the occasional
+# read-only look at an issue in a directory that already exists.
+#
+# Reloads on `R` inside the pane; no herdr restart needed.
+
+[jira]
+# TODO: set this — nothing on this machine records the instance URL, so it is
+# the one value that could not be filled in automatically. No trailing slash.
+base_url = "https://CHANGEME.atlassian.net"
+
+auth = "basic"
+email = "andy@andyhite.com"
+
+# The token already lives in ~/.zshrc.local, which is this setup's established
+# home for machine-local secrets (see zshrc.local.example) and is untracked.
+# Reading it through a login shell keeps one copy rather than duplicating it
+# into the Keychain — and works regardless of what environment the herdr server
+# itself was launched with, since zsh -l sources zshrc and then zshrc.local.
+api_token_cmd = "zsh -lc 'printf %s \"$JIRA_API_TOKEN\"'"
+
+# TODO: set your project key. Substituted for {project} in the filters below.
+default_project = "CHANGEME"
+
+max_results = 50
+
+# ── Filters ──────────────────────────────────────────────────────────────────
+# Switch with `f`, or jump straight to one with 1-9. First is the default.
+
+[[filters]]
+name = "My open issues"
+jql = "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC"
+
+[[filters]]
+name = "Project board"
+jql = "project = {project} AND statusCategory != Done ORDER BY updated DESC"
+
+[[filters]]
+name = "Recently updated"
+jql = "project = {project} ORDER BY updated DESC"
+
+[search]
+jql = 'text ~ "{query}" ORDER BY updated DESC'
+
+# ── Delegation ───────────────────────────────────────────────────────────────
+
+[delegate]
+# Written as an instruction rather than a task, because the usual recipient is
+# `boss` — an orchestrator that should decide the branch and dispatch a worker,
+# not start editing files in whatever directory it happens to be sitting in.
+# Sent to a plain worker agent it still reads correctly; the first line just
+# becomes context it can act on directly.
+prompt = """
+Jira {key}: {summary}
+
+Status: {status} | Assignee: {assignee} | Priority: {priority} | Type: {type}
+Link: {url}
+
+Description:
+{description}
+
+If you are the fleet orchestrator, spawn a worker for this issue on a branch
+named after it — `fleet spawn <type>/{key}-<slug> --task "..."` — putting the
+whole issue above into the task text, since the worker cannot see this. Then
+`fleet join` for its report.
+
+Otherwise, work the issue here and summarize what you changed.
+"""
+
+submit = true
+submit_delay_ms = 500
+max_description_chars = 6000
+
+# Only omp: the other CLIs in the upstream example aren't what runs here, and
+# an entry in this list is a promise that the binary exists.
+[[delegate.agents]]
+name = "omp"
+command = ["omp"]
+
+default_cwd = "~/Code/andyhite"
+
+# A tab, not a split. The Jira pane is a full-height list — splitting beside it
+# leaves neither side readable, and the delegated agent is somewhere you switch
+# to rather than watch.
+placement = "tab"
+focus_new = false
+
+startup_delay_ms = 1500
+wait_ready_ms = 30000
