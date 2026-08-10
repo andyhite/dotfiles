@@ -19,12 +19,15 @@
 # Reloads on `R` inside the pane; no herdr restart needed.
 
 [jira]
-# TODO: set this — nothing on this machine records the instance URL, so it is
-# the one value that could not be filled in automatically. No trailing slash.
-base_url = "https://CHANGEME.atlassian.net"
+base_url = "https://your-org.atlassian.net"
 
 auth = "basic"
-email = "andy@andyhite.com"
+# The Atlassian account, which is NOT the git identity on this machine
+# (andy@andyhite.com). A token is bound to the account that minted it; pairing
+# it with any other address 401s on every endpoint, including the
+# site-independent ones — which is what makes that failure look like a bad
+# token rather than a wrong username.
+email = "you@example.com"
 
 # The token already lives in ~/.zshrc.local, which is this setup's established
 # home for machine-local secrets (see zshrc.local.example) and is untracked.
@@ -33,8 +36,9 @@ email = "andy@andyhite.com"
 # itself was launched with, since zsh -l sources zshrc and then zshrc.local.
 api_token_cmd = "zsh -lc 'printf %s \"$JIRA_API_TOKEN\"'"
 
-# TODO: set your project key. Substituted for {project} in the filters below.
-default_project = "CHANGEME"
+# Substituted for {project} in the filters below. The usual board is
+# .../projects/PROJ/boards/42.
+default_project = "PROJ"
 
 max_results = 50
 
