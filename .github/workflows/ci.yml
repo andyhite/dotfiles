@@ -68,7 +68,7 @@ jobs:
       # doesn't put the values it rejects back into git history.
       - name: No work identifiers in committed content
         run: |
-          pattern='circuit''-ai|andyhite''-fab|mole''cula|OXY''GEN|"ssh_connections"[[:space:]]*:'
+          pattern='circuit''[-.]ai|andyhite''-fab|mole''cula|OXY''GEN|"ssh_connections"[[:space:]]*:'
           if git grep -nIi -E "$pattern" -- . \
               ':!README.md' \
               ':!bin/zed-settings-clean' \
