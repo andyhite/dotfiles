@@ -1,0 +1,98 @@
+# Copied by install.sh to ~/.omp/agent/config.local.yml. That copy is outside
+# the repo and never committed, and omp does not read it on its own — it is a
+# `--config` overlay, inert until PI_CONFIG_FILES names it:
+#
+#   # ~/.zshrc.local
+#   export PI_CONFIG_FILES="$HOME/.omp/agent/config.local.yml"
+#
+# So the contents below are live YAML, not a block to uncomment. Installing the
+# file changes nothing; exporting that variable is what turns it on.
+#
+# This file exists because one thing in config.yml genuinely is per-machine.
+# Most of routing is not: Pattern 1 in models.yml.example changes *who is billed
+# for* anthropic/claude-opus-5, not *which model that name resolves to*, so
+# modelRoles and the bulk of retry.fallbackChains are identical everywhere and
+# stay tracked.
+#
+# The exception is the Pattern 2 twin. `anthropic-api` is a custom provider that
+# exists only where a second Anthropic credential does, and omp validates every
+# fallback-chain entry against the live catalog at startup:
+#
+#   Warning: Fallback chain for role 'default' references unknown model: anthropic-api/claude-opus-5
+#
+# One per role, on every start, on every machine without the twin. The entry is
+# skipped and the rest of the chain still works, so it is noise rather than
+# breakage — but noise the tracked config cannot avoid. A `provider/*` wildcard
+# does not help either; it warns as an unknown provider instead.
+#
+# So the twin's chain entries live here, and the tracked config.yml carries the
+# chains that hold everywhere: codex -> openai -> cursor.
+#
+# Each role is listed in full because arrays replace rather than append: a role
+# named here must repeat the entries it keeps, and a role left out keeps its
+# tracked chain untouched.
+
+retry:
+  fallbackChains:
+    default:
+      - openai-codex/gpt-5.6-sol:high
+      - anthropic-api/claude-opus-5
+      - openai/gpt-5.6:high
+      - cursor/claude-opus-5-high
+    plan:
+      - openai-codex/gpt-5.6-sol:xhigh
+      - anthropic-api/claude-opus-5:xhigh
+      - openai/gpt-5.6:xhigh
+      - cursor/claude-opus-5-thinking-xhigh
+    slow:
+      - openai-codex/gpt-5.6-sol:xhigh
+      - anthropic-api/claude-opus-5:max
+      - openai/gpt-5.6-sol:xhigh
+      - cursor/claude-opus-5-thinking-max
+    task:
+      - openai-codex/gpt-5.6-terra:medium
+      - anthropic-api/claude-sonnet-5
+      - openai/gpt-5.6-terra:medium
+      - cursor/gpt-5.6-terra-medium
+    smol:
+      - openai-codex/gpt-5.6-luna:low
+      - anthropic-api/claude-haiku-4-5:low
+      - openai/gpt-5.6-luna:low
+      - cursor/gpt-5.6-luna-low
+    commit:
+      - openai-codex/gpt-5.4-mini:low
+      - anthropic-api/claude-haiku-4-5:low
+      - openai/gpt-5.4-mini:low
+      - cursor/gpt-5.4-mini-low
+    tiny:
+      - openai-codex/gpt-5.4-mini:low
+      - anthropic-api/claude-haiku-4-5:minimal
+      - openai/gpt-5.4-mini:low
+      - cursor/gpt-5.4-mini-low
+    vision:
+      - openai-codex/gpt-5.6-terra:medium
+      - anthropic-api/claude-sonnet-5
+      - openai/gpt-5.6-terra:medium
+      - cursor/claude-opus-5-medium
+    designer:
+      - openai-codex/gpt-5.6-sol:high
+      - anthropic-api/claude-opus-5:high
+      - openai/gpt-5.6-sol:high
+      - cursor/claude-sonnet-5-high
+    advisor:
+      - openai-codex/gpt-5.6-terra:medium
+      - anthropic-api/claude-opus-5:high
+      - openai/gpt-5.6-terra:medium
+      - cursor/gpt-5.6-terra-medium
+
+# An overlay must parse as a YAML mapping: a missing file, invalid YAML, or a
+# bare array or scalar is a hard startup error rather than a silent fall back to
+# the tracked config. Point PI_CONFIG_FILES at a file that exists, or unset it.
+#
+# PI_CONFIG_FILES is a path list (`:` on Unix) whose files load in order, before
+# any explicit `--config`. Setting it in ~/.zshrc.local covers interactive
+# shells and everything they spawn, subagents included. It does not reach a
+# daemon that sources no login shell: a Paseo agent started by systemd or
+# launchd sees the tracked chains only and falls back to openai and cursor
+# without the API-account hop. Add the export to the service environment too if
+# that layer has to hold there.

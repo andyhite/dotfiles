@@ -389,11 +389,11 @@ the Linux box: the Paseo daemon runs under systemd and sources no login shell. T
 Anthropic header resolver explicitly sources this file, while omp resolves OpenAI's
 `apiKey` from it through the normal dotenv path.
 
-**Which models each role resolves to — a config question.** This one turns out not to
-differ, and the earlier version of this section was wrong to build machinery for it.
-`modelRoles` and `retry.fallbackChains` stay in the tracked `config.yml` on both machines,
-because Pattern 1 above changes *who is billed for* `anthropic/claude-opus-5`, not *which
-model that name resolves to*. Nothing per-machine is left for a config overlay to say.
+**Which models each role resolves to — a config question.** Almost none of it differs.
+`modelRoles` and most of `retry.fallbackChains` stay in the tracked `config.yml`, because
+Pattern 1 above changes *who is billed for* `anthropic/claude-opus-5`, not *which model
+that name resolves to*. Pattern 2 below is the single exception, and the reason a
+machine-local overlay exists again.
 
 The one case that does need more is wanting both accounts live at once — subscription
 serving the turn, an API key catching the overflow when it rate-limits. Pinning replaces,
@@ -434,9 +434,7 @@ verified against fresh interactive OMP sessions.
 
 A provider carrying its own `models` list is a full custom provider, so `baseUrl` and `api`
 become required and each model has to be spelled out — omp won't clone a built-in catalog
-onto a new id. `anthropic-api/…` then goes in `retry.fallbackChains`, which is tracked and
-shared, and that's fine: a chain entry naming a provider this machine hasn't defined is
-reported as a config warning at startup and skipped.
+onto a new id.
 
 `~/.omp/agent/models.yml` is created from `omp/agent/models.yml.example` on every machine,
 so the mechanism is discoverable where it isn't used. The shipped copy is inert but not
@@ -444,12 +442,38 @@ empty — it carries a literal `providers: {}`, because omp validates the root a
 and a file trimmed to pure comments parses as null and prints a validation warning on every
 startup.
 
-A `PI_CONFIG_FILES` overlay (`config.local.yml`, applied after the tracked `config.yml`)
-was the previous answer here and has been removed. It solved the config question, which
-turned out not to need solving, while leaving the auth question — the one that actually
-costs money — untouched. It also came with a sharp edge worth recording: a
-`PI_CONFIG_FILES` entry naming a missing file is a hard error, so omp refuses to start
-rather than skip it, which made an otherwise-pointless file mandatory on every machine.
+`anthropic-api/…` is the one routing detail that cannot be shared, because omp validates
+every fallback-chain entry against the live catalog at startup. On a machine without the
+twin, each role that names it warns on every launch:
+
+```
+Warning: Fallback chain for role 'default' references unknown model: anthropic-api/claude-opus-5
+```
+
+Ten roles, ten lines, every start. The entry is skipped and the rest of the chain still
+works, so it is noise rather than breakage — but the tracked config has no way to avoid
+it. A `provider/*` wildcard entry warns too, as an unknown provider.
+
+So the tracked chains stop at `codex -> openai -> cursor`, and the twin's entries live in
+`~/.omp/agent/config.local.yml`, copied from `omp/agent/config.local.yml.example` and read
+only when `PI_CONFIG_FILES` names it:
+
+```sh
+# ~/.zshrc.local — the machine with two Anthropic accounts
+export PI_CONFIG_FILES="$HOME/.omp/agent/config.local.yml"
+```
+
+A `PI_CONFIG_FILES` overlay was removed here once before, as machinery for a problem that
+turned out not to exist: chains were provider-identical on every box, so the overlay had
+nothing to say. The twin changed that by making one provider id machine-specific. The
+recorded sharp edge still holds — an entry naming a missing file is a hard error, so omp
+refuses to start rather than skip it — which is why `install.sh` copies the file on every
+machine and only the export differs.
+
+The overlay reaches interactive shells and everything they spawn, subagents included. It
+does not reach a daemon that sources no login shell: a Paseo agent started by systemd or
+launchd sees the tracked chains and falls back to `openai` and `cursor` without the
+API-account hop.
 
 ### Paseo
 
