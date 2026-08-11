@@ -12,6 +12,28 @@
 // machine hardcode work project paths that don't exist on a fresh checkout.
 // Reconnecting to a host from the command palette regenerates it locally.
 {
+  "markdown_preview": {
+    "max_width": 1440.0,
+    "limit_content_width": false
+  },
+  "ssh_connections": [
+    {
+      "host": "devbox",
+      "args": [],
+      "projects": [
+        {
+          "paths": [
+            "/home/you"
+          ]
+        },
+        {
+          "paths": [
+            "/home/you/project"
+          ]
+        }
+      ]
+    }
+  ],
   "vim": {
     "use_system_clipboard": "always"
   },
