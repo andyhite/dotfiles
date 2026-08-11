@@ -35,9 +35,9 @@ providers: {}
 #
 # providers:
 #   anthropic:
-#     apiKey: "!printenv ANTHROPIC_API_KEY"
+#     apiKey: ANTHROPIC_API_KEY
 #   openai:
-#     apiKey: "!printenv OPENAI_API_KEY"
+#     apiKey: OPENAI_API_KEY
 #
 # These are "override-only" entries: no `models` list, so they pin a key onto
 # a built-in provider without redeclaring its catalog. config.yml needs no
@@ -62,10 +62,22 @@ providers: {}
 #   anthropic-api:
 #     baseUrl: https://api.anthropic.com
 #     api: anthropic-messages
-#     apiKey: "!printenv ANTHROPIC_API_KEY"
+#     apiKey: ANTHROPIC_API_KEY
 #     models:
 #       - id: claude-opus-5
 #         name: Claude Opus 5 (API account)
+#         reasoning: true
+#         input: [text, image]
+#         contextWindow: 1000000
+#         maxTokens: 128000
+#       - id: claude-sonnet-5
+#         name: Claude Sonnet 5 (API account)
+#         reasoning: true
+#         input: [text, image]
+#         contextWindow: 1000000
+#         maxTokens: 128000
+#       - id: claude-haiku-4-5
+#         name: Claude Haiku 4.5 (API account)
 #         reasoning: true
 #         input: [text, image]
 #         contextWindow: 200000
@@ -81,20 +93,17 @@ providers: {}
 # names, and a "fallback" that fails exactly when the primary does.
 
 
-# ── Always use the !printenv form ────────────────────────────────────────────
-# A bare `apiKey: ANTHROPIC_API_KEY` is read as an environment variable *name*
-# first and, when no such variable exists, as the literal token. It does not
-# fail — the provider stays available and sends the string "ANTHROPIC_API_KEY"
-# as the bearer, so an unset key surfaces as a 401 mid-turn, and a fallback
-# chain pointing at it burns its first hop instead of skipping to the next.
+# ── Match the resolver to the secret source ──────────────────────────────────
+# For keys in ~/.omp/agent/.env, use the environment-variable name directly.
+# omp's dotenv loader participates in normal apiKey resolution, but dotenv
+# values are not exported to shell commands launched by `!value`; consequently
+# `!printenv ANTHROPIC_API_KEY` cannot see a key that exists only in that file.
 #
-# `!value` runs the value as a shell command (10s timeout, stdout trimmed,
-# result cached for the process) and — the part that matters — omits the key
-# entirely when the command fails. `!printenv NAME` therefore makes an unset
-# variable mean "this provider is unavailable", which is what a fallback chain
-# needs to route around it.
+# A missing direct variable can be treated as a literal token, so only enable
+# one of these provider entries on a machine where its key is configured. Check
+# that before relying on a fallback with `omp token anthropic-api` (or `openai`).
 #
-# Same syntax reaches a real secret store, if the key shouldn't sit in a
-# dotenv either:
+# Command resolution is still useful for a real secret store. A failed command
+# omits the credential and leaves that provider unavailable:
 #
 #   apiKey: "!op read op://work/anthropic/api-key"

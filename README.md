@@ -339,8 +339,8 @@ build instead of shipping.
 ### omp — one tracked config, two machines, different accounts
 
 `omp/agent/config.yml` is symlinked to `~/.omp/agent/config.yml` and shared by every
-machine, but the two machines here don't pay for models the same way. The Mac uses
-personal subscriptions (Claude Code, ChatGPT); the Linux box bills work API accounts. That
+machine, but the two machines here don't pay for models the same way. The Mac tries
+personal subscriptions first and personal API accounts second; the Linux box bills work API accounts. That
 splits into two questions with two different answers, and conflating them is what makes
 this look harder than it is.
 
@@ -365,28 +365,27 @@ warns you. Tier 2 is the only lever above a stored OAuth session, and it lives i
 ```yaml
 # ~/.omp/agent/models.yml — work box only
 providers:
-  anthropic: { apiKey: "!printenv ANTHROPIC_API_KEY" }
-  openai:    { apiKey: "!printenv OPENAI_API_KEY" }
+  anthropic: { apiKey: ANTHROPIC_API_KEY }
+  openai:    { apiKey: OPENAI_API_KEY }
 ```
 
 A provider entry with no `models` list is an override-only entry, which is what makes
 pinning a key onto a built-in provider legal without redeclaring its catalog. `config.yml`
 needs no change: `modelRoles` still say `anthropic/…`, they just bill differently here.
 
-The `!` prefix is load-bearing rather than stylistic. A bare `apiKey: ANTHROPIC_API_KEY` is
-read as an environment-variable *name* first and, when no such variable exists, as the
-literal token — so an unset key leaves the provider **available** and sends the string
-`ANTHROPIC_API_KEY` as the bearer, surfacing as a 401 mid-turn. A `!value` runs as a shell
-command and is omitted entirely when the command fails, so `!printenv NAME` makes an unset
-variable mean "unavailable", which is what anything downstream needs in order to route
-around it.
+The value is an environment-variable name, and omp's dotenv loader resolves it from
+`~/.omp/agent/.env`. Do not use `!printenv NAME` for a key that exists only in that file:
+`!value` launches a shell command, and omp does not export dotenv-only values to that
+command's environment. A missing direct variable can be treated as a literal token, so
+only enable these entries where the key exists and verify them with `omp token anthropic`
+(or `openai`). Command resolution remains useful for a real secret store, for example
+`apiKey: "!op read op://work/anthropic/api-key"`; a failed command omits the credential.
 
 The values behind those names go in `~/.omp/agent/.env`, not `~/.zshrc.local`. That
 distinction matters on the Linux box: the Paseo daemon runs under systemd, which sources no
 login shell, so agents it launches would see nothing set in `zshrc.local`. omp reads
-`.env` itself for any variable still unset in the environment — verified to feed the
-`models.yml` indirection above — so the daemon's agents and an interactive shell resolve
-the same key.
+`.env` itself for provider resolution, so the daemon's agents and an interactive shell
+resolve the same key.
 
 **Which models each role resolves to — a config question.** This one turns out not to
 differ, and the earlier version of this section was wrong to build machinery for it.
@@ -395,7 +394,7 @@ because Pattern 1 above changes *who is billed for* `anthropic/claude-opus-5`, n
 model that name resolves to*. Nothing per-machine is left for a config overlay to say.
 
 The one case that does need more is wanting both accounts live at once — subscription
-serving the turn, work API key catching the overflow when it rate-limits. Pinning replaces,
+serving the turn, an API key catching the overflow when it rate-limits. Pinning replaces,
 so holding two credentials for one upstream needs a second provider id:
 
 ```yaml
@@ -404,10 +403,22 @@ providers:
   anthropic-api:
     baseUrl: https://api.anthropic.com
     api: anthropic-messages
-    apiKey: "!printenv ANTHROPIC_API_KEY"
+    apiKey: ANTHROPIC_API_KEY
     models:
       - id: claude-opus-5
         name: Claude Opus 5 (API account)
+        reasoning: true
+        input: [text, image]
+        contextWindow: 1000000
+        maxTokens: 128000
+      - id: claude-sonnet-5
+        name: Claude Sonnet 5 (API account)
+        reasoning: true
+        input: [text, image]
+        contextWindow: 1000000
+        maxTokens: 128000
+      - id: claude-haiku-4-5
+        name: Claude Haiku 4.5 (API account)
         reasoning: true
         input: [text, image]
         contextWindow: 200000
@@ -418,7 +429,7 @@ A provider carrying its own `models` list is a full custom provider, so `baseUrl
 become required and each model has to be spelled out — omp won't clone a built-in catalog
 onto a new id. `anthropic-api/…` then goes in `retry.fallbackChains`, which is tracked and
 shared, and that's fine: a chain entry naming a provider this machine hasn't defined is
-reported as a config warning at startup and skipped, so the laptop ignores it.
+reported as a config warning at startup and skipped.
 
 `~/.omp/agent/models.yml` is created from `omp/agent/models.yml.example` on every machine,
 so the mechanism is discoverable where it isn't used. The shipped copy is inert but not
