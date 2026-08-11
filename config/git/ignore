@@ -13,3 +13,11 @@
 *.swp
 .idea/
 .vscode/
+
+# mise version pins. Which runtime manager a machine uses is a property of the
+# machine, not the project, so these are ignored globally rather than added to
+# each repo's .gitignore. Only affects untracked files: a repo that genuinely
+# commits its own .tool-versions keeps working, and `git add -f` overrides.
+.tool-versions
+mise.local.toml
+.mise.local.toml
