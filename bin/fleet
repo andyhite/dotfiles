@@ -19,7 +19,7 @@
 # about the other lives under $FLEET_STATE, keyed by herdr agent name, so
 # nothing is written into the repo and no environment has to be injected.
 #
-# Vocabulary: the ORCHESTRATOR (default handle `boss`) is whichever agent ran
+# Vocabulary: the ORCHESTRATOR (default handle: the repo root's name) is
 # `fleet boss`. A WORKER is an agent `fleet spawn` created. A HANDLE is a herdr
 # agent name — `[a-z][a-z0-9_-]{0,31}` — and is the only identifier used here;
 # workspace and pane IDs stay inside this script.
@@ -27,7 +27,6 @@
 set -euo pipefail
 
 FLEET_STATE="${FLEET_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/fleet}"
-DEFAULT_BOSS="${FLEET_BOSS_HANDLE:-boss}"
 
 # herdr requires >3000 for agent readiness. The workspace-manager plugin starts
 # the agent itself, so this is how long we wait for its layout apply to land an
@@ -36,6 +35,10 @@ SPAWN_TIMEOUT_MS="${FLEET_SPAWN_TIMEOUT_MS:-120000}"
 # Bound on a single `fleet ask`/`fleet join`. Long by default: the whole point
 # of a worker is that it does something substantial.
 WAIT_TIMEOUT_MS="${FLEET_WAIT_TIMEOUT_MS:-3600000}"
+# A prompt that never lands is worse than a failed one: `fleet join` then waits
+# on an agent that is idle for the wrong reason. herdr already fails fast on a
+# stalled prompt; this is the second check, on the state it actually reached.
+DISPATCH_SETTLE_MS="${FLEET_DISPATCH_SETTLE_MS:-15000}"
 
 die() { printf 'fleet: %s\n' "$*" >&2; exit 1; }
 note() { printf '%s\n' "$*" >&2; }
@@ -93,6 +96,45 @@ agent_field() {
 
 agent_exists() { [ -n "$(agent_field "$1" pane_id)" ]; }
 
+# herdr's agent-name grammar: [a-z][a-z0-9_-]{0,31}.
+valid_handle() {
+  case "$1" in
+    [a-z]*) ;;
+    *) return 1 ;;
+  esac
+  case "$1" in *[!a-z0-9_-]*) return 1 ;; esac
+  [ ${#1} -le 32 ]
+}
+
+# An unused variant of $1, for displacing whoever currently holds it. Clearing
+# the holder's name instead would leave a live agent that nothing can address —
+# not `fleet send`, not `fleet read`, not even its own `fleet whoami` — so a
+# displaced agent is always moved to a name, never anonymized.
+free_handle() {
+  local base=$1 n=1 candidate
+  # Leave room for the "-NN" suffix inside herdr's 32-character limit.
+  base=$(printf '%.29s' "$base" | sed -E -e 's/-+$//')
+  while [ "$n" -lt 100 ]; do
+    candidate="$base-$n"
+    if ! agent_exists "$candidate"; then printf '%s' "$candidate"; return 0; fi
+    n=$((n + 1))
+  done
+  return 1
+}
+
+# Repo identity for scoping. $FLEET_STATE is machine-global, so without this a
+# bare `fleet join` in one repo blocks on another repo's workers and
+# `fleet reap --all` deletes their worktrees. The git *common* dir is the key
+# rather than the toplevel, so a worktree groups with the repo it came from.
+repo_key() {
+  local dir=${1:-.} top common
+  top=$(cd "$dir" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null) || return 0
+  [ -n "$top" ] || return 0
+  common=$(cd "$top" && git rev-parse --git-common-dir 2>/dev/null) || return 0
+  [ -n "$common" ] || return 0
+  ( cd "$top" && cd "$common" && pwd -P )
+}
+
 # ── State ────────────────────────────────────────────────────────────────────
 #
 # One directory per worker under $FLEET_STATE. `meta` is sourced, so values are
@@ -104,6 +146,10 @@ agent_exists() { [ -n "$(agent_field "$1" pane_id)" ]; }
 meta_dir() { printf '%s/%s' "$FLEET_STATE" "$1"; }
 meta_file() { printf '%s/meta' "$(meta_dir "$1")"; }
 report_file() { printf '%s/report.md' "$(meta_dir "$1")"; }
+# Touched immediately before every dispatch, so a report can be compared
+# against it. That is what keeps a follow-up `fleet send` from having to
+# truncate the report the worker already filed just to avoid re-reading it.
+dispatch_file() { printf '%s/dispatched' "$(meta_dir "$1")"; }
 
 meta_set() {
   local handle=$1; shift
@@ -116,6 +162,24 @@ meta_set() {
   done
 }
 
+# Rewrite one key, preserving every other line. meta_set() truncates, so using
+# it to change a single field means restating all of them — and a field it
+# forgot would be silently dropped.
+meta_update() {
+  local handle=$1 kv=$2
+  local key=${kv%%=*} val=${kv#*=}
+  local f; f=$(meta_file "$handle")
+  [ -f "$f" ] || return 0
+  local tmp="$f.tmp" line
+  : >"$tmp"
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in "$key="*) continue ;; esac
+    printf '%s\n' "$line" >>"$tmp"
+  done <"$f"
+  printf '%s=%q\n' "$key" "$val" >>"$tmp"
+  mv "$tmp" "$f"
+}
+
 meta_get() {
   local f; f=$(meta_file "$1")
   [ -f "$f" ] || return 0
@@ -125,20 +189,81 @@ meta_get() {
 
 # ── Orchestrator identity ────────────────────────────────────────────────────
 
+# The handle `fleet boss` claims when none is named. A constant default would
+# let exactly one repo on the machine ever hold it, since herdr agent names are
+# unique across the whole herdr session; the repo root's name gives every
+# checkout a default of its own, and still collides — correctly — with a second
+# orchestrator in the same one. $FLEET_BOSS_HANDLE overrides.
+default_boss() {
+  if [ -n "${FLEET_BOSS_HANDLE:-}" ]; then
+    printf '%s' "$FLEET_BOSS_HANDLE"; return 0
+  fi
+  local top
+  top=$(git rev-parse --show-toplevel 2>/dev/null) || true
+  if [ -n "$top" ]; then slugify "$(basename "$top")"; else printf 'boss'; fi
+}
+
 cmd_boss() {
   require_herdr
-  local name="${1:-$DEFAULT_BOSS}"
+  local steal=0 name=""
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --steal) steal=1; shift ;;
+      -*) die "usage: fleet boss [name] [--steal]" ;;
+      *) name=$1; shift ;;
+    esac
+  done
+
   local current; current=$(self_handle)
+  # With no argument this is a query, not a claim: a pane that already has a
+  # handle keeps it.
+  if [ -z "$name" ]; then
+    if [ -n "$current" ]; then printf '%s\n' "$current"; return 0; fi
+    name=$(default_boss)
+  fi
   if [ "$current" = "$name" ]; then
     printf '%s\n' "$name"; return 0
   fi
+  valid_handle "$name" || die "handle '$name' is not a valid herdr agent name"
+
   # A name is unique among live agents and follows the pane occupant, so a
-  # stale `boss` from a previous session is a real collision, not a duplicate.
-  if [ -n "$(agent_field "$name" pane_id)" ]; then
-    die "handle '$name' is already taken by pane $(agent_field "$name" pane_id)"
+  # handle held elsewhere is a live collision, not a stale record. Two repos
+  # each wanting a fleet is the ordinary case, so say how to get out of it
+  # instead of just refusing.
+  local holder; holder=$(agent_field "$name" pane_id)
+  if [ -n "$holder" ]; then
+    [ "$steal" = 1 ] || die "handle '$name' is held by pane $holder
+  use another handle:  fleet boss <name>
+  or take it over:     fleet boss $name --steal   (moves $holder aside)"
+    local moved
+    moved=$(free_handle "$name") \
+      || die "cannot free '$name': every variant of it is already in use"
+    h agent rename "$holder" "$moved" >/dev/null
+    note "fleet: moved the previous '$name' (pane $holder) to '$moved'"
+    rebind_boss "$name" "$moved"
   fi
   h agent rename "$HERDR_PANE_ID" "$name" >/dev/null
+  # A pane can already be named without ever having been an orchestrator —
+  # workspace-manager's layout starts agents as `omp-<workspace>` — so renaming
+  # is a normal path, not an error. What is not acceptable is leaving workers
+  # pointing at a handle nobody answers to any more: the live agent name is the
+  # source of truth, so their records follow it.
+  [ -z "$current" ] || rebind_boss "$current" "$name"
   printf '%s\n' "$name"
+}
+
+# Repoint every worker that reports to $1 at $2. Deliberately unscoped by repo:
+# a handle is unique across the machine, so every record naming it means the
+# same agent, wherever its worktree lives.
+rebind_boss() {
+  local from=$1 to=$2 handle n=0
+  [ -n "$from" ] && [ "$from" != "$to" ] || return 0
+  for handle in $(known_workers); do
+    [ "$(meta_get "$handle" BOSS)" = "$from" ] || continue
+    meta_update "$handle" "BOSS=$to"
+    n=$((n + 1))
+  done
+  [ "$n" = 0 ] || note "fleet: repointed $n worker(s) from '$from' to '$to'"
 }
 
 cmd_whoami() {
@@ -154,7 +279,7 @@ boss_handle() {
   local me; me=$(self_handle)
   local b=""
   [ -n "$me" ] && b=$(meta_get "$me" BOSS)
-  printf '%s' "${b:-$DEFAULT_BOSS}"
+  printf '%s' "${b:-$(default_boss)}"
 }
 
 # ── Spawning ─────────────────────────────────────────────────────────────────
@@ -229,17 +354,11 @@ cmd_spawn() {
   fi
 
   handle=${handle:-$(slugify "$branch")}
-  # Checked here, before anything is created: a rename that fails after the
-  # worktree exists leaves an orphaned workspace with a nameless agent in it,
-  # which is exactly the mess this tool exists to avoid.
-  case "$handle" in
-    [a-z]*) ;;
-    *) die "handle '$handle' is not a valid herdr agent name (pass --handle)" ;;
-  esac
-  case "$handle" in
-    *[!a-z0-9_-]*) die "handle '$handle' is not a valid herdr agent name (pass --handle)" ;;
-  esac
-  [ ${#handle} -le 32 ] || die "handle '$handle' exceeds 32 characters (pass --handle)"
+  # Checked before anything is created: a rename that fails after the worktree
+  # exists leaves an orphaned workspace with a nameless agent in it, which is
+  # exactly the mess this tool exists to avoid.
+  valid_handle "$handle" \
+    || die "handle '$handle' is not a valid herdr agent name (pass --handle)"
   agent_exists "$handle" && die "handle '$handle' is already in use"
 
   # The sibling-directory convention, so a worktree is visible next to its repo
@@ -250,7 +369,12 @@ cmd_spawn() {
     if [ "$taskfile" = "-" ]; then task=$(cat); else task=$(cat "$taskfile"); fi
   fi
 
-  local boss; boss=$(boss_handle)
+  # The spawner is the boss, by definition. boss_handle() would be wrong here:
+  # it reads the caller's own BOSS record, and only workers have one, so an
+  # orchestrator that claimed a custom handle silently stamped the default
+  # `boss` into every worker and their replies went to whoever held it.
+  local boss; boss=$(self_handle)
+  [ -n "$boss" ] || die "this pane has no herdr agent name; run 'fleet boss' first"
 
   note "fleet: creating $branch at $wtpath (from $base)"
   local created ws
@@ -259,23 +383,40 @@ cmd_spawn() {
   ws=$(printf '%s' "$created" | jq -r '.result.workspace.workspace_id')
   [ -n "$ws" ] && [ "$ws" != null ] || die "worktree create returned no workspace id"
 
+  # Recorded before the agent exists. Every value here is already known, and a
+  # spawn that dies further down — no agent ever became ready, herdr refused
+  # the rename — must still leave something `fleet ls` shows and `fleet reap`
+  # can remove. Otherwise the failure orphans a worktree no fleet command can
+  # even see.
+  meta_set "$handle" "BOSS=$boss" "BRANCH=$branch" "DIR=$wtpath" "WORKSPACE=$ws" \
+    "REPO=$repo" "REPO_KEY=$(repo_key "$repo")"
+  : >"$(report_file "$handle")"
+
   # herdr returns as soon as the workspace exists; the workspace-manager plugin
   # applies the layout and runs `herdr agent start` afterwards, out of band. So
   # the agent is discovered, never predicted — the plugin's default naming is
   # an implementation detail we deliberately do not depend on.
+  #
+  # `interactive_ready` is the only sound readiness signal, and nothing weaker
+  # substitutes for it: herdr publishes an `agent_status` of `idle` for a pane
+  # whose agent is still launching, and renaming that pane fails with
+  # `agent_launch_pending`. The flag is set by `herdr agent start`, which is
+  # what an `agent:` layout pane uses — an agent herdr merely detected in a
+  # shell never carries it, and such a pane is not spawnable-into anyway.
   local waited=0 found=""
   while [ "$waited" -lt "$SPAWN_TIMEOUT_MS" ]; do
     found=$(h agent list | jq -r --arg w "$ws" \
-      '(.result.agents[]? | select(.workspace_id == $w and .interactive_ready == true) | .pane_id) // empty' | head -1)
+      '[ .result.agents[]?
+         | select(.workspace_id == $w and .interactive_ready == true)
+         | .pane_id ][0] // empty')
     [ -n "$found" ] && break
     sleep 0.5; waited=$((waited + 500))
   done
   [ -n "$found" ] || die "no agent became ready in workspace $ws within $((SPAWN_TIMEOUT_MS / 1000))s
-  (is this repo covered by a workspace-manager layout with an 'agent:' pane?)"
+  (is this repo covered by a workspace-manager layout with an 'agent:' pane?)
+  clean up the worktree with: fleet reap $handle --force"
 
   h agent rename "$found" "$handle" >/dev/null
-  meta_set "$handle" "BOSS=$boss" "BRANCH=$branch" "DIR=$wtpath" "WORKSPACE=$ws" "REPO=$repo"
-  : >"$(report_file "$handle")"
 
   printf '%s\n' "$handle"
 
@@ -286,20 +427,32 @@ cmd_spawn() {
 
 # ── Dispatch ─────────────────────────────────────────────────────────────────
 
-# Submit and confirm the agent actually picked it up. Without this settle loop
-# a following `fleet join` can match the agent's *pre-dispatch* idle state and
-# return instantly with an empty report.
+# Submit and confirm the agent actually picked it up. herdr fails a stalled
+# prompt on its own, but "prompt accepted" is not "prompt started": without
+# this settle loop a following `fleet join` can match the agent's
+# *pre-dispatch* idle state and return instantly. Failing closed here is the
+# point — a spawn that reports success on a prompt that never ran is worse
+# than one that dies. The worktree and meta already exist at that point, so
+# `fleet read` and `fleet reap` still work on it.
 dispatch_to() {
   local handle=$1 text=$2
+  local rf df; rf=$(report_file "$handle"); df=$(dispatch_file "$handle")
+  mkdir -p "$(meta_dir "$handle")"
+  : >"$df"
   h agent prompt "$handle" "$text" >/dev/null
-  local waited=0
-  while [ "$waited" -lt 15000 ]; do
-    case "$(agent_field "$handle" agent_status)" in
-      working) return 0 ;;
+  local waited=0 status=""
+  while [ "$waited" -lt "$DISPATCH_SETTLE_MS" ]; do
+    status=$(agent_field "$handle" agent_status)
+    case "$status" in
+      working|blocked) return 0 ;;
+      # A task small enough to finish inside the settle window still counts,
+      # but only on the evidence of a report written after the dispatch.
+      idle|done) if [ -s "$rf" ] && [ "$rf" -nt "$df" ]; then return 0; fi ;;
     esac
     sleep 0.5; waited=$((waited + 500))
   done
-  note "fleet: warning — $handle did not enter 'working' after the prompt"
+  die "$handle did not pick up the prompt within $((DISPATCH_SETTLE_MS / 1000))s (status: ${status:-gone})
+  inspect it with: fleet read $handle"
 }
 
 with_protocol() {
@@ -315,7 +468,6 @@ cmd_send() {
   agent_exists "$handle" || die "no live agent named '$handle'"
   local text="$*"
   [ -n "$text" ] || text=$(cat)
-  : >"$(report_file "$handle")"
   dispatch_to "$handle" "$(with_protocol "$handle" "$text")"
 }
 
@@ -334,21 +486,29 @@ cmd_join() {
   # Built as a string, not an array: bash 3.2 (what ships on macOS) treats
   # ${#arr[@]} on an empty array as an unbound-variable error under `set -u`,
   # and handles are whitespace-free by construction.
-  local handles="$*"
-  [ -n "$handles" ] || handles=$(live_workers)
+  local handles="$*" scope
+  if [ -z "$handles" ]; then
+    scope=$(scoped_key "fleet join" "run it from inside a repo, or name the handles to join")
+    handles=$(live_workers "$scope")
+  fi
   [ -n "$handles" ] || die "no workers to join"
 
-  local handle status rf
+  local handle status rf df
   for handle in $handles; do
     h agent wait "$handle" --timeout "$WAIT_TIMEOUT_MS" >/dev/null
     status=$(agent_field "$handle" agent_status)
-    rf=$(report_file "$handle")
+    rf=$(report_file "$handle"); df=$(dispatch_file "$handle")
     printf '\n=== %s (%s) — branch %s\n' "$handle" "$status" "$(meta_get "$handle" BRANCH)"
-    if [ -s "$rf" ]; then
+    if [ -s "$rf" ] && { [ ! -e "$df" ] || [ "$rf" -nt "$df" ]; }; then
       cat "$rf"
     elif [ "$status" = blocked ]; then
-      printf '(blocked, no report — last output below)\n'
+      printf '(blocked, nothing reported since the last dispatch — last output below)\n'
       h agent read "$handle" --source recent-unwrapped --lines 40
+    elif [ -s "$rf" ]; then
+      # Stale, but kept: a follow-up `fleet send` must not destroy the report a
+      # worker already filed, so staleness is dated rather than deleted.
+      printf '(nothing reported since the last dispatch; previous report follows)\n'
+      cat "$rf"
     else
       printf '(no report written; check with: fleet read %s)\n' "$handle"
     fi
@@ -393,34 +553,51 @@ cmd_reply() {
 
 # ── Inventory and teardown ───────────────────────────────────────────────────
 
-# Whitespace-separated handles for every registered worker whose agent is still
-# live. `|| true` because a final non-live worker would otherwise make the
-# function exit non-zero and trip `set -e` at the caller's assignment.
-live_workers() {
-  local d handle
+# Whitespace-separated handles for every registered worker, scoped to one repo
+# key. An empty scope means every repo on the machine and is reachable only
+# through an explicit --all-repos; every default path goes through
+# scoped_key(). `true` at the end because a filtered-out or non-live final
+# entry would otherwise leave the function non-zero and trip `set -e` at the
+# caller's assignment.
+known_workers() {
+  local scope=${1-} d handle
   for d in "$FLEET_STATE"/*/; do
     [ -d "$d" ] || continue
     handle=$(basename "$d")
+    [ -z "$scope" ] || [ "$(meta_get "$handle" REPO_KEY)" = "$scope" ] || continue
+    printf '%s\n' "$handle"
+  done
+  true
+}
+
+live_workers() {
+  local handle
+  for handle in $(known_workers "${1-}"); do
     if agent_exists "$handle"; then printf '%s\n' "$handle"; fi
   done
   true
 }
 
-known_workers() {
-  local d
-  for d in "$FLEET_STATE"/*/; do
-    [ -d "$d" ] && basename "$d"
-  done
-  true
+# The repo key a default-scoped command must run under. Failing closed is the
+# whole point: outside a repo the key is empty, and an empty key would widen
+# `join`, `ls` and `reap --all` back to every repo on the machine — the exact
+# machine-global behaviour scoping exists to prevent.
+scoped_key() {
+  local key; key=$(repo_key)
+  [ -n "$key" ] || die "not in a git repo, so '$1' has nothing to scope to
+  $2"
+  printf '%s' "$key"
 }
 
 cmd_ls() {
   require_herdr
-  local d handle status
+  local scope=""
+  if [ "${1:-}" != "--all-repos" ]; then
+    scope=$(scoped_key "fleet ls" "run it from inside a repo, or pass --all-repos")
+  fi
+  local handle status
   printf '%-20s %-9s %-28s %s\n' HANDLE STATUS BRANCH DIR
-  for d in "$FLEET_STATE"/*/; do
-    [ -d "$d" ] || continue
-    handle=$(basename "$d")
+  for handle in $(known_workers "$scope"); do
     status=$(agent_field "$handle" agent_status)
     [ -n "$status" ] || status=gone
     printf '%-20s %-9s %-28s %s\n' "$handle" "$status" \
@@ -430,15 +607,18 @@ cmd_ls() {
 
 cmd_reap() {
   require_herdr
-  local force=0 handles=""
+  local force=0 handles="" scope
   while [ $# -gt 0 ]; do
     case $1 in
       --force) force=1; shift ;;
-      --all)   handles="$handles $(known_workers)"; shift ;;
-      *)       handles="$handles $1"; shift ;;
+      --all)
+        scope=$(scoped_key "fleet reap --all" "pass --all-repos, or name the handles to reap")
+        handles="$handles $(known_workers "$scope")"; shift ;;
+      --all-repos) handles="$handles $(known_workers)"; shift ;;
+      *) handles="$handles $1"; shift ;;
     esac
   done
-  [ -n "${handles// /}" ] || die "usage: fleet reap <handle>... | --all [--force]"
+  [ -n "${handles// /}" ] || die "usage: fleet reap <handle>... | --all [--all-repos] [--force]"
 
   local handle ws
   local -a args
@@ -467,12 +647,12 @@ usage() {
 fleet — dispatch peer coding agents into herdr worktree workspaces
 
 Orchestrator
-  fleet boss [name]              claim the orchestrator handle for this pane
+  fleet boss [name] [--steal]    claim the orchestrator handle for this pane
   fleet spawn <branch> [opts]    create a worktree, start an agent, dispatch
   fleet send <handle> <text>     dispatch work, return immediately
   fleet ask <handle> <text>      dispatch and block until the report is in
-  fleet join [handle...]         block on workers, print their reports
-  fleet ls                       list workers and their states
+  fleet join [handle...]         block on this repo's workers, print reports
+  fleet ls [--all-repos]         list workers and their states
   fleet read <handle> [-n N]     read a worker's terminal directly
   fleet reap <handle>|--all      remove worktrees and forget workers
 

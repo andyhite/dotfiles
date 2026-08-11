@@ -11,7 +11,10 @@ the collection modes in it are not guessable.
 
 Then, in order:
 
-1. `fleet boss` to claim your handle. Nothing can be dispatched before this.
+1. `fleet boss` to claim your handle. Nothing can be dispatched before this. It
+   defaults to the repo root's name, so it only collides if another pane is
+   already orchestrating this same checkout — claim a distinct one with `fleet
+   boss <name>` rather than stealing it.
 2. Decompose the objective below into slices that each want their own branch and
    their own checkout. A slice that fits in this repo checkout is a `task`
    subagent, not a worker — keep those for yourself.

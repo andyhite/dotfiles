@@ -656,6 +656,21 @@ worker asking a question — it shouldn't queue behind another worker's build �
 why the skill tells workers to use `fleet report` for results and `fleet reply` only for
 decisions.
 
+Both of `fleet`'s namespaces are machine-global, and neither is obvious. herdr agent names
+are unique across the whole herdr session rather than per repo, so a constant default
+handle would let exactly one checkout on the machine ever hold it — `fleet boss` therefore
+defaults to the repo root's name. That is a default and not a limit: orchestrators are
+capped only by handle uniqueness, so a second one in the same checkout is fine under any
+other name, and two unrelated checkouts sharing a directory name derive the same default
+and the loser has to name itself. Because a worker records the handle it was given,
+renaming an orchestrator rewrites the `BOSS` field of every worker that pointed at the old
+one; otherwise a rename would silently strand a fleet mid-flight.
+
+`~/.local/state/fleet/` is shared the same way, so every enumerating command (`ls`, a bare
+`join`, `reap --all`) filters on the worktree's git common dir. Without that filter a
+`join` in one repo blocks on another repo's workers and `reap --all` deletes their
+checkouts.
+
 ### The worktree rule was wrong in a way `fleet` made visible
 
 `omp/agent/rules/herdr-worktrees.md` used to say, with `alwaysApply: true`, that inside

@@ -24,8 +24,29 @@ wraps.
 fleet boss
 ```
 
-Claims the handle `boss` for this pane. Workers address their questions to it,
-so nothing can be dispatched until it exists. Idempotent.
+Claims a handle for this pane, defaulting to the repo root's name — `dotfiles`
+in `~/Code/andyhite/dotfiles`. Workers address their questions to it, so nothing
+can be dispatched until it exists. On a pane that already has a handle, a bare
+`fleet boss` is a query rather than a claim: it prints the existing one and
+changes nothing.
+
+Nothing limits how many orchestrators exist; each just needs a handle no live
+agent is using. The repo-root default is only a default — it stops one checkout
+from monopolizing a shared name, and `fleet boss <name>` in the same checkout is
+a second, equally valid orchestrator. Two unrelated checkouts with the same
+directory name derive the same default, and the second one has to name itself.
+Claiming a taken handle fails and names the pane holding it:
+
+```bash
+fleet boss fleetlead        # any [a-z][a-z0-9_-]{0,31} name
+fleet boss dotfiles --steal # take it over; the holder is renamed aside, not unnamed
+```
+
+Claim the handle **before** spawning. Whichever handle this pane holds at spawn
+time is stamped into each worker, and that is where its `fleet reply` goes.
+Renaming an orchestrator afterwards is safe — `fleet boss <newname>` repoints
+every worker that reported to the old handle, and `--steal` does the same for
+the fleet of whoever it displaces.
 
 ## Dispatching
 
@@ -80,6 +101,11 @@ its output never enters herdr's scrollback and cannot be scraped back;
 `fleet read <handle>` shows only the visible viewport and is a debugging aid,
 not a way to collect results.
 
+A report is overwritten only by its own worker, so a follow-up `fleet send`
+leaves the previous one intact. `join` dates it instead of trusting it: a report
+older than the most recent dispatch prints under `(nothing reported since the
+last dispatch)` rather than being mistaken for an answer to it.
+
 ## When a worker interrupts you
 
 A worker that is blocked runs `fleet reply "<question>"`, which arrives here as
@@ -108,11 +134,17 @@ PRs unless the task said to. Review the branches yourself, then:
 ```bash
 fleet ls                  # handles, states, branches, paths
 fleet reap <handle>       # remove one worktree
-fleet reap --all          # remove every registered worktree
+fleet reap --all          # remove this repo's worktrees
 ```
 
 `reap` refuses a worktree with uncommitted changes. That refusal is the point —
-read the diff before reaching for `--force`.
+read the diff before reaching for `--force`. It removes the worktree, never the
+branch; the commits are the deliverable.
+
+Worker state is machine-global, so `ls`, a bare `join`, and `reap --all` are
+scoped to the current repo — otherwise they would block on, and delete, another
+checkout's fleet. `--all-repos` widens `ls` and `reap` deliberately. Outside a
+git repo there is nothing to scope to, and they refuse rather than guess.
 
 ## What this is not for
 
