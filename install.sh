@@ -1223,17 +1223,8 @@ install_herdr_plugins() {
     return 0
   fi
 
-  local line comment plugin_spec plugin_ref
+  local line plugin_spec plugin_ref
   while IFS= read -r line || [ -n "$line" ]; do
-    # Capture whatever follows the first `#` before stripping it, so a
-    # trailing `# local-only` marker survives long enough to be checked
-    # below. A full-line comment captures here too, but it never reaches
-    # that check: the empty-after-strip guard right below sends it to
-    # `continue` first.
-    comment=""
-    case "$line" in
-      *'#'*) comment="${line#*#}" ;;
-    esac
     line="${line%%#*}"
     line="${line#"${line%%[![:space:]]*}"}"
     line="${line%"${line##*[![:space:]]}"}"
@@ -1242,22 +1233,6 @@ install_herdr_plugins() {
     plugin_spec="${line%%@*}"
     plugin_ref=""
     [ "$line" != "$plugin_spec" ] && plugin_ref="${line#*@}"
-
-    # herdr-mirror is the plugin this exists for: it mirrors a *remote*
-    # herdr into this one's sidebar over ssh, which inverts the moment this
-    # script itself runs inside an ssh session — installed on a box you've
-    # ssh'd into, it would mirror some other machine's herdr back into the
-    # session you're already viewing remotely. `# local-only` marks specs
-    # that only make sense on the machine you physically sit at, so skip
-    # them here rather than install something self-defeating.
-    case "$comment" in
-      *local-only*)
-        if [ -n "${SSH_CONNECTION:-}" ]; then
-          skipped "$plugin_spec" "local-only — ssh session"
-          continue
-        fi
-        ;;
-    esac
 
     # Flags must follow the positional argument — herdr's plugin parser
     # rejects `herdr plugin install --yes <spec>` with a usage error.

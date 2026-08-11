@@ -537,15 +537,7 @@ is a usage error.) To remove one, delete the line and run
 `herdr plugin uninstall <plugin-id>` — nothing prunes plugins automatically, since
 removing a plugin also throws away whatever config it had.
 
-A spec line can also end with `# local-only` — skipped whenever `install.sh` runs
-inside an ssh session (`$SSH_CONNECTION` set), for a plugin that only makes sense on
-the machine you physically sit at. `nikok6/herdr-mirror` is the one entry using it: it
-mirrors a *remote* herdr into this one's sidebar over ssh, which inverts the moment
-`install.sh` itself is run over ssh — installed on a box you've ssh'd into, it would
-mirror some other machine's herdr back into the session you're already viewing
-remotely.
-
-Two plugins used to be listed here and aren't any more. `ribbons-digital/pi-herd`
+Four plugins used to be listed here and aren't any more. `ribbons-digital/pi-herd`
 hardcoded `--name` and `--session-id` into every harness launch, and omp — the agent
 this setup drives — hard-errors on `unknown flags: --name, --session-id`; it also
 shipped a Pi-only extension. It couldn't drive omp without patching, so it was dropped
@@ -573,7 +565,28 @@ the tree is linked. The one capability lost with it is `remove-gone`, which prev
 and cleared worktrees whose upstream branch had been deleted; `herdr worktree list`
 then `herdr worktree remove --workspace <id>` is the manual form.
 
-With eleven plugins and thirty-three registered actions between them, keybindings stopped
+`nikok6/herdr-mirror` — a remote herdr's workspaces mirrored into this one's sidebar
+over ssh, remote panes streaming into local ones — was removed because it wasn't
+wanted. It took the `# local-only` manifest marker with it: mirror was the only spec
+that ever carried one and the marker existed *for* it, so `install.sh` no longer
+captures a line's trailing comment or looks at `$SSH_CONNECTION` at all. Removal was
+four steps, and collie is the reason to expect that: a plugin that runs a daemon owns
+state herdr knows nothing about. `herdr plugin action invoke teardown --plugin mirror`
+came first, closing every mirrored workspace and pausing autostart; then `herdr plugin
+uninstall mirror` — no `--yes` there, uninstall rejects that flag as a usage error
+where install requires it; then `config/herdr/plugins/config/mirror`, which lives in
+this repo, so deleting it here clears it everywhere the tree is linked. The fourth is
+the one teardown doesn't do: `~/.local/state/herdr-mirror` held a per-host ssh
+ControlMaster started with `ControlPersist=yes`, so an `ssh -N` to the remote outlived
+the daemon, the plugin and the uninstall. Closing it takes
+`ssh -S ~/.local/state/herdr-mirror/<host>.ctl -O exit <host>`; then the state
+directory goes, along with the empty
+`~/.config/herdr-mirror` that pre-dated the move of `hosts.toml` into this repo. Only
+the laptop needed any of it, since local-only meant mirror was never installed
+anywhere else. `prefix+alt+n`, `prefix+alt+c`, `prefix+alt+v` and `prefix+alt+s` are
+free again, and the palette lost ten of its thirty-three actions with it.
+
+With ten plugins and twenty-three registered actions between them, keybindings stopped
 being a per-plugin question and became one decision: `config/herdr/palette/palette.sh`,
 bound to `prefix+p` — free because this config moved herdr's own `previous_tab` off it
 and onto `prefix+shift+tab` — builds its fzf list at run time from `herdr plugin action
@@ -630,7 +643,7 @@ command = "herdr plugin action invoke settle --plugin herdr-agent-inbox"
 session-modal terminal. Plugin actions invoked this way are short control commands with
 no output worth watching, so `shell` is the right call almost every time.
 
-Several plugin READMEs (reviewr, vim-herdr-navigation, mirror, token-dashboard) still
+Several plugin READMEs (reviewr, vim-herdr-navigation, token-dashboard) still
 document `type = "plugin_action"` with a combined `<plugin>.<action>` command string
 instead of this. That form is stale: `herdr --default-config` on 0.8.0 documents only
 `shell`/`pane`/`popup`, and `plugin_action` isn't one of them. Use the `shell`-plus-CLI

@@ -47,7 +47,7 @@ command -v jq  >/dev/null 2>&1 || die "command-palette: jq is not installed or n
 # The plugin id has to stay VISIBLE to stay searchable. fzf matches against the
 # transformed line, not the original (man fzf, --nth: "fzf doesn't allow
 # searching against the hidden fields"), so field 1 is invoke-only and typing
-# "mirror" can only filter if "mirror" is on screen.
+# "jira" can only filter if "jira" is on screen.
 #
 # The pad is `// ""` because jq's string repetition returns null, not "", when
 # the count is zero — which is exactly the widest title on the list.

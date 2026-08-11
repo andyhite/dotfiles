@@ -9,10 +9,6 @@
 #   - Keybindings, in config/herdr/config.toml. herdr has no [keys] entry for
 #     plugin actions, so each one is a [[keys.command]] block shelling out to
 #     `herdr plugin action invoke`.
-#
-# A spec line ending in `# local-only` is skipped when install.sh runs inside an
-# ssh session ($SSH_CONNECTION set), for plugins that only make sense on the
-# machine you physically sit at.
 
 # Chromium in a pane, drivable over CDP. Ships the herdr-browser omp skill that
 # the `skills` step symlinks into ~/.omp/agent/skills.
@@ -21,14 +17,6 @@ ogulcancelik/herdr-browser
 # Local diff/review TUI in a split pane — a Rust app reading git, not an AI
 # reviewer. Also opens on the worktree.created event. Config: config.toml.
 persiyanov/herdr-reviewr
-
-# Mirrors a *remote* herdr server into this one's sidebar over ssh or
-# `docker exec` — remote panes appear as local workspaces. No listener, no port.
-#
-# local-only because it inverts over ssh: installed on a box you've ssh'd into,
-# it would mirror some other machine's herdr back into the session you're
-# already viewing remotely. The laptop is the only place this makes sense.
-nikok6/herdr-mirror  # local-only
 
 # Directional pane focus that hands off to nvim splits instead of stopping at
 # the pane edge (vim-tmux-navigator, for herdr). Two-sided: the herdr half is
@@ -56,7 +44,7 @@ Davidcreador/herdr-token-dashboard
 # keybinding. It has to be a keybinding rather than a plugin because fzf needs
 # a TTY and a plugin action doesn't get one — as a plugin it had to host the
 # picker in an `overlay` pane, which covers the whole canvas. Still the reason
-# most plugin actions here are deliberately left unbound: all 33 of them are
+# most plugin actions here are deliberately left unbound: all 23 of them are
 # one fuzzy search away rather than needing a key each.
 
 # Runs setup steps in a new worktree on worktree.created: copies .env* from the

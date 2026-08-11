@@ -353,39 +353,6 @@ key = "prefix+u"
 type = "shell"
 command = "herdr plugin pane open --plugin dave.token-dashboard --entrypoint dashboard --placement split --direction down"
 
-## herdr-mirror — alt + the same letter as the local action it mirrors:
-##   shift+n new_workspace -> alt+n    c new_tab -> alt+c
-##   v split_vertical      -> alt+v    s split_horizontal -> alt+s
-## Each one falls back to the plain local behaviour when the current pane isn't
-## mirrored, so they're safe to hit anywhere. Lifecycle (start/pause/status/
-## once) stays unbound — autostart covers it — and `teardown` deliberately so,
-## since it closes every mirror and clears state.
-##
-## herdr has no conditional config, so these four ride along to every machine
-## this repo is installed on — including ones where herdr_plugins.txt's
-## `# local-only` marker deliberately skipped the mirror plugin. There they just
-## error as an unknown plugin. Harmless, and the alternative is a second config
-## file to keep in sync.
-[[keys.command]]
-key = "prefix+alt+n"
-type = "shell"
-command = "herdr plugin action invoke remote-new-workspace --plugin mirror"
-
-[[keys.command]]
-key = "prefix+alt+c"
-type = "shell"
-command = "herdr plugin action invoke remote-new-tab --plugin mirror"
-
-[[keys.command]]
-key = "prefix+alt+v"
-type = "shell"
-command = "herdr plugin action invoke remote-split-right --plugin mirror"
-
-[[keys.command]]
-key = "prefix+alt+s"
-type = "shell"
-command = "herdr plugin action invoke remote-split-down --plugin mirror"
-
 ## command-palette — fzf over EVERY action of EVERY installed plugin, built at
 ## run time from `herdr plugin action list`, so it needs no maintenance as
 ## plugins come and go. This is what makes the "deliberately unbound" list
@@ -432,7 +399,7 @@ command = "herdr plugin action invoke open-pr --plugin gh-pr"
 ## herdr-jira — the issue list in its own tab. Its README documents
 ## `type = "plugin_action"` for this, which 0.8.0 does not accept:
 ## `herdr --default-config` lists only shell/pane/popup. Same stale form the
-## reviewr, mirror, vim-herdr-navigation and token-dashboard READMEs carry, so
+## reviewr, vim-herdr-navigation and token-dashboard READMEs carry, so
 ## this uses the shell + CLI shape every other binding in this file uses.
 ##
 ## The tab action, not `open-jira`'s split: this is a full-height list you read
