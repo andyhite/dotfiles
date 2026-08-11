@@ -82,24 +82,44 @@ retry:
   fallbackChains: 
     default: 
       - openai-codex/gpt-5.6-sol:high
+      - openai/gpt-5.6:high
+      - cursor/claude-opus-5-high
     plan: 
       - openai-codex/gpt-5.6-sol:xhigh
+      - openai/gpt-5.6:xhigh
+      - cursor/claude-opus-5-thinking-xhigh
     slow: 
       - openai-codex/gpt-5.6-sol:xhigh
+      - openai/gpt-5.6-sol:xhigh
+      - cursor/claude-opus-5-thinking-max
     task: 
       - openai-codex/gpt-5.6-terra:medium
+      - openai/gpt-5.6-terra:medium
+      - cursor/gpt-5.6-terra-medium
     smol: 
       - openai-codex/gpt-5.6-luna:low
+      - openai/gpt-5.6-luna:low
+      - cursor/gpt-5.6-luna-low
     commit: 
       - openai-codex/gpt-5.4-mini:low
+      - openai/gpt-5.4-mini:low
+      - cursor/gpt-5.4-mini-low
     tiny: 
       - openai-codex/gpt-5.4-mini:low
+      - openai/gpt-5.4-mini:low
+      - cursor/gpt-5.4-mini-low
     vision: 
       - openai-codex/gpt-5.6-terra:medium
+      - openai/gpt-5.6-terra:medium
+      - cursor/claude-opus-5-medium
     designer: 
       - openai-codex/gpt-5.6-sol:high
+      - openai/gpt-5.6-sol:high
+      - cursor/claude-sonnet-5-high
     advisor: 
       - openai-codex/gpt-5.6-terra:medium
+      - openai/gpt-5.6-terra:medium
+      - cursor/gpt-5.6-terra-medium
 advisor: 
   enabled: true
 interruptMode: immediate
