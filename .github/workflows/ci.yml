@@ -170,14 +170,18 @@ jobs:
             *) echo "::error::bare --only failed without a message: '$out'"; exit 1 ;;
           esac
 
-      # Runs the steps in the order a real bootstrap would, with a PATH that has
-      # no package manager on it, so the tools step fails the way it does on an
-      # unprepared box. The run must still reach configs and print the summary.
+      # Runs the steps in the order a real bootstrap would while reporting
+      # Darwin on an Ubuntu runner. That deterministically reaches the missing-
+      # Homebrew failure without installing anything. The run must still reach
+      # configs and print the summary.
       - name: A failing step does not abort the run
         run: |
           export HOME="$(mktemp -d)"
+          fakebin="$(mktemp -d)"
+          printf '#!/bin/sh\nprintf "Darwin\n"\n' > "$fakebin/uname"
+          chmod +x "$fakebin/uname"
           set +e
-          env PATH=/usr/bin:/bin:/usr/sbin:/sbin ./install.sh --only tools,configs --yes > /tmp/run.log 2>&1
+          env PATH="$fakebin:/usr/bin:/bin:/usr/sbin:/sbin" ./install.sh --only tools,configs --yes > /tmp/run.log 2>&1
           rc=$?
           set -e
           cat /tmp/run.log
