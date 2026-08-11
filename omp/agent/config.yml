@@ -7,14 +7,14 @@ providers:
 modelRoles: 
   default: anthropic/claude-opus-5
   plan: anthropic/claude-opus-5:xhigh
-  slow: openai-codex/gpt-5.6-sol:xhigh
-  task: openai-codex/gpt-5.6-terra:medium
-  smol: openai-codex/gpt-5.6-luna:low
-  commit: openai-codex/gpt-5.6-luna:low
-  tiny: openai-codex/gpt-5.4-mini:low
-  vision: openai-codex/gpt-5.6-terra:medium
-  designer: openai-codex/gpt-5.6-sol:high
-  advisor: openai-codex/gpt-5.6-terra:medium
+  slow: anthropic/claude-opus-5:max
+  task: anthropic/claude-sonnet-5
+  smol: anthropic/claude-haiku-4-5:low
+  commit: anthropic/claude-haiku-4-5:low
+  tiny: anthropic/claude-haiku-4-5:minimal
+  vision: anthropic/claude-sonnet-5
+  designer: anthropic/claude-opus-5:high
+  advisor: anthropic/claude-opus-5:high
 modelProviderOrder: 
   - anthropic
   - openai-codex
@@ -85,21 +85,21 @@ retry:
     plan: 
       - openai-codex/gpt-5.6-sol:xhigh
     slow: 
-      - anthropic/claude-opus-5:max
+      - openai-codex/gpt-5.6-sol:xhigh
     task: 
-      - anthropic/claude-sonnet-5
+      - openai-codex/gpt-5.6-terra:medium
     smol: 
-      - openai-codex/gpt-5.4-mini:low
+      - openai-codex/gpt-5.6-luna:low
     commit: 
       - openai-codex/gpt-5.4-mini:low
     tiny: 
-      - openai-codex/gpt-5.6-luna:low
+      - openai-codex/gpt-5.4-mini:low
     vision: 
-      - anthropic/claude-opus-5
+      - openai-codex/gpt-5.6-terra:medium
     designer: 
-      - anthropic/claude-sonnet-5
+      - openai-codex/gpt-5.6-sol:high
     advisor: 
-      - anthropic/claude-haiku-4-5:low
+      - openai-codex/gpt-5.6-terra:medium
 advisor: 
   enabled: true
 interruptMode: immediate
