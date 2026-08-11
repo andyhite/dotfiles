@@ -1,0 +1,32 @@
+# omp plugins, one per line: <marketplace-source> <plugin>@<marketplace>
+#
+# install.sh registers the marketplace, refreshes its catalog, then installs the
+# plugin. All three names on a line are usually different: the source is a repo
+# (or local path), the marketplace name comes from that repo's
+# .omp-plugin/marketplace.json, and the plugin name is its entry in that catalog.
+#
+# Both halves of the refresh matter. Unlike herdr, omp's updater is not its
+# installer: `omp plugin install --force` reinstalls from the marketplace clone
+# already on disk, so without `marketplace update` first a re-run reinstalls the
+# version you already had and reports success. install.sh always does both.
+#
+# Everything here installs at user scope rather than into a project. Fleet
+# workers are separate omp processes in separate worktrees, and a project-scoped
+# plugin would be invisible to them.
+#
+# Skills are not plugins — cross-agent skills live in agent_skills.txt and are
+# installed with the `skills` CLI into ~/.agents/skills instead.
+
+# The orchestrator half of fleet. `/fleet:boss` turns a session into a project
+# manager: it interviews you, slices the objective, and dispatches each slice to
+# a worker rather than writing code itself. The five dispatch commands are named
+# for the skill each one delegates to — /fleet:implement, /fleet:diagnosing-bugs,
+# /fleet:research, /fleet:prototype, /fleet:code-review — and a worker's brief
+# opens by telling it to read that skill, which is what reaches a skill marked
+# disable-model-invocation. Also ships skill://fleet (the CLI contract) and
+# skill://fleet-dispatch (how to write a brief).
+#
+# The CLI half is the herdr plugin andyhite/foreman/herdr in herdr_plugins.txt;
+# neither half is much use without the other, and the mattpocock skills the
+# commands delegate to come from agent_skills.txt.
+andyhite/foreman  fleet@omp-fleet

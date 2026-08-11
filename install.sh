@@ -128,7 +128,7 @@ confirm() {
 
 # ── Steps ────────────────────────────────────────────────────────────────────
 
-STEPS=(tools completions configs runtimes paseo atuin herdr skills nvim)
+STEPS=(tools completions configs runtimes paseo atuin herdr omp skills nvim)
 ASSUME_YES=0
 VERBOSE=0
 ONLY=""
@@ -164,6 +164,7 @@ ${C_BOLD}Steps${C_RESET}
   paseo        Merge config/paseo into ~/.paseo, ensure the CLI, supervise the daemon
   atuin        Offer to log in to Atuin sync when not already logged in
   herdr        Install/update the Herdr plugins in herdr_plugins.txt
+  omp          Install/update the omp plugins in omp_plugins.txt
   skills       Install agent skills from agent_skills.txt, link Herdr-shipped ones
   nvim         Headless NvChad plugin sync
 
@@ -1275,6 +1276,91 @@ install_herdr_plugins() {
   done < "$DOTFILES_DIR/herdr_plugins.txt"
 }
 
+# ── omp plugins ──────────────────────────────────────────────────────────────
+
+# The source a marketplace name is currently registered to, empty when the name
+# is not registered at all. `marketplace list` prints "  <name>  <source>" rows
+# under a heading; comparing the whole first field keeps one name that is a
+# prefix of another from matching, and the heading line cannot collide because
+# its first word is capitalised while marketplace names are lowercase.
+omp_marketplace_source() {
+  omp plugin marketplace list 2>/dev/null | awk -v n="$1" '$1 == n { print $2; exit }'
+}
+
+# The omp counterpart to install_herdr_plugins, and shaped differently because
+# omp splits the job in two: a marketplace is registered once, then plugins are
+# installed from it by `<plugin>@<marketplace>` id.
+#
+# The refresh is the part worth knowing. herdr updates a plugin by installing it
+# again; omp does not. `omp plugin install --force` reinstalls from the
+# marketplace clone already on disk, so a re-run without `marketplace update`
+# first silently reinstalls the version you already had and reports success.
+# Both commands run every time, which is what makes this step an updater.
+install_omp_plugins() {
+  if [ ! -f "$DOTFILES_DIR/omp_plugins.txt" ]; then
+    skipped "omp_plugins.txt" "not present"
+    return 0
+  fi
+  if ! command -v omp >/dev/null 2>&1; then
+    skipped "omp" "not on PATH — install it, then re-run"
+    return 0
+  fi
+
+  # Plain strings rather than arrays: bash 3.2 (what macOS ships) treats
+  # ${arr[*]} on an empty array as an unbound variable under `set -u`, and
+  # marketplace names cannot contain whitespace. `ready` is the marketplaces
+  # already prepared this run, `broken` the ones that failed — a second plugin
+  # from a bad marketplace must not fall through to install.
+  local line source plugin_id marketplace registered ready="" broken=""
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%%#*}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [ -n "$line" ] || continue
+
+    case "$line" in
+      *[[:space:]]*@*) ;;
+      *) warned "$line" "expected '<source> <plugin>@<marketplace>'"; continue ;;
+    esac
+    source="${line%%[[:space:]]*}"
+    plugin_id="${line##*[[:space:]]}"
+    marketplace="${plugin_id#*@}"
+
+    case " $broken " in *" $marketplace "*) continue ;; esac
+
+    # One marketplace can serve several plugins, so prepare it only on its first
+    # line. The name is what `<plugin>@<marketplace>` resolves through, and it is
+    # claimed by whoever registered it first — so a name already pointing at a
+    # different source is refused rather than installed from. Swallowing the
+    # duplicate-add error instead would quietly install a different plugin that
+    # happens to share the id.
+    case " $ready " in
+      *" $marketplace "*) ;;
+      *)
+        registered=$(omp_marketplace_source "$marketplace")
+        if [ -z "$registered" ]; then
+          if ! run_quiet "$marketplace" omp plugin marketplace add "$source" </dev/null; then
+            broken="$broken $marketplace"; continue
+          fi
+        elif [ "$registered" != "$source" ]; then
+          warned "$marketplace" "registered to $registered, not $source"
+          broken="$broken $marketplace"; continue
+        fi
+        if ! run_quiet "$marketplace" omp plugin marketplace update "$marketplace" </dev/null; then
+          broken="$broken $marketplace"; continue
+        fi
+        ready="$ready $marketplace"
+        ;;
+    esac
+
+    # </dev/null for the same reason as the loops above: this loop's stdin is
+    # the manifest, and a prompt-reading child would eat the rest of it.
+    if run_quiet "$plugin_id" omp plugin install --force "$plugin_id" </dev/null; then
+      updated "$plugin_id" "from $source"
+    fi
+  done < "$DOTFILES_DIR/omp_plugins.txt"
+}
+
 # ── omp skills from herdr plugins ───────────────────────────────────────────
 
 # Some herdr plugins ship an omp skill describing how to drive them (the
@@ -1610,6 +1696,7 @@ run_step runtimes    "Runtimes"      "language versions pinned in tool-versions"
 run_step paseo       "Paseo"         "merge config/paseo, ensure the CLI and daemon"     setup_paseo
 run_step atuin       "Atuin sync"    "account state — the only thing not committed"     ensure_atuin_account
 run_step herdr       "Herdr plugins" "from herdr_plugins.txt"                           install_herdr_plugins
+run_step omp         "omp plugins"   "from omp_plugins.txt"                             install_omp_plugins
 run_step skills      "Skills"        "agent_skills.txt, plus Herdr-shipped omp skills"  setup_skills
 run_step nvim        "NvChad"        "headless plugin sync"                             sync_nvchad
 
