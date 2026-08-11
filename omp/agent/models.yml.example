@@ -35,14 +35,15 @@ providers: {}
 #
 # providers:
 #   anthropic:
-#     apiKey: ANTHROPIC_API_KEY
+#     auth: none
+#     headers:
+#       x-api-key: "!sh -c '. \"$HOME/.omp/agent/.env\"; printf %s \"$ANTHROPIC_API_KEY\"'"
 #   openai:
 #     apiKey: OPENAI_API_KEY
 #
-# These are "override-only" entries: no `models` list, so they pin a key onto
-# a built-in provider without redeclaring its catalog. config.yml needs no
-# change at all — modelRoles still say anthropic/…, they just bill differently
-# here.
+# These are "override-only" entries: no `models` list, so they change auth
+# without redeclaring the built-in catalogs. config.yml needs no change at all
+# — modelRoles still say anthropic/… and openai/…, they just bill differently.
 #
 # The secrets themselves go in ~/.omp/agent/.env, not ~/.zshrc.local: the
 # Paseo daemon runs under systemd and sources no login shell, so agents it
@@ -62,7 +63,9 @@ providers: {}
 #   anthropic-api:
 #     baseUrl: https://api.anthropic.com
 #     api: anthropic-messages
-#     apiKey: ANTHROPIC_API_KEY
+#     auth: none
+#     headers:
+#       x-api-key: "!sh -c '. \"$HOME/.omp/agent/.env\"; printf %s \"$ANTHROPIC_API_KEY\"'"
 #     models:
 #       - id: claude-opus-5
 #         name: Claude Opus 5 (API account)
@@ -93,17 +96,20 @@ providers: {}
 # names, and a "fallback" that fails exactly when the primary does.
 
 
-# ── Match the resolver to the secret source ──────────────────────────────────
-# For keys in ~/.omp/agent/.env, use the environment-variable name directly.
-# omp's dotenv loader participates in normal apiKey resolution, but dotenv
-# values are not exported to shell commands launched by `!value`; consequently
-# `!printenv ANTHROPIC_API_KEY` cannot see a key that exists only in that file.
+# ── Anthropic API-key authentication ─────────────────────────────────────────
+# Anthropic API keys authenticate with `x-api-key`; `Authorization: Bearer` is
+# for short-lived OAuth/WIF tokens. On omp 17.2.13, the `apiKey` form produced
+# bearer-auth 401s in fresh interactive sessions; this explicit `x-api-key`
+# form passed. The internal cause is not yet confirmed.
 #
-# A missing direct variable can be treated as a literal token, so only enable
-# one of these provider entries on a machine where its key is configured. Check
-# that before relying on a fallback with `omp token anthropic-api` (or `openai`).
+# `auth: none` bypasses that credential lookup. The explicit header is supported
+# by models.yml, and its `!` resolver sources the OMP dotenv file itself because
+# command resolvers do not inherit values loaded by omp's dotenv loader.
 #
-# Command resolution is still useful for a real secret store. A failed command
-# omits the credential and leaves that provider unavailable:
+# Only enable these entries on a machine where the key exists. With `auth: none`
+# the provider remains selectable if the header command fails, so verify it with
+# a live model request rather than relying on `omp models` alone.
 #
-#   apiKey: "!op read op://work/anthropic/api-key"
+# A real secret store can replace the shell resolver:
+#
+#   x-api-key: "!op read op://work/anthropic/api-key"

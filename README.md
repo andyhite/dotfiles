@@ -346,9 +346,8 @@ this look harder than it is.
 
 **Which account pays — an auth question.** The provider name doesn't change: `anthropic`
 is `anthropic` on both boxes, reached with a subscription OAuth token on one and a work
-API key on the other. But setting `ANTHROPIC_API_KEY` is *not* enough to force the second,
-and this is the trap: omp resolves credentials in a fixed order, and a stored OAuth session
-outranks any environment variable.
+API key on the other. Setting `ANTHROPIC_API_KEY` alone does not force the second because
+omp resolves credentials in this order:
 
 ```
 1  --api-key (runtime)          5  provider env var, incl. .env files
@@ -357,35 +356,38 @@ outranks any environment variable.
 4  login-sourced stored key
 ```
 
-So on a box that has ever run `/login anthropic`, an `ANTHROPIC_API_KEY` in the
-environment is silently ignored and the personal subscription pays for work usage. Nothing
-warns you. Tier 2 is the only lever above a stored OAuth session, and it lives in
-`~/.omp/agent/models.yml` — untracked, copied from a template, one per machine:
+For OpenAI, a `models.yml` `apiKey` pins the API account above stored OAuth. Anthropic
+needs one extra constraint: API keys authenticate with `x-api-key`, while bearer auth is
+for OAuth/WIF tokens. On omp 17.2.13, the `apiKey` form produced bearer-auth 401s in fresh
+interactive sessions; the explicit `x-api-key` form below passed. The internal cause is
+not yet confirmed.
 
 ```yaml
 # ~/.omp/agent/models.yml — work box only
 providers:
-  anthropic: { apiKey: ANTHROPIC_API_KEY }
-  openai:    { apiKey: OPENAI_API_KEY }
+  anthropic:
+    auth: none
+    headers:
+      x-api-key: "!sh -c '. \"$HOME/.omp/agent/.env\"; printf %s \"$ANTHROPIC_API_KEY\"'"
+  openai:
+    apiKey: OPENAI_API_KEY
 ```
 
-A provider entry with no `models` list is an override-only entry, which is what makes
-pinning a key onto a built-in provider legal without redeclaring its catalog. `config.yml`
-needs no change: `modelRoles` still say `anthropic/…`, they just bill differently here.
+Both entries are override-only: with no `models` list they change auth without
+redeclaring the built-in catalogs. `auth: none` skips provider credential lookup, and the
+explicit header uses the authentication form Anthropic documents.
+`config.yml` needs no change; `modelRoles` still use the built-in provider ids.
 
-The value is an environment-variable name, and omp's dotenv loader resolves it from
-`~/.omp/agent/.env`. Do not use `!printenv NAME` for a key that exists only in that file:
-`!value` launches a shell command, and omp does not export dotenv-only values to that
-command's environment. A missing direct variable can be treated as a literal token, so
-only enable these entries where the key exists and verify them with `omp token anthropic`
-(or `openai`). Command resolution remains useful for a real secret store, for example
-`apiKey: "!op read op://work/anthropic/api-key"`; a failed command omits the credential.
+Header and `apiKey` values support `!command` secret resolution, but those commands do
+not inherit values loaded by omp's dotenv loader. The Anthropic command therefore sources
+`~/.omp/agent/.env` itself. Only enable it where the key exists and verify it with a live
+model request; `auth: none` keeps the provider selectable even if the command fails. A
+secret store can replace the shell command with `!op read op://work/anthropic/api-key`.
 
-The values behind those names go in `~/.omp/agent/.env`, not `~/.zshrc.local`. That
-distinction matters on the Linux box: the Paseo daemon runs under systemd, which sources no
-login shell, so agents it launches would see nothing set in `zshrc.local`. omp reads
-`.env` itself for provider resolution, so the daemon's agents and an interactive shell
-resolve the same key.
+The values go in `~/.omp/agent/.env`, not `~/.zshrc.local`. That distinction matters on
+the Linux box: the Paseo daemon runs under systemd and sources no login shell. The
+Anthropic header resolver explicitly sources this file, while omp resolves OpenAI's
+`apiKey` from it through the normal dotenv path.
 
 **Which models each role resolves to — a config question.** This one turns out not to
 differ, and the earlier version of this section was wrong to build machinery for it.
@@ -403,7 +405,9 @@ providers:
   anthropic-api:
     baseUrl: https://api.anthropic.com
     api: anthropic-messages
-    apiKey: ANTHROPIC_API_KEY
+    auth: none
+    headers:
+      x-api-key: "!sh -c '. \"$HOME/.omp/agent/.env\"; printf %s \"$ANTHROPIC_API_KEY\"'"
     models:
       - id: claude-opus-5
         name: Claude Opus 5 (API account)
@@ -424,6 +428,9 @@ providers:
         contextWindow: 200000
         maxTokens: 64000
 ```
+
+`auth: none` plus the explicit `x-api-key` header is intentional here too: it is the form
+verified against fresh interactive OMP sessions.
 
 A provider carrying its own `models` list is a full custom provider, so `baseUrl` and `api`
 become required and each model has to be spelled out — omp won't clone a built-in catalog
