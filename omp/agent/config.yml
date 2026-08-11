@@ -82,46 +82,54 @@ retry:
   usageAwareFallback: true
   modelFallback: true
   fallbackRevertPolicy: cooldown-expiry
-  fallbackChains: 
-    default: 
+  fallbackChains:
+    default:
       - openai-codex/gpt-5.6-sol:high
       - openai/gpt-5.6:high
       - cursor/claude-opus-5-high
-    plan: 
+      - cursor/gpt-5.6-sol-high
+    plan:
       - openai-codex/gpt-5.6-sol:xhigh
       - openai/gpt-5.6:xhigh
       - cursor/claude-opus-5-thinking-xhigh
-    slow: 
+      - cursor/gpt-5.6-sol-xhigh
+    slow:
       - openai-codex/gpt-5.6-sol:xhigh
       - openai/gpt-5.6-sol:xhigh
       - cursor/claude-opus-5-thinking-max
-    task: 
+      - cursor/gpt-5.6-sol-max
+    task:
       - openai-codex/gpt-5.6-terra:medium
       - openai/gpt-5.6-terra:medium
+      - cursor/claude-sonnet-5-medium
       - cursor/gpt-5.6-terra-medium
-    smol: 
+    smol:
       - openai-codex/gpt-5.6-luna:low
       - openai/gpt-5.6-luna:low
+      - cursor/gpt-5.4-mini-low
       - cursor/gpt-5.6-luna-low
-    commit: 
+    commit:
       - openai-codex/gpt-5.4-mini:low
       - openai/gpt-5.4-mini:low
       - cursor/gpt-5.4-mini-low
-    tiny: 
+    tiny:
       - openai-codex/gpt-5.4-mini:low
       - openai/gpt-5.4-mini:low
-      - cursor/gpt-5.4-mini-low
-    vision: 
+      - cursor/gpt-5.4-nano-low
+    vision:
       - openai-codex/gpt-5.6-terra:medium
       - openai/gpt-5.6-terra:medium
-      - cursor/claude-opus-5-medium
-    designer: 
+      - cursor/claude-sonnet-5-medium
+      - cursor/gpt-5.6-terra-medium
+    designer:
       - openai-codex/gpt-5.6-sol:high
       - openai/gpt-5.6-sol:high
-      - cursor/claude-sonnet-5-high
-    advisor: 
+      - cursor/claude-opus-5-high
+      - cursor/gpt-5.6-sol-high
+    advisor:
       - openai-codex/gpt-5.6-terra:medium
       - openai/gpt-5.6-terra:medium
+      - cursor/claude-opus-5-high
       - cursor/gpt-5.6-terra-medium
 advisor: 
   enabled: true
