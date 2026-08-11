@@ -24,7 +24,7 @@ NvChad for editing.
 | `config/lazygit/config.yml` | `~/Library/Application Support/lazygit/config.yml` (macOS), `~/.config/lazygit/config.yml` (Linux) | Lazygit: One Dark theme, Nerd Font v3 icons, fuzzy filtering, and nvim integration; `zshrc` exposes it as `lg`, while the OS-specific destinations are Lazygit's native defaults |
 | `config/nvim` | `~/.config/nvim` | [NvChad](https://nvchad.com) starter — vendored once, `.git` stripped, fully mine to edit from here |
 | `config/zed/settings.json` | `~/.config/zed/settings.json` | Zed editor settings — `disable_ai: true` since agents run from the terminal via omp, not inside the editor, so the `agent`/`agent_servers` keys go undefined rather than tracked as dead config. `ssh_connections` never reaches the index: Zed rewrites it through this symlink on every remote connect, so a git clean filter strips it on the way in — see [below](#zeds-ssh_connections-is-stripped-by-a-clean-filter) |
-| `gitconfig` | `~/.gitconfig` | tracked git identity, LFS/xet filter wiring, and defaults meant to hold on every machine; anything that varies per machine layers in through `gitconfig.local.example` below |
+| `gitconfig` | `~/.gitconfig` | tracked git identity, LFS/xet filter wiring, rebase-first defaults, delta pager + difftastic difftool, and `git absorb`; anything that varies per machine layers in through `gitconfig.local.example` below |
 | `gitconfig.local.example` | (copy, not linked) | template for `~/.gitconfig.local` — work identity via `includeIf "gitdir:…"`, private-registry credentials. `gitconfig`'s trailing `[include]` applies last, so anything set here wins over every default in the tracked file |
 | `config/git/ignore` | `~/.config/git/ignore` | global gitignore — git's own default `core.excludesFile` location when that setting is unset, so machine-tool droppings (`.DS_Store`, `.idea/`) never have to live in a project's own `.gitignore` |
 | `config/gh/config.yml` | `~/.config/gh/config.yml` | gh CLI defaults and aliases; `git_protocol: https` is deliberate — `ssh/config` maps `github.com` to the work SSH key, so an ssh remote here would silently authenticate as the wrong account |
@@ -38,6 +38,12 @@ NvChad for editing.
 | `config/paseo/paseo.service` | (copied to `~/.config/systemd/user/`) | `systemd --user` unit that supervises the Paseo daemon on Linux. Paseo ships no unit of its own. Unused on macOS, where the desktop app supervises its own daemon |
 | `config/paseo/daemon.env.example` | (copy, not linked) | template for `~/.config/paseo/daemon.env`, the unit's `EnvironmentFile` — this box's `PASEO_LISTEN`, `PASEO_HOSTNAMES`, and the plaintext `PASEO_PASSWORD`. The per-machine half of Paseo's config, kept out of the tracked file above |
 | `Brewfile` | (not linked — read by `install.sh`) | macOS formulae + casks for every tool this config drives, applied with `brew bundle` — replaced the old hand-maintained `brew_ensure`/`brew_ensure_cask` loop |
+| `Justfile` | (not linked — invoked by `just` and CI) | single source of truth for every check — `.github/workflows/ci.yml` calls its recipes instead of duplicating them; see [Justfile and CI](#justfile-and-ci) |
+| `gh_extensions.txt` | (not linked — read by `install.sh`) | gh CLI extension manifest, one `owner/repo` per line; `install.sh`'s `gh` step installs new extensions and upgrades ones already present — see [gh extensions](#gh-extensions) |
+| `.pre-commit-config.yaml` | (not linked — read by `pre-commit`) | gitleaks plus the local `just leakguard` hook; `install.sh` runs `pre-commit install` during the configs step so a fresh clone gets both |
+| `config/jj/config.toml` | `~/.config/jj/config.toml` | jj config for colocated repos — identity, pager, diff formatter; linked because jj refuses to commit without `user.name`/`user.email` |
+| `bin/dotfiles-help` | `~/.local/bin/dotfiles-help` | renders the `help/` corpus — fzf picker, search, and per-tool sections; aliased as `dh` in `zshrc` — see [dotfiles-help](#dotfiles-help) |
+| `help/` | (not linked — read by `bin/dotfiles-help`) | curated command reference keyed to the Brewfile — one `## <name> — <tagline>` section per tool; `just help-coverage` fails if a formula has no matching section |
 | `bin/tailscale` | `~/.local/bin/tailscale` | PATH shim for the Mac App Store build of Tailscale — `exec`s the bundled CLI directly, since a plain symlink to it fails at runtime (see the file itself for why). Linked only on macOS, and only when the App Store app is actually installed |
 | `agent_skills.txt` | (not linked — read by `install.sh`) | cross-agent skill manifest, one `<owner>/<repo> --skill <name>` per line; `install.sh` runs `npx skills add … -g -y` for each |
 | `zshrc.local.example` | (copy, not linked) | template for machine-local secrets — never committed |
@@ -50,7 +56,7 @@ git clone https://github.com/andyhite/dotfiles.git ~/dotfiles
 ~/dotfiles/install.sh
 ```
 
-`install.sh` runs nine steps, and is safe to re-run any time (installs what's missing,
+`install.sh` runs ten steps, and is safe to re-run any time (installs what's missing,
 updates what's already there). With a terminal attached each step asks first and Enter
 accepts; without one, or with `--yes`, it runs everything unattended:
 
@@ -74,8 +80,10 @@ The steps, in order — the order is load-bearing, which is why `--only` exists 
 reordering doesn't:
 
 1. **Installs/updates the tools this config drives**: starship, zoxide, atuin,
-   fzf, eza, bat, direnv, tmux, lazygit, antidote, TPM, the JetBrains Mono Nerd
-   Font, neovim, ripgrep, tree-sitter-cli, mise, omp, and NvChad. macOS applies
+   fzf, eza, bat, direnv, tmux, lazygit, delta, difftastic, git-absorb, jj, fd,
+   carapace, gitleaks, pre-commit, just, uv, antidote, TPM, the JetBrains Mono
+   Nerd Font, neovim, ripgrep, tree-sitter-cli, mise, omp, and NvChad — plus
+   Docker Desktop on macOS. macOS applies
    `Brewfile` with `brew bundle` (formulae + casks, including Ghostty and Paseo
    themselves); Linux goes through `apt` where a package exists, and falls back
    to each tool's official installer otherwise:
@@ -110,6 +118,14 @@ reordering doesn't:
    - omp: install-only, via the installer at [omp.sh](https://omp.sh) — the binary is
      ~120MB and ships its own `omp update`, so re-running this script skips it rather
      than re-downloading.
+   - Linux-only: `fd-find` installs as `fdfind`, so `ensure_fd_shim_linux` symlinks
+     `~/.local/bin/fd` — telescope and fzf shell out to the literal name `fd`, not a
+     shell alias. delta, difftastic, git-absorb, sd, tealdeer, hyperfine, and jj fall
+     back to `cargo install` where apt has no package. gitleaks and carapace pull
+     GitHub release binaries. `wl-clipboard` and `xclip` install together on Linux so
+     tmux-yank and nvim's `+` register can paste on either Wayland or X11.
+   - `pre-commit` lands via apt when possible, otherwise `uv tool install` after the
+     uv installer runs.
 
    Ghostty itself is only installed on macOS — it's a local GUI app, so there's nothing
    to install on a headless remote box, though its config still gets symlinked in case
@@ -120,12 +136,14 @@ reordering doesn't:
    outside a package manager (`omp`, `herdr`, `tree-sitter`) are uncovered on both. Each
    file is generated by the binary itself, so it can never drift from the installed
    version. See [Completions](#completions) below.
-3. **Symlinks every config file** in the table above into place. Backs up
-   (`.bak.<timestamp>`) anything real that's already sitting where a symlink needs to
-   go. Also copies `zshrc.local.example`, `gitconfig.local.example`, and
-   `ssh/config.local.example` to their `~/.*.local` targets at mode 600 the first time
-   only — a re-run never overwrites an already filled-in file. See [The `*.local`
-   templates](#the-local-templates) below.
+3. **Symlinks every config file** in the table above into place — including
+   `config/jj/config.toml` and `bin/dotfiles-help` — and runs `pre-commit install`
+   when the binary is on `PATH`, so `.pre-commit-config.yaml` is live from the first
+   commit on a fresh clone. Backs up (`.bak.<timestamp>`) anything real that's already
+   sitting where a symlink needs to go. Also copies `zshrc.local.example`,
+   `gitconfig.local.example`, and `ssh/config.local.example` to their `~/.*.local`
+   targets at mode 600 the first time only — a re-run never overwrites an already
+   filled-in file. See [The `*.local` templates](#the-local-templates) below.
 4. **Installs the language runtimes pinned in `~/.tool-versions`**, via `mise install`.
    Runs right after the symlinks step and not before: mise reads its pins by walking up
    from wherever it's invoked, and `~/.tool-versions` is the symlink the configs step
@@ -140,15 +158,19 @@ reordering doesn't:
    See [Paseo](#paseo) below.
 6. **Installs/updates every Herdr plugin** listed in `herdr_plugins.txt`. Skipped with
    a note if `herdr` isn't on `PATH` — this repo configures Herdr but doesn't install it.
-7. **Installs cross-agent skills**, from two sources. `agent_skills.txt` first — one
+7. **Installs/updates omp plugins** from `omp_plugins.txt` — marketplace refresh plus
+   install, same install-is-not-updater trap as gh extensions below.
+8. **Installs/upgrades gh extensions** from `gh_extensions.txt`. Skipped when `gh` is
+   missing or unauthenticated; see [gh extensions](#gh-extensions).
+9. **Installs cross-agent skills**, from two sources. `agent_skills.txt` first — one
    `npx skills add <owner>/<repo> --skill <name> -g -y` per line — which needs the
    `runtimes` step above to have already put node on `PATH`, hence the ordering. Then
    any skill an installed Herdr plugin ships in its own `skills/` directory, symlinked
    into `~/.omp/agent/skills` — unchanged from before, and run after Herdr because a
    link made before a plugin's first install would point at a path that doesn't exist
    yet.
-8. **Headlessly syncs NvChad's plugins** (`nvim --headless "+Lazy! sync" +qa`) once
-   neovim and the config are both in place.
+10. **Headlessly syncs NvChad's plugins** (`nvim --headless "+Lazy! sync" +qa`) once
+    neovim and the config are both in place.
 
 ### Remote installs — `--host`
 
@@ -206,11 +228,19 @@ per tool that has a generator:
 | herdr | `herdr completion zsh` |
 | tree-sitter | `tree-sitter complete --shell zsh` |
 | mise | `mise completion zsh` |
+| carapace | `carapace _carapace zsh` |
 
-Deliberately absent, because generating a file would be worse than what already works:
-`eza` and `zoxide` have no generator (Homebrew ships `_eza`/`_zoxide`); `direnv` and
-`nvim` publish no zsh completion at all; `fzf` comes from the `fzf --zsh` eval in
-`zshrc`; and zsh itself ships `_tmux`, `_jq` and `_vim`.
+`zshrc` also `source`s `<(carapace _carapace)` after antidote loads fzf-tab — carapace
+ships built-in specs for roughly a thousand CLIs and feeds them through the same fzf-tab
+popup as everything else. It does **not** replace the three generators above: carapace
+has no spec for `omp`, `herdr`, or `tree-sitter`, which is exactly why `install.sh`
+still hand-writes `_omp`, `_herdr`, and `_tree-sitter` — the two mechanisms cover
+disjoint command sets.
+
+Deliberately absent from the generator step because something else already covers them:
+most other Brewfile formulae (git, gh, docker, …) via carapace; `fzf` from the
+`fzf --zsh` eval in `zshrc`; `direnv` and `nvim`, which publish no zsh completion at
+all; and zsh itself ships `_tmux`, `_jq`, and `_vim`.
 
 Two details worth knowing. Generation goes through a temp file and only replaces the
 target when the output is non-empty, so a tool that starts erroring can't blank a working
@@ -303,6 +333,139 @@ atuin all load exactly as before, so a scripted shell resolves the same commands
 interactive one does.
 
 ## Notes by tool
+
+### Git — rebase-first, with delta, difftastic, absorb, and jj
+
+`gitconfig` is deliberately rebase-oriented (`pull.rebase`, `rebase.autoStash`,
+`rebase.autoSquash`, `rebase.updateRefs`, `rerere.enabled`, `rerere.autoupdate`) so
+review fixups belong spread across existing commits rather than piled into one "address
+review" commit at the tip. **delta** is the pager that finally renders those settings:
+`core.pager = delta || less` and `interactive.diffFilter = delta --color-only || cat`.
+The `|| less` / `|| cat` fallbacks are mandatory — git runs both through `sh -c`, so a
+missing delta on a fresh machine (or one where the tools step was declined) falls through
+instead of bricking every `git diff`/`log`/`show` and `git add -p`. Delta ships no theme
+literally named One Dark; `syntax-theme = OneHalfDark` (sonph/onehalf, based on Atom One
+Dark) is the closest bundled match and lines up with lazygit, Ghostty, starship, atuin,
+nvim, and omp. `config/lazygit/config.yml` reuses the same `[delta]` block with
+`pager: delta --dark --paging=never` — `--paging=never` is load-bearing because lazygit
+already scrolls the diff panel itself; a delta that also spawned `less` would deadlock
+the panel for input.
+
+**difftastic** is wired as `git dft` (`difftool -t difftastic`), not the default pager.
+It diffs syntax trees, which is what you want when a refactor moved or reindented code
+and a line-based view reads as a wholesale rewrite; it is deliberately not on every
+`git diff` because it is slower on large diffs and has no intra-line word diff.
+
+**git-absorb** (`git absorb = !git-absorb --and-rebase`) is the review-fixup step the
+rebase settings above were missing: it assigns worktree hunks to the commits that last
+touched those lines and autosquashes immediately, which pairs with `rerere` when the
+rebase replays a conflict you already resolved once.
+
+**jj** is optional per checkout (`jj git init --colocate` once) — `.git` stays
+authoritative, so lazygit, `gh`, and delta keep working unchanged. It earns its place
+from fleet-style work: `jj undo` reverts one operation atomically, and descendant commits
+rebase automatically when you amend mid-stack. `config/jj/config.toml` is linked
+unconditionally because jj refuses to create a commit without `user.name`/`user.email`,
+unlike git. The honest tradeoff is a second mental model on top of git — no staging
+area, the working copy is always a commit — which pays off on stacked agent branches but
+is not worth reaching for on every repo.
+
+**gitleaks** and **pre-commit** are both deliberate. `.pre-commit-config.yaml` runs
+gitleaks at commit time for tokens, keys, and credential-shaped strings; the local
+`just leakguard` hook is the other half, running the same work-identifier grep CI uses.
+Gitleaks has no idea those strings matter — they look like ordinary words — and
+leakguard would not catch a real API key. `install.sh`'s configs step runs
+`pre-commit install` so neither hook requires a manual opt-in on a fresh clone.
+
+### Shell — carapace, fd, uv, and Linux clipboards
+
+**carapace** initializes in `zshrc` after antidote loads fzf-tab (`source <(carapace
+_carapace)` with `CARAPACE_BRIDGES='zsh,fish,bash,inshellisense'`). It is skipped in
+`TERM=dumb` / non-interactive shells for the same reason starship and fzf key bindings
+are. See [Completions](#completions) for how it coexists with install.sh's generated
+`_omp`/`_herdr`/`_tree-sitter` files.
+
+**fd** backs `FZF_DEFAULT_COMMAND` and telescope's `find_files` picker. Debian/Ubuntu's
+`fd-find` package installs the binary as `fdfind`; `ensure_fd_shim_linux` symlinks
+`~/.local/bin/fd` because those consumers exec the literal name `fd`, not a shell that
+would expand an alias.
+
+**uv** comes from the Brewfile on macOS and from Astral's curl installer into
+`~/.local/bin` on Linux, where no formula exists. **pipx** stays on the Brewfile anyway —
+four tools are already installed through it, and removing the manager would strand them.
+
+The trap to know, because it is silent: `zshrc` puts `~/.local/bin` first on `PATH`, so a
+standalone Astral install there *shadows* the Homebrew formula on macOS. Both binaries
+work, `brew upgrade` only ever moves the one that loses, and nothing warns you — this
+machine had a 14-month-old `~/.local/bin/uv` winning over a current formula until it was
+removed. On a Mac, let the Brewfile own `uv`; the `uv tool` installs live in
+`~/.local/share/uv` and survive deleting the binary.
+
+**wl-clipboard** and **xclip** install together on Linux only. `tmux.conf` sets
+`set-clipboard on`, so copy-*out* over SSH uses OSC 52 and lands in the local terminal's
+clipboard; tmux-yank and nvim's `+` register still need a real local clipboard binary for
+paste-*in*, and Wayland (`wl-copy`) and X11 (`xclip`) need different ones. Installing
+both and letting the session pick is cheaper than detecting the display server at install
+time.
+
+### dotfiles-help — the `help/` corpus and `dh`
+
+`bin/dotfiles-help` is the front door to the toolchain this repo installs. `install.sh`
+symlinks it to `~/.local/bin/dotfiles-help`; `zshrc` aliases `dh` (not `help`, which
+zsh's `run-help` already owns). The script resolves its own real path through the
+symlink with a portable loop — not `readlink -f`, which BSD/macOS lacks before
+`brew install coreutils` — then reads `help/*.md` next to the checkout.
+
+Five modes, all parsing the same corpus:
+
+- **default** (no args, with a tty and `fzf`): interactive picker with a preview pane
+  that re-invokes `dotfiles-help <name>` so the preview cannot drift from a direct lookup
+- **`<name>`**: print one section — exact match first, then case-insensitive substring on
+  name and tagline
+- **`--list` / `-l`**: one line per tool, name then tagline
+- **`--all` / `-a`**: the whole corpus in curated file order (`00-shell.md`, …)
+- **`--search` / `-s TEXT`**: grep section bodies, list matching lines tagged by tool
+
+The parser is shape-sensitive: each tool is `## <name> — <tagline>` (em dash, not hyphen)
+with command examples indented four spaces. Retitle a heading out of that shape, or let
+another `## ` line appear in a body paragraph, and the tool silently drops from every
+mode. `just help-coverage` is the other half — it fails when a Brewfile formula has no
+matching section (with an explicit alias map for the six names that differ, like
+`git-delta` → `delta`).
+
+To add a tool: Brewfile line, Linux install path in `install.sh`, inventory row here, and
+a new `## <command> — …` section in the right `help/*.md` file.
+
+### gh extensions — manifest beside `herdr_plugins.txt`
+
+`gh_extensions.txt` is the tracked source of truth, one `owner/repo` per line — same
+shape as `herdr_plugins.txt` and `agent_skills.txt`, read rather than linked. The
+`install.sh` **gh** step runs after **tools** (needs `gh` on `PATH`) and is independent
+of **configs** (extensions are per-user, not symlinked files).
+
+Install is not update: `gh extension install` fails on an already-installed extension,
+and `gh extension upgrade` is the only command that moves an existing one forward — the
+same trap already documented for omp's marketplace in `omp_plugins.txt`. The step checks
+`gh auth status` once up front; an unauthenticated box skips the whole manifest with a
+note rather than failing once per line. The one extension listed today is `seachicken/gh-poi`
+— squash-merged branches never look merged to `git branch --merged`, but fleet creates a
+worktree and branch per dispatched worker, so merged-branch churn is continuous rather
+than occasional.
+
+### Misc dev CLIs — btop, hyperfine, sd, tealdeer, and Docker Desktop
+
+**btop** fills the host-process gap next to ncdu (disk) and ctop (containers).
+**hyperfine** is the only deliberate benchmarking tool beside cloc/dive/ctop.
+**sd** is the sed-shaped find/replace with a literal mode; **tealdeer** (`tldr` on
+`PATH`) is example-first man pages. None of these drive tracked config beyond being on
+the Brewfile/apt path.
+
+**docker-desktop** was the missing runtime for **dive** and **ctop**, which were already
+tracked and useless without a daemon. `args: { adopt: true }` on the Brewfile cask is
+load-bearing: `/Applications/Docker.app` already exists on the machine this repo runs on,
+and a plain `brew bundle` install aborts with "already an App" unless adopt takes over the
+existing install. No Linux counterpart in `install.sh` — Docker's apt repo is a host-level
+decision, not a dotfiles one.
 
 ### Zed's `ssh_connections` is stripped by a clean filter
 
@@ -879,6 +1042,22 @@ the per-source toggles) applies to the whole session. And omp has no `--agent` f
 task-agent definition can't back a top-level session either. The launch is identical for
 orchestrator and worker; the only difference is that one of them was told to be one.
 
+### NvChad — diffview alongside telescope `git_status`
+
+`config/nvim/lua/plugins/init.lua` adds **diffview.nvim** next to NvChad's telescope
+`git_status` picker, not instead of it. Telescope builds its file list once at open; the
+`<C-g>` reload mapping closes and reopens the picker because telescope has no native way
+to notice the index changed under it — still the right tool for jumping to a changed file
+by name. diffview is for sitting inside the diff: a live file panel, a diff view that
+tracks staging and edits, and a 3-way merge-conflict view telescope has no equivalent for.
+herdr-reviewr covers reviewing from a standalone pane; diffview covers "already inside
+nvim on this repo".
+
+Four mappings in `lua/mappings.lua`: `<leader>gd` (`DiffviewOpen`), `<leader>gc`
+(`DiffviewClose`), `<leader>gh` (`DiffviewFileHistory %`), `<leader>gH`
+(`DiffviewFileHistory`). The plugin is command-gated (`cmd = { … }`) so normal edits do
+not pay to load it.
+
 ### NvChad's Mason/Treesitter setup — do this yourself, on purpose
 
 NvChad's own quickstart docs say to run `:MasonInstallAll` and `:TSInstallAll` after the
@@ -942,6 +1121,32 @@ After that:
 Edit the files in this repo directly — they're the real config, not copies, since
 everything under `$HOME` is a symlink back here. Commit and push like normal, then run
 `install.sh` (or just `git pull`) on the other machine to pick it up.
+
+### Justfile and CI
+
+The **`Justfile` is the single source of truth for checks.** `.github/workflows/ci.yml`
+invokes its recipes and nothing more — a new check gets a recipe plus a one-line CI step,
+never a command pasted into `ci.yml` a second time. Recipes assume their dependencies are
+already on `PATH` and install nothing themselves; CI's setup step installs `just` (via
+`extractions/setup-just@v3`), `zsh` (for `zsh-syntax`), and `pyyaml` (for `templates`)
+once before any recipe runs.
+
+| Recipe | What it catches |
+|---|---|
+| `just parse` | `bash -n install.sh` — quoting/`set -e` bugs nobody hits until bootstrap |
+| `just shellcheck` | shellcheck on `install.sh` (three deliberate SC codes excluded) |
+| `just zsh-syntax` | `zsh -n` on `zshrc`, `zshenv`, and the local template |
+| `just templates` | models template parses; tracked routing uses built-in providers only |
+| `just leakguard` | work identifiers and committed `ssh_connections` in tracked content |
+| `just zed-filter` | the clean filter strips, repairs JSON, and pass-throughs correctly |
+| `just help-coverage` | every Brewfile entry has a matching `help/*.md` section |
+| `just check` | all of the above — the fast gate before every commit |
+| `just smoke` | `--only configs` twice in a throwaway `HOME`; second run is a no-op |
+| `just cli-checks` | `install.sh` argument handling still fails loudly |
+
+Run `just check` and `just smoke` locally before pushing — same as `AGENTS.md`. CI's
+**configs** job still asserts individual symlink targets that `smoke` does not; the
+**cli** job fakes Darwin on Ubuntu to prove a failed tools step does not abort the run.
 
 Changes land as a direct push to `main`. CI runs on every push, on every branch, so the
 checks still report whether a change went straight to `main` or through a branch first.

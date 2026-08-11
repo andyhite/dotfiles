@@ -1,0 +1,28 @@
+# install.sh runs `pre-commit install` as part of the tools step, so a fresh
+# clone gets these hooks the moment it's bootstrapped — nobody has to remember
+# to opt in by hand.
+#
+# Two checks, not one, because they catch different things. gitleaks is a
+# generic secret scanner: it's good at tokens, keys, and credentials shaped
+# like tokens, keys, and credentials. It has no idea this repo's work
+# identifiers (see ci.yml's "No work identifiers in committed content" step)
+# even matter — they look like ordinary words to it. The local `leakguard`
+# hook is the other half: the same grep CI runs, moved to commit time instead
+# of after the fact. Neither hook makes the other redundant.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  # `just leakguard` is the single source of truth for the pattern (see
+  # Justfile) — duplicating the regex here instead of calling out to it would
+  # mean two places to update and, worse, two places that could drift apart
+  # silently.
+  - repo: local
+    hooks:
+      - id: leakguard
+        name: no work identifiers
+        language: system
+        pass_filenames: false
+        entry: just leakguard

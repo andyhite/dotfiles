@@ -10,26 +10,29 @@ things here*.
 
 ## Verify before yielding
 
-Run what CI runs (`.github/workflows/ci.yml`). All of it works locally; nothing needs a VM.
+Run what CI runs — `just check` and `just smoke`. All of it works locally; nothing needs
+a VM.
 
-```sh
-bash -n install.sh
-shellcheck -S warning -e SC2088,SC2206 install.sh   # both exclusions are deliberate
-for f in zshrc zshenv zshrc.local.example; do zsh -n "$f"; done
-```
+`just check` is the fast gate (parse, shellcheck, zsh syntax, template YAML, leakguard,
+zed-filter, help-coverage). It deliberately excludes `smoke`: that recipe mutates a
+throwaway `HOME` and does real filesystem work, so it stays a separate, slower step rather
+than baked into every commit.
 
-The real smoke test links the whole tree into a throwaway `HOME`, twice — in a subshell,
-so the agent's own `HOME` is never reassigned:
+`just smoke` links the whole tree into a throwaway `HOME`, twice — in a subshell, so the
+agent's own `HOME` is never reassigned. The second run must report every link as already
+correct and back nothing up.
 
-```sh
-( export HOME="$(mktemp -d)"
-  ./install.sh --only configs --yes >/dev/null
-  ./install.sh --only configs --yes | grep 'backed up to' && echo 'NOT IDEMPOTENT' )
-```
+Touching argument handling or step dispatch? Also run `just cli-checks` — it asserts
+`--help`, that an unknown `--only` step fails, and that a bare `--only` explains itself.
 
-The second run must report every link as already correct and back nothing up. Touching
-argument handling or step dispatch? Also check `./install.sh --help`, that
-`./install.sh --only nosuchstep --yes` fails, and that a bare `--only` explains itself.
+## Justfile
+
+The `Justfile` is the single source of truth for checks; `.github/workflows/ci.yml` invokes
+its recipes and nothing more. A new check goes in the Justfile and gets a one-line CI
+step — never a command pasted into `ci.yml`, and never a third copy here. Recipes carry a
+`[doc("...")]` attribute because `just --list` renders only the last comment line above a
+recipe, so the multi-line why-comments would otherwise show up as sentence fragments in the
+listing.
 
 ## Adding a config file
 
@@ -44,8 +47,22 @@ Three edits:
 3. A row in README's inventory table.
 
 A file the installer *reads* rather than links (`Brewfile`, `herdr_plugins.txt`,
-`omp_plugins.txt`, `agent_skills.txt`) gets the table row and its consumer, not a `links`
-entry.
+`omp_plugins.txt`, `agent_skills.txt`, `gh_extensions.txt`) gets the table row and its
+consumer, not a `links` entry.
+
+## Adding a tool
+
+Four edits:
+
+1. A `brew`/`cask` line in `Brewfile`, with a comment saying *why this tool*.
+2. A Linux equivalent in `install.sh`'s apt/cargo/release path.
+3. A row or section in README's inventory.
+4. A `## <name> — <tagline>` section in the right `help/*.md`. The parser depends on the
+   em-dash separator, 4-space-indented command examples, and the command name in the heading
+   being what you TYPE — which is why `just help-coverage` carries an explicit alias map
+   for the six Brewfile names that differ (`git-delta`/`delta`, `difftastic`/`difft`,
+   `tealdeer`/`tldr`, `ripgrep`/`rg`, `neovim`/`nvim`, `1password-cli`/`op`) and an exempt
+   set for casks that install an app rather than a command.
 
 ## Secrets
 
@@ -80,6 +97,12 @@ Every non-obvious line in `install.sh`, `ci.yml`, `.gitignore` and the configs i
 commented with the failure mode it prevents, not with what it does. Match that: write the
 sentence that stops the next reader from "simplifying" the line back into the bug. Prose
 wraps at 95 columns.
+
+## Pre-commit hooks
+
+`.pre-commit-config.yaml` runs gitleaks plus the local `just leakguard` hook.
+`install.sh`'s tools step runs `pre-commit install`, so a fresh clone gets them. A commit
+can be rejected by a hook — fix the finding, never pass `--no-verify`.
 
 ## Commits
 

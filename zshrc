@@ -91,6 +91,24 @@ else
 fi
 unset _antidote _c
 
+# ── Carapace (multi-shell completion generator) ─────────────────────────────
+# Must come after the antidote block above: carapace's completions render
+# through fzf-tab (an antidote plugin), so fzf-tab has to already be loaded
+# for carapace's completion output to get the fzf-tab UI instead of zsh's
+# plain menu. No line editor, no point installing completion widgets —
+# same reasoning as the starship/fzf guards above.
+if [[ -z $_no_zle ]] && command -v carapace >/dev/null 2>&1; then
+  # A bridge means: for a command carapace has no native spec for, fall back
+  # to another shell's completion spec instead of giving you nothing. Order
+  # is preference, first match wins.
+  export CARAPACE_BRIDGES='zsh,fish,bash,inshellisense'
+  source <(carapace _carapace)
+fi
+# carapace ships no spec for omp, herdr, or tree-sitter — those are exactly
+# the tools install.sh hand-generates `_omp`/`_herdr`/`_tree-sitter` files
+# for in the Completion section above. The two mechanisms cover disjoint
+# sets of commands; don't delete the generator step as redundant with this.
+
 # ── Machine-local secrets/overrides — never committed ───────────────────────
 # See zshrc.local.example for the template. Sourced before the tool blocks
 # below so it can set inputs they read (PNPM_HOME, build flags, …).
@@ -150,6 +168,17 @@ if [[ -z $_no_zle ]] && command -v fzf >/dev/null 2>&1; then
   fi
 fi
 
+# fzf's own default (a `find` walk) crawls everything including .git and
+# node_modules and doesn't know about .gitignore, so on a large repo it's
+# both slower and full of results you can't act on. fd respects .gitignore
+# by default and is fast enough that the difference is visible. Guarded
+# separately from the block above: fzf itself is still useful without fd.
+if command -v fd >/dev/null 2>&1; then
+  export FZF_DEFAULT_COMMAND='fd --type f --hidden --exclude .git'
+  export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+  export FZF_ALT_C_COMMAND='fd --type d --hidden --exclude .git'
+fi
+
 # ── Modern ls & cat ──────────────────────────────────────────────────────────
 if command -v eza >/dev/null 2>&1; then
   alias ls='eza --icons --group-directories-first'
@@ -165,6 +194,11 @@ fi
 
 # ── Git ──────────────────────────────────────────────────────────────────────
 command -v lazygit >/dev/null 2>&1 && alias lg='lazygit'
+
+# ── Dotfiles help ────────────────────────────────────────────────────────────
+# `dh`, not `help`: zsh's run-help and bash's builtin help both already own
+# that word, and shadowing it breaks run-help for everyone.
+command -v dotfiles-help >/dev/null 2>&1 && alias dh='dotfiles-help'
 
 # ── Node / pnpm / bun ────────────────────────────────────────────────────────
 if [ -z "${PNPM_HOME:-}" ]; then

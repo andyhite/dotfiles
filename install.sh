@@ -128,7 +128,7 @@ confirm() {
 
 # ── Steps ────────────────────────────────────────────────────────────────────
 
-STEPS=(tools completions configs runtimes paseo herdr omp skills nvim)
+STEPS=(tools completions configs runtimes paseo herdr omp gh skills nvim)
 ASSUME_YES=0
 VERBOSE=0
 ONLY=""
@@ -164,6 +164,7 @@ ${C_BOLD}Steps${C_RESET}
   paseo        Merge config/paseo into ~/.paseo, ensure the CLI, supervise the daemon
   herdr        Install/update the Herdr plugins in herdr_plugins.txt
   omp          Install/update the omp plugins in omp_plugins.txt
+  gh           Install/update the gh extensions in gh_extensions.txt
   skills       Install agent skills from agent_skills.txt, link Herdr-shipped ones
   nvim         Headless NvChad plugin sync
 
@@ -318,6 +319,11 @@ ensure_omp() {
 #   fzf                  — zshrc already evals `fzf --zsh`, which includes it
 #   tmux, jq, vim        — zsh ships _tmux/_jq/_vim itself
 #   nvim                 — upstream provides no zsh completion
+#
+# carapace covers a large set of third-party CLIs at runtime instead, through
+# the zshrc hook — but it ships no spec of its own for omp, herdr or
+# tree-sitter, so those three keep needing a generated file here, and the two
+# mechanisms never fight over the same completion.
 ensure_completions() {
   local dir="$HOME/.local/share/zsh/site-functions"
   mkdir -p "$dir"
@@ -332,6 +338,7 @@ ensure_completions() {
     "herdr|_herdr|herdr completion zsh"
     "tree-sitter|_tree-sitter|tree-sitter complete --shell zsh"
     "mise|_mise|mise completion zsh"
+    "carapace|_carapace|carapace _carapace zsh"
   )
 
   local wrote=0 spec bin out gen tmp
@@ -527,6 +534,38 @@ apt_ensure() {
   return 0
 }
 
+# Debian/Ubuntu's fd-find package installs its binary as `fdfind`, not `fd` —
+# the same class of name clash as `bat`/`batcat` above, but unlike bat this
+# one can't be papered over with a shell alias: telescope and fzf shell out
+# to the literal name `fd`, not through a shell that would expand an alias
+# for them. Symlink it under the real name, and only when nothing already
+# answers to `fd` — a real `fd` binary installed by hand, or by the cargo
+# fallback below, is left alone rather than overwritten.
+ensure_fd_shim_linux() {
+  command -v fd >/dev/null 2>&1 && return 0
+  command -v fdfind >/dev/null 2>&1 || return 0
+
+  local target dst backup shown
+  target="$(command -v fdfind)"
+  dst="$HOME/.local/bin/fd"
+  shown="${dst/#$HOME/\~}"
+
+  # Same back-up-anything-unexpected shape as the bin/tailscale block in
+  # link_configs and ensure_paseo_cli — never blindly overwrite a real binary
+  # someone else installed there.
+  if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$target" ]; then
+    ok "$shown"
+  elif [ -e "$dst" ] || [ -L "$dst" ]; then
+    backup="$dst.bak.$(date +%s)"
+    mv "$dst" "$backup"
+    ln -s "$target" "$dst"
+    warned "$shown" "backed up to ${backup##*/}"
+  else
+    ln -s "$target" "$dst"
+    added "$shown" "-> $target"
+  fi
+}
+
 ensure_rustup() {
   if ! command -v cargo >/dev/null 2>&1; then
     added "rustup" "cargo not found — installing"
@@ -667,6 +706,70 @@ ensure_lazygit_linux() {
   fi
 }
 
+# The gitleaks/carapace shape ensure_lazygit_linux above already handles by
+# hand: a Go binary published as a GitHub release tarball containing nothing
+# but the executable. Generic here, unlike tree-sitter/neovim/lazygit above,
+# which stay hand-rolled on purpose — their asset naming, archive layout and
+# version-probe commands each differ enough that folding all three in would
+# trade three easy-to-read functions for one function full of special cases.
+# Two more tools sharing this exact shape is worth generalizing.
+#
+# $1 repo, $2 bin (also the name inside the tarball and the report label —
+# true for both current callers), $3/$4 the release asset filename for
+# x86_64/aarch64 with a literal `VERSION` substring standing in for the tag
+# with its `v` stripped, and $5.. the version-probe command. Its output is
+# grepped for the first dotted-number run rather than parsed positionally, so
+# gitleaks' `gitleaks version` and carapace's `carapace --version` — two
+# different output shapes — can share one caller.
+ensure_release_binary() {
+  local repo="$1" bin="$2" asset_x64="$3" asset_arm64="$4"
+  shift 4
+  local asset current latest tmp
+  case "$(uname -m)" in
+    x86_64)  asset="$asset_x64" ;;
+    aarch64) asset="$asset_arm64" ;;
+    *) warned "$bin" "unsupported arch $(uname -m) — install manually"; return ;;
+  esac
+
+  current=""
+  if command -v "$bin" >/dev/null 2>&1; then
+    current="$("$@" 2>/dev/null | grep -oE '[0-9]+(\.[0-9]+){1,2}' | head -1)"
+  fi
+  latest="$(github_latest_tag "$repo" | sed 's/^v//')"
+  if [ -z "$latest" ]; then
+    if [ -n "$current" ]; then
+      ok "$bin" "$current — skipped the update check (GitHub API unavailable)"
+    else
+      warned "$bin" "GitHub API unavailable — re-run to install it"
+    fi
+    return 0
+  fi
+
+  if [ -n "$current" ] && [ "$current" = "$latest" ]; then
+    ok "$bin" "up to date ($current)"
+    return
+  fi
+
+  asset="${asset//VERSION/$latest}"
+  tmp="$(mktemp -d)"
+  # Pinned to the tag already resolved above, not /latest/download/ — same
+  # race tree-sitter/neovim/lazygit's downloads guard against.
+  if ! curl -fsSL -o "$tmp/asset.tar.gz" "https://github.com/$repo/releases/download/v${latest}/$asset"; then
+    rm -rf "$tmp"
+    warned "$bin" "download failed — re-run to retry"
+    return 0
+  fi
+  tar -xzf "$tmp/asset.tar.gz" -C "$tmp" "$bin"
+  mkdir -p "$HOME/.local/bin"
+  install -m 755 "$tmp/$bin" "$HOME/.local/bin/$bin"
+  rm -rf "$tmp"
+  if [ -n "$current" ]; then
+    updated "$bin" "$current -> $latest"
+  else
+    added "$bin" "$latest"
+  fi
+}
+
 ensure_nerd_font_linux() {
   # Capture fully before grepping — `fc-list | grep -q` under `set -o
   # pipefail` SIGPIPEs fc-list on the first match, and pipefail then
@@ -724,19 +827,51 @@ install_tools_linux() {
     # build-essential/pkg-config: needed by the cargo builds below.
     # fontconfig: fc-list/fc-cache for the Nerd Font install.
     # ncurses-bin: infocmp, for ghostty's ssh-terminfo shell integration.
+    # btop: in Ubuntu's archives outright, unlike most of the tools below.
+    # wl-clipboard, xclip: tmux.conf sets `set-clipboard on`, so OSC 52
+    #      already handles copy-OUT over SSH — but tmux-yank and nvim's `+`
+    #      register need a real local clipboard binary for paste-IN, and
+    #      Wayland vs X11 need different ones. Installing both and letting
+    #      the running session pick which one actually works is cheaper than
+    #      detecting which display server is live.
+    # fd-find: ships its binary as `fdfind`, not `fd` — see
+    #      ensure_fd_shim_linux below.
     for p in zsh git curl zoxide eza bat fzf direnv tmux unzip ripgrep \
              git-lfs gh jq yq shellcheck shfmt tree wget moreutils rsync \
-             fontconfig ncurses-bin build-essential pkg-config; do
+             fontconfig ncurses-bin build-essential pkg-config \
+             btop wl-clipboard xclip fd-find; do
       apt_ensure "$p" || true
     done
   else
     warned "apt-get" "not found — skipping distro packages; install manually"
   fi
 
+  ensure_fd_shim_linux
   ensure_lazygit_linux
+  ensure_release_binary gitleaks/gitleaks gitleaks \
+    "gitleaks_VERSION_linux_x64.tar.gz" "gitleaks_VERSION_linux_arm64.tar.gz" \
+    gitleaks version
+  ensure_release_binary carapace-sh/carapace-bin carapace \
+    "carapace-bin_VERSION_linux_amd64.tar.gz" "carapace-bin_VERSION_linux_arm64.tar.gz" \
+    carapace --version
 
   # eza predates its Ubuntu packaging (24.04+); build it where apt can't.
   command -v eza >/dev/null 2>&1 || cargo_ensure_latest eza
+
+  # None of these have a reliable apt package across the Ubuntu releases this
+  # script targets (fd-find is the exception, handled by the apt loop and the
+  # shim above — this is only its fallback for a release that lacks it), so
+  # cargo is the fallback for all of them, same as eza just above. Each build
+  # is slow (a few minutes) but one-time: cargo_ensure_latest skips the
+  # rebuild once a tool is installed and current.
+  command -v delta >/dev/null 2>&1 || cargo_ensure_latest git-delta delta
+  command -v difft >/dev/null 2>&1 || cargo_ensure_latest difftastic difft
+  command -v git-absorb >/dev/null 2>&1 || cargo_ensure_latest git-absorb
+  command -v sd >/dev/null 2>&1 || cargo_ensure_latest sd
+  command -v tldr >/dev/null 2>&1 || cargo_ensure_latest tealdeer tldr
+  command -v hyperfine >/dev/null 2>&1 || cargo_ensure_latest hyperfine
+  command -v jj >/dev/null 2>&1 || cargo_ensure_latest jj-cli jj
+  command -v fd >/dev/null 2>&1 || cargo_ensure_latest fd-find fd
 
   # $HOME expanded here rather than left for the inner `sh -c` — one less layer
   # of quoting to reason about, and it fails loudly if it's ever unset.
@@ -752,6 +887,28 @@ install_tools_linux() {
   # prompts. It re-runs on every invocation because that's how atuin updates.
   if run_quiet atuin sh -c "curl --proto '=https' --tlsv1.2 -sSf https://setup.atuin.sh | bash -s -- --non-interactive"; then
     ok "atuin" "installed/updated (installer always fetches latest)"
+  fi
+
+  # Official installer, run_quiet-wrapped like starship/atuin above: an
+  # unguarded `curl ... | sh` failing (offline, upstream hiccup) would
+  # propagate the pipeline's non-zero status through `set -e -o pipefail` and
+  # abort every step still queued after tools, not just this one tool. Lands
+  # in ~/.local/bin, already on PATH, so unlike starship there's no
+  # --bin-dir to expand $HOME into. Re-runs are the update path: the
+  # installer always fetches whatever is currently latest.
+  if run_quiet uv sh -c "curl -LsSf https://astral.sh/uv/install.sh | sh"; then
+    ok "uv" "installed/updated (installer always fetches latest)"
+  fi
+
+  # pre-commit after uv: the fallback below shells out to it. apt first, same
+  # as everything else in this function; `uv tool install` (not pip/pipx) is
+  # the fallback because uv is now guaranteed present by the block just
+  # above, and `tool install` gives pre-commit its own isolated venv without
+  # pulling in a second Python packaging stack just for one tool.
+  if ! apt_ensure pre-commit; then
+    if run_quiet pre-commit uv tool install pre-commit; then
+      added "pre-commit" "via uv tool install"
+    fi
   fi
 
   ensure_mise_linux
@@ -836,6 +993,11 @@ link_configs() {
     # git reads $XDG_CONFIG_HOME/git/ignore on its own, which is why gitconfig
     # declares no core.excludesFile.
     "config/git/ignore:$HOME/.config/git/ignore"
+    # jj refuses to create a commit without user.name/user.email set — this
+    # is a hard requirement of having jj installed at all, not a preference
+    # file, so it's linked unconditionally alongside gitconfig above rather
+    # than treated as optional.
+    "config/jj/config.toml:$HOME/.config/jj/config.toml"
     # config.yml only: hosts.yml sits beside it and holds gh's OAuth tokens.
     "config/gh/config.yml:$HOME/.config/gh/config.yml"
     # One file, not the directory: ~/.ssh holds private keys. Machine-specific
@@ -861,6 +1023,11 @@ link_configs() {
     # rest of ~/.paseo is a keypair, a server id, push tokens, and ~1GB of
     # local speech models, so this is linked per-file like omp's.
     "config/paseo/orchestration-preferences.json:$HOME/.paseo/orchestration-preferences.json"
+    # The rendered corpus this reads lives in help/ in this repo; the script
+    # resolves its own real path through the symlink and walks back from
+    # there, so linking the script alone is enough — no separate link for
+    # help/ itself.
+    "bin/dotfiles-help:$HOME/.local/bin/dotfiles-help"
   )
 
   # Lazygit follows the native config directory on macOS rather than XDG's
@@ -944,6 +1111,20 @@ link_configs() {
     # this machine's hosts into another machine's file.
     git -C "$DOTFILES_DIR" config filter.zed-local.smudge cat
     ok "git filter" "zed-local — strips ssh_connections from the index"
+
+    # .pre-commit-config.yaml is tracked, but a fresh clone has no hooks
+    # installed until something runs `pre-commit install` — and the whole
+    # point of the gitleaks hook is to fire before the commit a fresh clone
+    # is most likely to make. Guarded on the binary rather than failing the
+    # configs step: the tools step is what installs pre-commit, and it may
+    # not have run yet (or may have failed) on this machine.
+    if command -v pre-commit >/dev/null 2>&1; then
+      if run_quiet "pre-commit hooks" sh -c "cd '$DOTFILES_DIR' && pre-commit install"; then
+        ok "pre-commit hooks" "installed"
+      fi
+    else
+      skipped "pre-commit hooks" "pre-commit not on PATH — run the tools step, then re-run"
+    fi
   fi
 
   # Templates are copied, not linked: each holds machine-local values, and most
@@ -1362,6 +1543,61 @@ install_omp_plugins() {
   done < "$DOTFILES_DIR/omp_plugins.txt"
 }
 
+# ── gh extensions ────────────────────────────────────────────────────────────
+
+# Modelled on install_herdr_plugins: one owner/repo per line in the manifest,
+# same trim/comment/blank handling, same `</dev/null` guard — this loop's
+# stdin is the manifest, and any prompt-reading child would eat the rest of
+# it.
+#
+# Install is not update — the same trap install_omp_plugins documents at its
+# own top. `gh extension install` fails outright on an extension that's
+# already present, and `gh extension upgrade` is the only command that moves
+# an existing one forward, so an already-installed extension is upgraded
+# instead of re-installed.
+install_gh_extensions() {
+  if [ ! -f "$DOTFILES_DIR/gh_extensions.txt" ]; then
+    skipped "gh_extensions.txt" "not present"
+    return 0
+  fi
+  if ! command -v gh >/dev/null 2>&1; then
+    skipped "gh" "not on PATH — install it, then re-run"
+    return 0
+  fi
+  # An unauthenticated gh can't install anything, and failing per-extension
+  # inside the loop below would just repeat the same error once per manifest
+  # line for no extra information.
+  if ! gh auth status >/dev/null 2>&1; then
+    skipped "gh extensions" "gh not authenticated — run 'gh auth login', then re-run"
+    return 0
+  fi
+
+  # repo is the second, tab-separated field. `gh extension list` names the
+  # first field "gh <cmd>" — itself space-separated — so a plain whitespace
+  # split (awk's default FS) would misalign every column after it.
+  local installed
+  installed="$(gh extension list 2>/dev/null | awk -F'\t' '{print $2}')"
+
+  local line repo
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%%#*}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [ -n "$line" ] || continue
+    repo="$line"
+
+    if printf '%s\n' "$installed" | grep -qx "$repo"; then
+      if run_quiet "$repo" gh extension upgrade "$repo" </dev/null; then
+        updated "$repo" "upgraded"
+      fi
+    else
+      if run_quiet "$repo" gh extension install "$repo" </dev/null; then
+        added "$repo" "installed"
+      fi
+    fi
+  done < "$DOTFILES_DIR/gh_extensions.txt"
+}
+
 # ── omp skills from herdr plugins ───────────────────────────────────────────
 
 # Some herdr plugins ship an omp skill describing how to drive them (the
@@ -1681,6 +1917,12 @@ fi
 #   herdr after configs        each plugin's config dir then gets created inside
 #                              this repo rather than in a real directory that
 #                              would have to be adopted later.
+#   gh after tools             each extension needs gh already on PATH,
+#                              which the tools step installs (or the user
+#                              already has it) — and needs it authenticated,
+#                              which no step here can do for them. It's
+#                              independent of configs: nothing it installs
+#                              touches a symlinked file.
 #   skills after runtimes      the skills CLI runs under npx, which needs the
 #                              node that the runtimes step installs.
 #   skills after herdr         herdr stores each plugin under a content-hashed
@@ -1694,6 +1936,7 @@ run_step runtimes    "Runtimes"      "language versions pinned in tool-versions"
 run_step paseo       "Paseo"         "merge config/paseo, ensure the CLI and daemon"     setup_paseo
 run_step herdr       "Herdr plugins" "from herdr_plugins.txt"                           install_herdr_plugins
 run_step omp         "omp plugins"   "from omp_plugins.txt"                             install_omp_plugins
+run_step gh          "gh extensions" "from gh_extensions.txt"                            install_gh_extensions
 run_step skills      "Skills"        "agent_skills.txt, plus Herdr-shipped omp skills"  setup_skills
 run_step nvim        "NvChad"        "headless plugin sync"                             sync_nvchad
 

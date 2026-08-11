@@ -78,9 +78,13 @@
 	# effect because fetch.prune is also on.
 	pruneTags = true
 [merge]
-	# Conflict markers also show the common-ancestor text, not just both
-	# sides — usually enough to see the actual change without reaching for a
-	# merge tool.
+	# zdiff3 conflict markers also show the common ancestor's version of the
+	# conflicting region, not just "ours" and "theirs" like the default "merge"
+	# style — so you can see what each side actually changed instead of
+	# guessing. Needs git 2.35+. Pairs with the rerere settings below: rerere
+	# replays how a matching conflict resolved before, and zdiff3 gives the
+	# ancestor context to sanity-check a conflict shaped just differently enough
+	# that rerere doesn't recognize it.
 	conflictStyle = zdiff3
 [diff]
 	# Produces more readable hunks than the default myers algorithm,
@@ -135,6 +139,83 @@
 	# fsmonitor (or reliable mtimes) to know when to invalidate — both are
 	# already satisfied above.
 	untrackedCache = true
+
+# ── Delta (diff & log pager) ─────────────────────────────────────────────────
+# Delta re-renders diff/log/show output — syntax highlighting, better hunk
+# headers, and (via navigate below) file-to-file jumping — instead of the
+# plain-text `less` these all rendered through before this section existed.
+[core]
+	# Routes diff/log/show through delta, configured below, instead of plain
+	# less. The `|| less` fallback is mandatory: git runs this through `sh -c`,
+	# so a missing delta — a fresh machine, or one where the tools step was
+	# declined — exits 127 and `sh` falls through to less instead. An unguarded
+	# `core.pager = delta` would make every `git diff`/`log`/`show` fail
+	# outright and turn `git add -p` unusable — a bootstrap script bricking git
+	# on the very box it's bootstrapping.
+	pager = delta || less
+[interactive]
+	# Colors `git add -p`/`git add -i` hunk prompts through delta too, so
+	# interactive staging looks like every other diff here. `--color-only` stops
+	# delta from reflowing hunks the way it does for a plain diff view — add -p
+	# parses that output and needs it to still line up 1:1 with what git
+	# generated. Same sh -c fallback as core.pager above: `|| cat` keeps add -p
+	# usable without delta installed instead of failing outright.
+	diffFilter = delta --color-only || cat
+[delta]
+	# Adds n/N keybindings to jump to the next/previous file in a multi-file
+	# diff, instead of scrolling through every hunk by hand.
+	navigate = true
+	# Shows line numbers in the gutter of each hunk instead of delta's default
+	# of none.
+	line-numbers = true
+	# Ghostty, this repo's tracked terminal, supports OSC 8 — file paths in a
+	# delta diff become clickable links to open the file, instead of dead text.
+	# A no-op escape sequence on a terminal that doesn't support it, not a
+	# broken one.
+	hyperlinks = true
+	# OneHalfDark is delta's One Dark variant — bundled from the "onehalf" theme
+	# (github.com/sonph/onehalf), itself based on Atom's One Dark. Matches every
+	# other tracked config in this repo (lazygit, Ghostty, starship, atuin,
+	# nvim, omp), all of which are One Dark. Confirmed real with `delta --list-
+	# syntax-themes | grep -i one` (delta 0.19.2) — delta ships no theme
+	# literally named "One Dark".
+	syntax-theme = OneHalfDark
+	# Tells delta the terminal background is dark, so it picks line-number and
+	# background colors that read against it instead of assuming a light
+	# terminal.
+	dark = true
+
+# ── Difftastic (on-demand difftool) ──────────────────────────────────────────
+# Difftastic diffs syntax trees, not lines, so it's the tool for reviewing a
+# refactor that moved or reindented code — where a line-based diff reads as a
+# wholesale rewrite even though little actually changed. Deliberately NOT the
+# default pager above: it's slow on large diffs and has no intra-line word
+# diff, both fine trade-offs for an on-demand `git dft` but not for every `git
+# diff`/`log`.
+[difftool "difftastic"]
+	cmd = difft "$LOCAL" "$REMOTE"
+[difftool]
+	# Runs straight into the difftool instead of asking "y/n" per file — `git
+	# dft` is already an explicit, deliberate command, not one that needs a
+	# second confirmation.
+	prompt = false
+
+# ── Aliases ──────────────────────────────────────────────────────────────────
+[alias]
+	# Reach for this over plain `git diff` when reviewing a refactor that moved
+	# or reindented code, where difftastic's structural diff stays readable and
+	# a line-based diff would just look like a rewrite.
+	dft = difftool -t difftastic
+	# `--and-rebase` assigns each hunk in the worktree to the commit that last
+	# touched those lines and autosquashes immediately. Fits this config
+	# specifically: pull.rebase, rebase.autoStash, and rerere.enabled +
+	# rerere.autoupdate above already make this repo rebase-first, so absorb is
+	# the review-fixup step that was missing — e.g. a review round on a branch a
+	# coding agent wrote, where the fixes belong spread across the existing
+	# commits instead of piled into one "address review" commit. Calls the git-
+	# absorb binary directly, not `git absorb`, so this alias doesn't recurse
+	# into itself.
+	absorb = "!git-absorb --and-rebase"
 
 # Included last, not first: git applies repeated keys in file order, so
 # anything ~/.gitconfig.local sets after this point wins over every default

@@ -1,0 +1,49 @@
+# jj (jujutsu) — colocated with git via `jj git init --colocate`, run once per
+# checkout (a per-repo opt-in, not something install.sh does; this file just
+# configures jj once that choice is made). `.git` stays the authoritative
+# history, and every git-based tool here — lazygit, `gh`, this repo's own delta
+# pager — keeps working unchanged. jj is a second interface onto the same
+# commits, not a replacement for git.
+#
+# Why it's here: fleet (see the `fleet` skill) dispatches one worker per
+# worktree/branch, and `jj undo` reverts a single operation — a bad rebase, a
+# wrong abandon — atomically, which plain git has no equivalent for short of
+# reflog archaeology. jj also auto-rebases descendant commits when you amend one
+# mid-stack, which is exactly what a review round needs when the requested fixes
+# belong spread across several commits an agent already wrote.
+#
+# Nothing here changes git.push, git.fetch, or bookmark-tracking defaults, and
+# nothing rewrites the git repo behind git's back — jj only touches the working
+# copy and its own view of history until you explicitly run `jj git push`.
+#
+# Verified against jj 0.44.0 (`jj --version`). Config keys below come from `jj
+# util config-schema` and `jj help -k config` for that exact version — jj's
+# config schema has moved across releases, and a stale key name is silently
+# ignored rather than erroring.
+
+[user]
+## jj refuses to create a commit without both of these set — unlike git, which
+## will happily commit under an empty identity and let you find out later. Kept
+## identical to gitconfig's [user] block so the two never disagree about who
+## wrote a commit.
+name = "Andrew Hite"
+email = "andy@andyhite.com"
+
+[ui]
+## A bare `jj` shows the log instead of jj's help text — the command reached for
+## almost every time `jj` is typed with no arguments.
+default-command = "log"
+
+## Delta (gitconfig's [delta] section) needs git-style diffs to parse — jj's own
+## default format (":color-words") groups changes differently and delta can't
+## format it. ":git" is jj's builtin git-compatible diff format, so `jj
+## diff`/`jj show` render the same hunks `git diff` would.
+diff-formatter = ":git"
+
+## Same reasoning as lazygit's pager (config/lazygit/config.yml): delta reads
+## the [delta] section in gitconfig directly, so theme, navigate, line-numbers
+## and hyperlinks all come along for free — nothing to duplicate here. No `||
+## less` fallback like gitconfig's core.pager: jj is a second interface onto
+## history that didn't exist before this file, so a missing delta only breaks
+## jj's own output, not git itself.
+pager = "delta"

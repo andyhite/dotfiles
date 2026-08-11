@@ -1,0 +1,19 @@
+# GitHub CLI extensions, one per line: <owner>/<repo>
+# install.sh feeds each line to `gh extension install`, which is NOT also how
+# gh updates an already-installed extension — that's `gh extension upgrade`,
+# a separate command. Same installer-is-not-updater trap already documented
+# in omp_plugins.txt for omp's marketplace refresh; install.sh's `gh` step
+# does both here for the same reason.
+#
+# Extensions are per-user, not per-repo — installing once covers every clone
+# on the machine. `gh` must already be authenticated (`gh auth status`) for
+# install to succeed; an unauthenticated run fails this step without taking
+# the rest of the install down with it.
+
+# Deletes local branches whose PR is merged or closed. It checks PR state
+# rather than merge-base, which is what makes it correct for squash-merged
+# branches — `git branch --merged` never reports those, because the squash
+# commit isn't an ancestor of anything local. Here specifically because fleet
+# creates a worktree and branch per dispatched worker, so merged-branch churn
+# is continuous rather than occasional.
+seachicken/gh-poi
