@@ -8,17 +8,16 @@ The question is not which command is correct. It is **who is going to sit in
 this worktree.**
 
 `herdr worktree create` does not produce a directory. It produces a *workspace*:
-a sidebar entry, a tab, a pane, `tdi.worktree-setup` copying `.env*` and running
-`mise trust` / `direnv allow`, and — for a repo listed in
-`herdr-plugin-workspace-manager`'s config — an `omp` started in it. That whole
-apparatus exists to give a person or an agent somewhere to work.
+a sidebar entry, a tab, a pane, and `tdi.worktree-setup` copying `.env*` and
+running `mise trust` / `direnv allow`. That whole apparatus exists to give a
+person or an agent somewhere to work.
 
 None of it is reachable by the agent that runs the command. An omp process keeps
 the directory it launched in; `herdr pane move` relocates a pane's display, not
 its shell's cwd. So an agent cannot move itself into the worktree it just made.
 Calling `herdr worktree create` for its own use gets it a directory it will
-address by absolute path anyway, plus a workspace it did not want and an idle
-second `omp` burning tokens in the corner.
+address by absolute path anyway, plus a workspace, a tab and a pane it did not
+want.
 
 **A worktree a person or another agent will occupy** — `herdr worktree create`:
 
@@ -68,11 +67,8 @@ workspace, however it got one.
 It re-opens a worktree that already has a herdr history, and that is all it is
 good for. It does **not** run `tdi.worktree-setup` — that plugin hooks
 `worktree.created` only, so an opened worktree never gets its `.env*` or its
-`mise trust`. Its agent start is racy on top of that: measured on 0.8.0,
-`workspace.created` fires before the new pane reaches a shell prompt, so
-`herdr agent start` fails with `agent target pane <id> is not an available
-shell` — and the plugin has already marked the layout applied, so it never
-retries. You get a workspace, a tab labelled `agent`, and no agent in it.
+`mise trust`. You get a workspace around a checkout that is still missing the
+files the setup hook would have put there.
 
 If a plain `git worktree` checkout turns out to need a real workspace, delete it
 and `herdr worktree create` the branch properly.

@@ -50,11 +50,10 @@ toggle_direction = "right"
 
 ## OFF, and this is the one setting here that isn't the upstream default.
 ##
-## reviewr auto-opens on worktree.created. So does workspace-manager, which now
-## owns the layout of every new worktree — two plugins arranging the same fresh
-## workspace race each other and you get a pane you didn't ask for on top of
-## the one you declared. workspace-manager's `issue` layout carries a review
-## tab instead, so nothing is lost.
+## reviewr auto-opens on worktree.created — the one moment in a worktree's life
+## when there is nothing to review. A branch freshly cut from origin/main is a
+## zero-line diff, so the pane arrives empty; and on a worktree `fleet` is
+## arranging, it lands on top of the layout fleet just declared.
 ##
 ## The explicit `open`/`toggle` actions ignore this setting, so prefix+alt+r
 ## still works anywhere, in or out of a worktree.

@@ -56,7 +56,7 @@ Davidcreador/herdr-token-dashboard
 # keybinding. It has to be a keybinding rather than a plugin because fzf needs
 # a TTY and a plugin action doesn't get one — as a plugin it had to host the
 # picker in an `overlay` pane, which covers the whole canvas. Still the reason
-# most plugin actions here are deliberately left unbound: all 41 of them are
+# most plugin actions here are deliberately left unbound: all 33 of them are
 # one fuzzy search away rather than needing a key each.
 
 # Runs setup steps in a new worktree on worktree.created: copies .env* from the
@@ -64,13 +64,6 @@ Davidcreador/herdr-token-dashboard
 # issue otherwise starts with none of its gitignored files. No actions, pure
 # event hook. Config: config.toml.
 tdi/herdr-worktree-setup
-
-# Declarative tab/pane layouts applied to each new worktree, chosen by repo and
-# branch glob, with real `herdr agent start` panes rather than typed commands.
-# Owns the layout of new worktrees — which is why reviewr's auto_open is off.
-# Also ships `remove-gone` to clear worktrees whose upstream branch was deleted.
-# Config: config.yml. Compiles itself with cargo on first use.
-razajamil/herdr-plugin-workspace-manager
 
 # `fleet` dispatches peer coding agents into herdr worktree workspaces. A worker
 # is a separate `omp` in its own pane, worktree, and branch — not an in-process

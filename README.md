@@ -561,15 +561,26 @@ directory, which `herdr plugin uninstall` leaves behind and which held a `.env` 
 push keys. Uninstalling the plugin alone would have left a service running against a
 plugin that no longer existed.
 
-With ten plugins and thirty-three registered actions between them, keybindings stopped
+`razajamil/herdr-plugin-workspace-manager` — declarative tab/pane layouts applied to
+each new worktree — went the same way once `fleet` started building the workspaces it
+dispatches into itself. Two things arranging one fresh worktree is the same race that
+got reviewr's `auto_open` turned off, and the plugin only ever won it on a repo it had
+a YAML layout for; every other worktree got the bare pane anyway. Removal was two
+steps: `herdr plugin uninstall herdr-plugin-workspace-manager` on each machine, then
+its config directory — which lives in this repo, so deleting
+`config/herdr/plugins/config/herdr-plugin-workspace-manager` here clears it everywhere
+the tree is linked. The one capability lost with it is `remove-gone`, which previewed
+and cleared worktrees whose upstream branch had been deleted; `herdr worktree list`
+then `herdr worktree remove --workspace <id>` is the manual form.
+
+With eleven plugins and thirty-three registered actions between them, keybindings stopped
 being a per-plugin question and became one decision: `config/herdr/palette/palette.sh`,
 bound to `prefix+p` — free because this config moved herdr's own `previous_tab` off it
 and onto `prefix+shift+tab` — builds its fzf list at run time from `herdr plugin action
 list`, so every action of every installed plugin is one fuzzy search away whether or not
 it has a key. Only the ones reached for constantly earn a `[[keys.command]]` entry;
-ghzinga's click-driven `open`, workspace-manager's `apply`/`validate`/`remove-gone`, and
-worktree-setup's total absence of actions all stay reachable through the palette instead
-of crowding the keymap.
+ghzinga's click-driven `open` and worktree-setup's total absence of actions all stay
+reachable through the palette instead of crowding the keymap.
 
 That palette started as the `JanTvrdik/herdr-command-palette` plugin and is now a script
 in this repo, for two reasons that are really one. fzf needs a TTY; a herdr plugin action
@@ -591,17 +602,15 @@ contributes `$title`, `$flag`, `$age`, `$since`, and the workspace-level `$agent
 named in `config/herdr/config.toml` — miss one and its plugin looks broken when it's
 actually just unrendered.
 
-Three plugins now cooperate on a worktree's life, in a fixed order. `worktree.created`
-fires; `worktree-setup` runs first and makes the checkout usable — copies `.env*` from
-the main checkout, `mise trust`, `direnv allow`, installs deps — then `workspace-manager`
-applies its YAML layout for that repo/branch, arranging tabs and panes and starting the
-agent pane itself via `herdr agent start`, which blocks until herdr detects it's ready.
-Later, once a branch's PR merges and its upstream is gone, `workspace-manager`'s
-`remove-gone` action previews and clears the worktree. `reviewr` used to also open on
-`worktree.created`; two plugins independently arranging the same fresh workspace race
-each other with no clear winner, so `reviewr`'s `auto_open` is now off and
-`workspace-manager` owns that moment alone — its `issue` layout carries a review tab
-where `reviewr`'s auto-open used to land. `prefix+alt+r` still opens it by hand.
+`worktree.created` fires on a new worktree and `worktree-setup` makes the checkout
+usable — copies `.env*` from the main checkout, `mise trust`, `direnv allow`, installs
+deps. Nothing else runs at that moment, by design: arranging the workspace belongs to
+whoever asked for the worktree. `fleet` builds its own tabs and panes and starts the
+agent itself via `herdr agent start`, which blocks until herdr detects it's ready; a
+worktree created by hand stays one bare pane until you shape it. `reviewr` could
+auto-open here too and deliberately doesn't — a branch cut seconds ago is a zero-line
+diff, and on a fleet worktree the pane would land on top of the layout fleet just
+declared. `prefix+alt+r` opens it when there is finally something to read.
 
 ### Herdr plugin keybindings — `[keys]` only knows herdr's own actions
 
@@ -671,12 +680,12 @@ herdr you always use `herdr worktree` and never `git worktree`. Writing `fleet` 
 it exposed the flaw: **an agent cannot move itself into the worktree it just created.** An
 omp process keeps the directory it launched in, and `herdr pane move` relocates a pane's
 display rather than its shell's cwd. So for an agent's own use — building another ref,
-diffing two versions — `herdr worktree create` buys a sidebar entry it did not want and,
-on a repo covered by a workspace-manager layout, a second idle `omp` burning tokens.
+diffing two versions — `herdr worktree create` buys a sidebar entry, a tab and a pane it
+did not want.
 
 The rule is now organised around who will occupy the worktree. Someone else will sit in
 it, human or agent: `herdr worktree create`, which is the only path that runs
-`tdi.worktree-setup` (the `.env*` copy, `mise trust`, `direnv allow`) and starts an agent.
+`tdi.worktree-setup` (the `.env*` copy, `mise trust`, `direnv allow`).
 Nobody will, and you only need the files: plain `git worktree add` in a temp directory,
 plain `git worktree remove` after. Removal has to match creation — `git worktree remove`
 on a herdr-created worktree orphans the workspace, leaving a sidebar entry pointing at
@@ -684,11 +693,8 @@ nothing.
 
 One measured trap, on 0.8.0: `herdr worktree open` is *not* a way to promote a plain
 `git worktree add` into a real workspace. `tdi.worktree-setup` hooks `worktree.created`
-only, so an opened worktree never gets its `.env*`; and `workspace.created` fires before
-the new pane reaches a shell prompt, so the plugin's `herdr agent start` fails with
-`agent target pane <id> is not an available shell` and — having already marked the layout
-applied — never retries. The result is a workspace with a tab labelled `agent` and no
-agent in it.
+only, so an opened worktree never gets its `.env*`, its `mise trust` or its installed
+deps — you get a workspace wrapped around a checkout that is still unusable.
 
 ### The orchestrator is opt-in
 

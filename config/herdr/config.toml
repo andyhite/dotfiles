@@ -447,7 +447,4 @@ command = "herdr plugin action invoke open-jira-tab --plugin herdr-jira"
 #   ghzinga            its `open` action reads HERDR_PLUGIN_CLICKED_URL, which
 #                      only link-handler dispatch populates. Ctrl-click a
 #                      github.com issue or PR link instead; no binding needed.
-#   workspace-manager  apply/validate are occasional, and `remove-gone` deletes
-#                      worktrees — a preview-first action does not belong one
-#                      keypress from your fingers.
 #   worktree-setup     no actions at all; it is purely a worktree.created hook.
