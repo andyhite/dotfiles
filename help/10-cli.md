@@ -197,18 +197,31 @@ test invocation from `AGENTS.md` by hand.
     just smoke          # link the whole tree into a throwaway HOME twice, check idempotency
     just cli-checks     # install.sh --help, --only nosuchstep fails, bare --only self-explains
 
+
+## glow — terminal markdown renderer for dotfiles-help
+
+Charm's markdown renderer. `dotfiles-help` pipes each section through `glow -s dark -w 0` so
+headings, emphasis, and comments on indented command examples read like a doc instead of raw
+source. `bat` only syntax-highlights markdown when glow is absent; set `NO_COLOR` to force plain
+text.
+
+    glow README.md                   # render a file in the terminal
+    glow -s dark -w 0 -              # read markdown from stdin; -w 0 keeps examples from reflowing
+    dh fd                            # dotfiles-help uses glow automatically when on PATH
+
 ## dotfiles-help — this command; what every tool here is for
 
 The front door to this whole toolchain, and the thing you are reading right now. It renders the
-`help/*.md` corpus in this repo, which carries one section per tracked tool explaining what it
-is, why it is installed HERE, and the handful of commands worth knowing. `bin/dotfiles-help` is
+`help/*.md` corpus in this repo through `glow` when installed (falls back to `bat` or plain text),
+which carries one section per tracked tool explaining what it is, why it is installed HERE, and
+the handful of commands worth knowing. `bin/dotfiles-help` is
 symlinked onto `PATH` by `install.sh`'s configs step and resolves its own real path back to the
 corpus, so it works from anywhere.
 
     dotfiles-help                  # fzf picker over every tool, with the section as a preview
     dh                             # the zshrc alias for the same thing
     dotfiles-help fd               # print one tool's section; substring match if no exact hit
-    dotfiles-help --list           # every tool and its tagline, one per line, pipe-friendly
+    dotfiles-help --list           # grouped by category (A–Z), tools A–Z within each
     dotfiles-help --all            # the whole corpus, in curated order
     dotfiles-help --search rebase  # search every section body, list the sections that matched
     just help-coverage             # fail if a Brewfile entry has no matching help section

@@ -34,6 +34,10 @@ brew "atuin"
 brew "fzf"
 brew "eza"
 brew "bat"
+brew "glow"
+#
+# dotfiles-help renders the help/ corpus through glow; bat only syntax-
+# highlights the markdown source when glow is absent.
 brew "direnv"
 brew "tmux"
 brew "neovim"

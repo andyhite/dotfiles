@@ -76,7 +76,7 @@ Usage
   dotfiles-help <name>         print one section (exact match, else a
                                 case-insensitive substring match on name
                                 and tagline)
-  dotfiles-help -l, --list     one line per tool: name, then its tagline
+  dotfiles-help -l, --list     tools grouped by category (A–Z), name A–Z within
   dotfiles-help -a, --all      the whole corpus, in file order
   dotfiles-help -s, --search TEXT
                                 case-insensitive search across every
@@ -98,6 +98,7 @@ EOF
 NAMES=()
 TAGLINES=()
 BODIES=()
+SOURCES=()
 
 load_corpus() {
   [ -d "$help_dir" ] || die "no such directory: $help_dir (set DOTFILES_HELP_DIR, or check the repo layout)"
@@ -117,10 +118,11 @@ load_corpus() {
     header="${rec%%$'\n'*}"
     body="${rec#*$'\n'}"
     [ "$body" = "$header" ] && body="" # header had no trailing newline: no body lines
-    IFS=$'\037' read -r name tagline _ <<<"$header" # source filename unused, discarded
+    IFS=$'\037' read -r name tagline source <<<"$header"
     NAMES+=("$name")
     TAGLINES+=("$tagline")
     BODIES+=("$body")
+    SOURCES+=("$source")
   done < <(
     # Filenames sort lexically in the order the numeric prefixes intend
     # (00-, 10-, 20-, ...) — that curated order is the point, so nothing
@@ -140,9 +142,9 @@ load_corpus() {
         for (i = start; i <= nbody; i++) print body[i]
         printf "\036"
       }
-      FNR == 1 { file = FILENAME }
       /^## / {
         emit()
+        file = FILENAME
         line = $0
         sub(/^## /, "", line)
         # split() takes an ERE for its separator, but an em dash has no
@@ -178,9 +180,32 @@ section_text() {
 # bat's own header/line-number frame so it doesn't double up with the "## "
 # heading already in the text. Every other case (piped, redirected, no bat)
 # falls straight through to plain text — bat is a nicety, never a dependency.
+# Human-readable category from help/NN-name.md (sorted A–Z in --list).
+category_label() {
+  local f="$1" base
+  base="$(basename "$f" .md)"
+  base="${base#*-}"
+  case "$base" in
+    shell) printf 'Shell' ;;
+    cli) printf 'CLI' ;;
+    git) printf 'Git' ;;
+    agents) printf 'Agents' ;;
+    dev) printf 'Dev' ;;
+    *) printf '%s' "$base" ;;
+  esac
+}
+
+# Render markdown for humans: glow renders the corpus; bat only highlights
+# source when glow is absent. NO_COLOR disables both. -w 0 keeps indented command
+# examples from being reflowed away.
 render_output() {
   local text="$1" batbin=""
-  if [ -t 1 ]; then
+  if [ -z "${NO_COLOR:-}" ] && command -v glow >/dev/null 2>&1; then
+    if printf '%s\n' "$text" | glow -s dark -w 0 - 2>/dev/null; then
+      return 0
+    fi
+  fi
+  if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
     if command -v bat >/dev/null 2>&1; then
       batbin="bat"
     elif command -v batcat >/dev/null 2>&1; then # Debian packages bat as batcat
@@ -195,14 +220,25 @@ render_output() {
 }
 
 do_list() {
-  local i width=0 len
+  local i width=0 len cat prev_cat=""
   for ((i = 0; i < ${#NAMES[@]}; i++)); do
     len=${#NAMES[i]}
     [ "$len" -gt "$width" ] && width="$len"
   done
-  for ((i = 0; i < ${#NAMES[@]}; i++)); do
-    printf '%-*s  %s\n' "$width" "${NAMES[i]}" "${TAGLINES[i]}"
-  done
+  while IFS=$'\t' read -r cat name tagline; do
+    [ -n "$cat" ] || continue
+    if [ "$cat" != "$prev_cat" ]; then
+      [ -n "$prev_cat" ] && printf '\n'
+      printf '%s\n' "$cat"
+      prev_cat="$cat"
+    fi
+    printf '  %-*s  %s\n' "$width" "$name" "$tagline"
+  done < <(
+    for ((i = 0; i < ${#NAMES[@]}; i++)); do
+      printf '%s\t%s\t%s\n' "$(category_label "${SOURCES[i]}")" "${NAMES[i]}" "${TAGLINES[i]}"
+    done | sort -t $'\t' -k1,1f -k2,2f
+  )
+  printf '\n'
 }
 
 do_all() {

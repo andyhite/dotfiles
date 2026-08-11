@@ -836,10 +836,12 @@ install_tools_linux() {
     #      detecting which display server is live.
     # fd-find: ships its binary as `fdfind`, not `fd` — see
     #      ensure_fd_shim_linux below.
+    # glow: apt has it on recent Ubuntu; the release fallback below covers
+    #      older releases. dotfiles-help renders the help/ corpus through it.
     for p in zsh git curl zoxide eza bat fzf direnv tmux unzip ripgrep \
              git-lfs gh jq yq shellcheck shfmt tree wget moreutils rsync \
              fontconfig ncurses-bin build-essential pkg-config \
-             btop wl-clipboard xclip fd-find; do
+             btop wl-clipboard xclip fd-find glow; do
       apt_ensure "$p" || true
     done
   else
@@ -854,6 +856,9 @@ install_tools_linux() {
   ensure_release_binary carapace-sh/carapace-bin carapace \
     "carapace-bin_VERSION_linux_amd64.tar.gz" "carapace-bin_VERSION_linux_arm64.tar.gz" \
     carapace --version
+  ensure_release_binary charmbracelet/glow glow \
+    "glow_VERSION_Linux_x86_64.tar.gz" "glow_VERSION_Linux_arm64.tar.gz" \
+    glow version
 
   # eza predates its Ubuntu packaging (24.04+); build it where apt can't.
   command -v eza >/dev/null 2>&1 || cargo_ensure_latest eza
