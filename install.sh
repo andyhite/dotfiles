@@ -128,7 +128,7 @@ confirm() {
 
 # ── Steps ────────────────────────────────────────────────────────────────────
 
-STEPS=(tools completions configs runtimes paseo atuin herdr omp skills nvim)
+STEPS=(tools completions configs runtimes paseo herdr omp skills nvim)
 ASSUME_YES=0
 VERBOSE=0
 ONLY=""
@@ -162,7 +162,6 @@ ${C_BOLD}Steps${C_RESET}
   configs      Symlink this repo's config files into place
   runtimes     Install the language versions pinned in tool-versions, with mise
   paseo        Merge config/paseo into ~/.paseo, ensure the CLI, supervise the daemon
-  atuin        Offer to log in to Atuin sync when not already logged in
   herdr        Install/update the Herdr plugins in herdr_plugins.txt
   omp          Install/update the omp plugins in omp_plugins.txt
   skills       Install agent skills from agent_skills.txt, link Herdr-shipped ones
@@ -303,57 +302,6 @@ ensure_omp() {
     warned "omp" "download failed — re-run to retry"
     return 0
   fi
-}
-
-ensure_atuin_account() {
-  if ! command -v atuin >/dev/null 2>&1; then
-    skipped "atuin" "not installed"
-    return 0
-  fi
-
-  # `atuin status` is the cheapest honest probe: it exits non-zero with "You are
-  # not logged in to a sync server" until a session exists. Checking for the
-  # session file instead would miss an expired/invalidated one.
-  if atuin status >/dev/null 2>&1; then
-    ok "atuin" "already logged in to sync"
-    return 0
-  fi
-
-  # Sync is the one part of atuin's setup that can't be committed — it's account
-  # state, not config. So prompt for it, but only when a human can actually
-  # answer.
-  if ! has_tty; then
-    skipped "atuin" "not logged in — run 'atuin login' or 'atuin register' later"
-    return 0
-  fi
-
-  local reply=""
-  printf '  %s%s%s Log in to Atuin sync? %s[l]ogin / [r]egister / [s]kip%s ' \
-    "$C_YELLOW" "$G_ASK" "$C_RESET" "$C_DIM" "$C_RESET"
-  # `read -t` exits >128 on timeout; `|| reply=s` turns that into a skip rather
-  # than aborting the script under `set -e`.
-  read -t 30 -r reply </dev/tty || reply="s"
-  printf '\n'
-
-  # Every branch swallows failure: a mistyped password must not abort a script
-  # running under `set -e` with steps still ahead of it. Written as if/else
-  # rather than `cmd && ok || warned`, which would also report failure whenever
-  # the success reporter itself returned non-zero.
-  case "${reply:-s}" in
-    l*|L*)
-      if atuin login </dev/tty; then
-        ok "atuin" "logged in"
-      else
-        warned "atuin" "login incomplete — retry with 'atuin login'"
-      fi ;;
-    r*|R*)
-      if atuin register </dev/tty; then
-        ok "atuin" "registered"
-      else
-        warned "atuin" "registration incomplete — retry with 'atuin register'"
-      fi ;;
-    *) skipped "atuin" "run 'atuin login' or 'atuin register' later" ;;
-  esac
 }
 
 # ── Shell completions ───────────────────────────────────────────────────────
@@ -1730,9 +1678,6 @@ fi
 #                              macOS it comes from the Brewfile cask instead,
 #                              which makes the tools step the real prerequisite
 #                              there — after runtimes satisfies both.
-#   atuin after configs        a login writes session state that should sit
-#                              alongside the committed settings in
-#                              config/atuin/config.toml, not ahead of them.
 #   herdr after configs        each plugin's config dir then gets created inside
 #                              this repo rather than in a real directory that
 #                              would have to be adopted later.
@@ -1747,7 +1692,6 @@ run_step completions "Completions"   "generated into ~/.local/share/zsh/site-fun
 run_step configs     "Configs"       "symlink this repo into place"                     link_configs
 run_step runtimes    "Runtimes"      "language versions pinned in tool-versions"        ensure_runtimes
 run_step paseo       "Paseo"         "merge config/paseo, ensure the CLI and daemon"     setup_paseo
-run_step atuin       "Atuin sync"    "account state — the only thing not committed"     ensure_atuin_account
 run_step herdr       "Herdr plugins" "from herdr_plugins.txt"                           install_herdr_plugins
 run_step omp         "omp plugins"   "from omp_plugins.txt"                             install_omp_plugins
 run_step skills      "Skills"        "agent_skills.txt, plus Herdr-shipped omp skills"  setup_skills

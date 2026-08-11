@@ -138,20 +138,16 @@ reordering doesn't:
    configs step because the unit reads `~/.config/paseo/daemon.env`, which that step
    creates from its template; after runtimes because the Linux CLI is an npm package.
    See [Paseo](#paseo) below.
-6. **Offers to log in to Atuin sync**, but only when not already logged in and only when
-   a terminal is actually attached. Everything else about Atuin lives in
-   `config/atuin/config.toml`; sync is account state, so it can't be committed. See
-   [Atuin](#atuin) below.
-7. **Installs/updates every Herdr plugin** listed in `herdr_plugins.txt`. Skipped with
+6. **Installs/updates every Herdr plugin** listed in `herdr_plugins.txt`. Skipped with
    a note if `herdr` isn't on `PATH` — this repo configures Herdr but doesn't install it.
-8. **Installs cross-agent skills**, from two sources. `agent_skills.txt` first — one
+7. **Installs cross-agent skills**, from two sources. `agent_skills.txt` first — one
    `npx skills add <owner>/<repo> --skill <name> -g -y` per line — which needs the
    `runtimes` step above to have already put node on `PATH`, hence the ordering. Then
    any skill an installed Herdr plugin ships in its own `skills/` directory, symlinked
    into `~/.omp/agent/skills` — unchanged from before, and run after Herdr because a
    link made before a plugin's first install would point at a path that doesn't exist
    yet.
-9. **Headlessly syncs NvChad's plugins** (`nvim --headless "+Lazy! sync" +qa`) once
+8. **Headlessly syncs NvChad's plugins** (`nvim --headless "+Lazy! sync" +qa`) once
    neovim and the config are both in place.
 
 ### Remote installs — `--host`
@@ -600,10 +596,9 @@ what asks about Atuin AI and the daemon, and the upstream installer re-ran it on
 single `install.sh`. With the answers committed, `install.sh` passes `--non-interactive`
 and the wizard has nothing left to decide.
 
-Sync login is the exception — it's account state, not config — so `install.sh` prompts
-for it, but only while genuinely logged out (`atuin status` exits non-zero) and only when
-`/dev/tty` can actually be opened. The read is bounded at 30s, so a backgrounded or
-piped run can't hang on it.
+Sync is never configured: this history stays on the machine, so there's no account state
+to set up and nothing `install.sh` has to prompt for. `--non-interactive` also skips the
+installer's own sync-signup prompt.
 
 `omp/agent/extensions/atuin.ts` records commands omp runs through its `bash` tool into
 the same history, tagged `--author pi` — omp is a distribution of pi, and "pi" is one of

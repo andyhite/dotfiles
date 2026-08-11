@@ -7,9 +7,8 @@
 # These are also exactly the questions `atuin setup` asks, which is why
 # install.sh passes --non-interactive to the upstream installer: with the
 # answers checked in, the wizard has nothing left to decide and re-prompting on
-# every install.sh run is pure noise. Sync login is the one thing that can't be
-# committed (it's account state, not config), so install.sh handles that
-# separately and only when you aren't already logged in.
+# every install.sh run is pure noise. Sync is never set up: this history stays
+# local, so there's no account state to configure.
 
 ## Enter runs the highlighted command instead of only placing it on the line.
 ## Set explicitly rather than inherited: upstream applies this default to new
