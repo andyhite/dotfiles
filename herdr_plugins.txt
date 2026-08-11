@@ -58,8 +58,9 @@ tdi/herdr-worktree-setup
 # `task` subagent sharing the boss process.
 # This plugin's startup hook is the PATH install: it symlinks the executable into
 # ~/.local/bin and refuses to clobber a path it does not own. The agent-facing
-# procedure (`skill://fleet` and `/fleet:*`) is the separate fleet omp plugin
-# from the same repo, installed through omp's marketplace rather than here.
+# procedure (`skill://fleet` and `/fleet:*`) is Fleet's other half, an agent
+# plugin from the same repo, installed through omp's marketplace rather than
+# here — see fleet@foreman in omp_plugins.txt.
 andyhite/foreman/herdr
 
 # The focused agent's branch PR state as a sidebar token — "#123 ✓". Needs $pr

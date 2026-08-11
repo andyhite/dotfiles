@@ -22,11 +22,19 @@
 # a worker rather than writing code itself. The five dispatch commands are named
 # for the skill each one delegates to — /fleet:implement, /fleet:diagnosing-bugs,
 # /fleet:research, /fleet:prototype, /fleet:code-review — and a worker's brief
-# opens by telling it to read that skill, which is what reaches a skill marked
-# disable-model-invocation. Also ships skill://fleet (the CLI contract) and
-# skill://fleet-dispatch (how to write a brief).
+# opens by telling it to run `fleet skill <that name>`, which is what reaches a
+# skill marked disable-model-invocation. Also ships skill://fleet (the CLI
+# contract) and skill://fleet-dispatch (how to write a brief).
 #
 # The CLI half is the herdr plugin andyhite/foreman/herdr in herdr_plugins.txt;
 # neither half is much use without the other, and the mattpocock skills the
 # commands delegate to come from agent_skills.txt.
-andyhite/foreman  fleet@omp-fleet
+#
+# Foreman is the marketplace, fleet is the plugin inside it, so the id is
+# fleet@foreman. It was fleet@omp-fleet until the marketplace was renamed after
+# the repository that publishes it. This step only ever adds: a machine that
+# installed the old id keeps both marketplaces and both copies of /fleet:*, so
+# clear it once by hand with
+#   omp plugin uninstall fleet@omp-fleet
+#   omp plugin marketplace remove omp-fleet
+andyhite/foreman  fleet@foreman

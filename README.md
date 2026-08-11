@@ -828,11 +828,14 @@ separate `omp` in its own pane, worktree, and branch, rather than an in-process 
 subagent. It moved to [andyhite/foreman](https://github.com/andyhite/foreman), which
 keeps the transport, lifecycle, and workspace-ownership rationale with the implementation.
 
-The CLI now arrives through Foreman's herdr plugin, listed in
-`herdr_plugins.txt`; its startup hook puts `fleet` on `PATH`. The agent-facing procedure
-(`skill://fleet` and `/fleet:*`) is a separate omp plugin from the same repository,
-installed through omp's marketplace. This checkout retains only the general worktree rule
-below.
+Two names there, and they are not interchangeable: **Foreman** is the marketplace, named
+for the repository; **Fleet** is what it publishes, as two plugins. The CLI arrives
+through Fleet's herdr plugin, listed in `herdr_plugins.txt`; its startup hook puts
+`fleet` on `PATH`. The orchestrator procedure (`skill://fleet` and `/fleet:*`) is Fleet's
+omp plugin, installed through omp's marketplace as `fleet@foreman` — see
+`omp_plugins.txt`, which also records the one-time cleanup for machines that installed
+it under the old `fleet@omp-fleet` id. This checkout retains only the general worktree
+rule below.
 
 ### The worktree rule was wrong in a way `fleet` made visible
 

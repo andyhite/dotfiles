@@ -3,7 +3,7 @@
 # Fires on worktree.created and runs shell steps with cwd = the new worktree.
 # The problem it solves: `git worktree add` gives you a clean checkout with none
 # of the gitignored files a repo actually needs to run — .env, .envrc, local
-# overrides — and no installed dependencies. Under the foreman loop that's once
+# overrides — and no installed dependencies. Under the fleet loop that's once
 # per issue, so doing it by hand adds up fast.
 #
 # Env available to every step:
