@@ -273,6 +273,29 @@ Apple ships GNU make 3.81, from 2006, as *both* `make` and `gnumake` — so the 
 clash, so `zshrc`'s macOS block aliases `make` to `gmake` once it finds Homebrew's copy —
 `gnumake` was never the one worth reaching for.
 
+### Shells with no line editor — `TERM=dumb`, or no tty
+
+A coding agent shelling out, an editor's shell mode, a `zsh -ic` from a script: all
+interactive zsh, none of them running zle. `zshrc` sets `_no_zle` when `TERM` is `dumb`,
+the shell isn't interactive, or stdin isn't a terminal, and skips the prompt and the fzf
+key-binding/completion scripts for the rest of the file.
+
+It's a correctness fix, not a speedup. Both of those write to the caller's stderr before
+its command has produced a byte:
+
+```
+[ERROR] - (starship::print): Under a 'dumb' terminal (TERM=dumb).
+(eval):1: can't change option: zle
+(eval):1: can't change option: zle
+```
+
+starship refuses to render into a terminal with no capabilities, and fzf's two scripts
+snapshot `$options` and restore the array wholesale on the way out — which tries to set
+`zle` back on, and zsh won't allow that where it turned it off. Everything that isn't
+the interactive layer still runs: `PATH`, mise, `compinit`, aliases, zoxide, direnv and
+atuin all load exactly as before, so a scripted shell resolves the same commands an
+interactive one does.
+
 ### Paseo
 
 [Paseo](https://paseo.sh) is a daemon that supervises coding agents — it launches Claude,

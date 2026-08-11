@@ -2,6 +2,23 @@
 # Cached once; `uname` in a hot startup path is a fork we don't need to repeat.
 _os="$(uname -s)"
 
+# ── Terminal capability ──────────────────────────────────────────────────────
+# No line editor, no interactive layer. That's the case whenever TERM is
+# `dumb` (zsh force-disables the `zle` option outright) or stdin isn't a
+# terminal — an editor's shell mode, a `zsh -ic` from a script, a coding agent
+# shelling out. In those shells the prompt and key bindings aren't just
+# useless, they're noisy: starship logs `Under a 'dumb' terminal`, and fzf's
+# key-binding/completion scripts fail restoring their saved options with
+# `can't change option: zle` — all of it printed ahead of the output the
+# caller actually wanted.
+#
+# Everything below still runs: PATH, mise, completions, aliases, tool hooks.
+# Only the interactive layer is skipped, keyed off this flag.
+if [[ "$TERM" == dumb || ! -o interactive || ! -t 0 ]]; then
+  _no_zle=1
+  PS1='%# '
+fi
+
 # ── Homebrew (macOS) ─────────────────────────────────────────────────────────
 # Non-login shells (and Ghostty's default) don't always inherit /etc/paths.d,
 # so brew-installed tools below would silently vanish. No-op if brew's already
@@ -110,7 +127,10 @@ setopt AUTO_CD                # typing a directory name cds into it
 setopt EXTENDED_GLOB          # ~/^/# glob qualifiers
 
 # ── Prompt / navigation ──────────────────────────────────────────────────────
-command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
+# starship only draws a prompt, so it's skipped outright without a line editor;
+# zoxide and direnv are guarded inside their own init output and stay useful
+# (`z`, per-directory env) in a scripted shell.
+[[ -z $_no_zle ]] && command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
 command -v zoxide   >/dev/null 2>&1 && eval "$(zoxide init zsh)"
 command -v direnv   >/dev/null 2>&1 && eval "$(direnv hook zsh)"
 
@@ -118,7 +138,7 @@ command -v direnv   >/dev/null 2>&1 && eval "$(direnv hook zsh)"
 # `fzf --zsh` (0.48+) is the portable path. Older distro builds — Debian and
 # Ubuntu LTS ship 0.29 — don't have it and install the scripts on disk under
 # one of a few paths instead.
-if command -v fzf >/dev/null 2>&1; then
+if [[ -z $_no_zle ]] && command -v fzf >/dev/null 2>&1; then
   if fzf --zsh >/dev/null 2>&1; then
     source <(fzf --zsh)
   else
@@ -217,4 +237,4 @@ if command -v atuin >/dev/null 2>&1; then
   unset _atuin_bind
 fi
 
-unset _os
+unset _os _no_zle
