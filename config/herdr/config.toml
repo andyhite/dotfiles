@@ -415,22 +415,12 @@ key = "prefix+shift+o"
 type = "shell"
 command = "herdr plugin action invoke open-pr --plugin gh-pr"
 
-## herdr-jira — the issue list in its own tab. Its README documents
-## `type = "plugin_action"` for this, which 0.8.0 does not accept:
-## `herdr --default-config` lists only shell/pane/popup. Same stale form the
-## reviewr, vim-herdr-navigation and token-dashboard READMEs carry, so
-## this uses the shell + CLI shape every other binding in this file uses.
-##
-## The tab action, not `open-jira`'s split: this is a full-height list you read
-## and then leave, and splitting it beside an agent leaves neither readable.
-## Both are in prefix+p regardless.
-[[keys.command]]
-key = "prefix+j"
-type = "shell"
-command = "herdr plugin action invoke open-jira-tab --plugin herdr-jira"
-
 # Deliberately unbound — all reachable through prefix+p:
 #   ghzinga            its `open` action reads HERDR_PLUGIN_CLICKED_URL, which
 #                      only link-handler dispatch populates. Ctrl-click a
 #                      github.com issue or PR link instead; no binding needed.
+#   herdr-jira         open-jira-tab held prefix+j, which is focus_pane_down —
+#                      one of the four hjkl pane moves the mapping table at the
+#                      top of this file exists to preserve. A list you open a
+#                      few times a day does not get to cost a navigation key.
 #   worktree-setup     no actions at all; it is purely a worktree.created hook.
