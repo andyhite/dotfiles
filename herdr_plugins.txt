@@ -72,6 +72,15 @@ tdi/herdr-worktree-setup
 # Config: config.yml. Compiles itself with cargo on first use.
 razajamil/herdr-plugin-workspace-manager
 
+# `fleet` dispatches peer coding agents into herdr worktree workspaces. A worker
+# is a separate `omp` in its own pane, worktree, and branch — not an in-process
+# `task` subagent sharing the boss process.
+# This plugin's startup hook is the PATH install: it symlinks the executable into
+# ~/.local/bin and refuses to clobber a path it does not own. The agent-facing
+# procedure (`skill://fleet` and `/fleet:*`) is the separate fleet omp plugin
+# from the same repo, installed through omp's marketplace rather than here.
+andyhite/foreman/herdr
+
 # The focused agent's branch PR state as a sidebar token — "#123 ✓". Needs $pr
 # in [ui.sidebar.agents] rows to render at all. Ambient status only; ghzinga is
 # still the thing that opens a PR to read it.

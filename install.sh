@@ -851,15 +851,8 @@ link_configs() {
     # another tool drops into ~/.omp/agent/rules stays visible alongside it.
     "omp/agent/rules/output-style.md:$HOME/.omp/agent/rules/output-style.md"
     "omp/agent/rules/herdr-worktrees.md:$HOME/.omp/agent/rules/herdr-worktrees.md"
-    # The orchestrator surface, three files that only work together: `fleet` is
-    # the CLI, the skill is how an agent learns to drive it, and the command is
-    # the opt-in that turns an ordinary session into an orchestrator. The rule
-    # above deliberately does NOT mention dispatching — it stays a plain
-    # "use herdr worktree, not git worktree" note so every session keeps it
-    # without every session trying to run a fleet.
-    "bin/fleet:$HOME/.local/bin/fleet"
-    "omp/agent/skills/herdr-fleet:$HOME/.omp/agent/skills/herdr-fleet"
-    "omp/agent/commands/fleet.md:$HOME/.omp/agent/commands/fleet.md"
+    # This stays deliberately narrow: it tells every session how to use
+    # worktrees, not when to dispatch work, which is fleet's opt-in procedure.
     # Reads skill://paseo-config-authoring to detect and write a project's
     # paseo.json (worktree setup/teardown, workspace scripts, and commit/
     # branch conventions for Paseo's metadata generation). The skill itself

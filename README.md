@@ -649,74 +649,16 @@ app](#the-five-skills-come-from-the-manifest-not-the-app).
 
 ### `fleet` — dispatching agents herdr can reach, because omp can't
 
-`bin/fleet` creates a git worktree per task, starts an `omp` in it, and lets one
-orchestrator agent dispatch to the rest. The reason it exists as a shell script rather
-than an omp extension is that the two halves of the problem live in different processes.
+`fleet` dispatches peer coding agents into herdr worktree workspaces: each worker is a
+separate `omp` in its own pane, worktree, and branch, rather than an in-process `task`
+subagent. It moved to [andyhite/foreman](https://github.com/andyhite/foreman), which
+keeps the transport, lifecycle, and workspace-ownership rationale with the implementation.
 
-omp's own coordination surface stops at the process boundary. `hub` messaging runs over
-a process-global mailbox bus, and `history://` / `agent://` resolve through the same
-process-global registry, so none of them can see an `omp` running in another pane. Two
-worktrees are also two directories, which puts them in different session-storage buckets
-and different launch-broker scopes — there is no omp-level channel between them at all.
-
-herdr has one. Every agent it recognises is addressable by name, and `herdr agent prompt
-<name>` writes into that agent's live input. That makes the channel symmetric: a worker
-answers its orchestrator with the same command the orchestrator used to reach it. So the
-transport is herdr's, and `fleet` is the part that makes it usable — create the worktree,
-get a named agent into the pane it hands back, wait for herdr to consider that agent ready
-for input, and only then prompt it. Several commands and a JSON dig, per dispatch.
-
-`fleet` starts that agent itself, with `herdr agent start <handle> --kind omp --pane
-<root_pane>`, which names the agent up front and returns only once herdr has detected it.
-It deliberately does not rely on `herdr-plugin-workspace-manager` having started one out
-of band. The default `agent` layout is exactly one named tab and the omp pane a worker
-needs. `--layout full` builds the old `issue` shape directly — omp and nvim together,
-then shell and review tabs — using `herdr tab create`, `pane split`, `pane rename` and
-`pane run`. nvim/lazygit are preferences (`$FLEET_EDITOR` / `$FLEET_GIT_UI`); if the
-pane's own shell cannot resolve one, the pane remains a shell rather than killing spawn.
-
-Fresh panes are not at their shell prompts for the first few seconds — zsh, mise and
-direnv — so inputs can be accepted by the API and dropped by the shell. Agent start is
-retried until it takes. Layout commands use a safer handshake: fleet retries only a
-harmless printf sentinel whose literal output does not appear in the input line, sends
-the real TUI command exactly once after observing that output, then verifies the
-executable became foreground.
-
-There is no race-based coexistence with workspace-manager: it has an inverse race where
-fleet can start the agent first and the plugin can still apply its layout afterwards.
-Before creating a branch or worktree, fleet checks whether the enabled plugin's config
-covers that repo and refuses with the exact config path to change. Disable the plugin or
-remove that repo entry and the same `fleet spawn` owns agent startup and layout directly.
-
-Two details worth knowing before reading the script:
-
-A worker's report travels through a file under `~/.local/state/fleet/<handle>/`, not
-through its terminal. omp runs on the alternate screen, and rows that leave the alternate
-screen never enter herdr's host scrollback — so `herdr agent read` cannot recover a
-response that has scrolled, no matter how large `--lines` is. The file is the only
-reliable transport for a report of any length.
-
-A worker's `fleet reply` **preempts the orchestrator's current tool call**. herdr delivers
-it as ordinary agent input, which omp treats as a steering interjection and which
-backgrounds whatever the orchestrator was blocked on. That is the right behaviour for a
-worker asking a question — it shouldn't queue behind another worker's build — but it's
-why the skill tells workers to use `fleet report` for results and `fleet reply` only for
-decisions.
-
-Both of `fleet`'s namespaces are machine-global, and neither is obvious. herdr agent names
-are unique across the whole herdr session rather than per repo, so a constant default
-handle would let exactly one checkout on the machine ever hold it — `fleet boss` therefore
-defaults to the repo root's name. That is a default and not a limit: orchestrators are
-capped only by handle uniqueness, so a second one in the same checkout is fine under any
-other name, and two unrelated checkouts sharing a directory name derive the same default
-and the loser has to name itself. Because a worker records the handle it was given,
-renaming an orchestrator rewrites the `BOSS` field of every worker that pointed at the old
-one; otherwise a rename would silently strand a fleet mid-flight.
-
-`~/.local/state/fleet/` is shared the same way, so every enumerating command (`ls`, a bare
-`join`, `reap --all`) filters on the worktree's git common dir. Without that filter a
-`join` in one repo blocks on another repo's workers and `reap --all` deletes their
-checkouts.
+The CLI now arrives through Foreman's herdr plugin, listed in
+`herdr_plugins.txt`; its startup hook puts `fleet` on `PATH`. The agent-facing procedure
+(`skill://fleet` and `/fleet:*`) is a separate omp plugin from the same repository,
+installed through omp's marketplace. This checkout retains only the general worktree rule
+below.
 
 ### The worktree rule was wrong in a way `fleet` made visible
 
@@ -750,10 +692,10 @@ Dropping `alwaysApply` was also what kept `fleet` from becoming ambient. An alwa
 about worktrees is one short step from every session deciding to dispatch a fleet at its
 own discretion. The rule is now a rulebook entry — it keeps its `description`, and the
 model reads it through `rule://herdr-worktrees` when it is actually about to touch a
-worktree. Orchestration is a separate, deliberate opt-in: `/fleet <objective>`, a slash
-command in `omp/agent/commands/`, which adopts the role and points at
-`skill://herdr-fleet` for the procedure. Nothing loads that skill on its own; a session
-that never asks for a fleet never hears about one.
+worktree. Orchestration is a separate, deliberate opt-in: `/fleet:boss <objective>`, a
+command from Foreman's omp plugin, which adopts the role and points at `skill://fleet`
+for the procedure. Nothing loads that skill on its own; a session that never asks for a
+fleet never hears about one.
 
 Worth being clear about what is *not* doing the gating here, because all three look like
 they should. Rules have no per-agent scoping — there is no frontmatter field binding one
