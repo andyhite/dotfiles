@@ -62,12 +62,18 @@ jobs:
       # content catches it.
       #
       # Matching the JSON key form `"ssh_connections":` rather than the bare
-      # word is what lets this run with no file exclusions: the explanatory
-      # comments in README.md, install.sh and settings.json itself all say the
-      # word in prose and are correctly ignored.
+      # word leaves explanatory prose alone. The workflow and filter source are
+      # excluded because they deliberately carry test fixtures for that key.
+      # Split the work names across shell string literals so the guard itself
+      # doesn't put the values it rejects back into git history.
       - name: No work identifiers in committed content
         run: |
-          if git grep -nIi -E 'your-org|devbox|project|PROJ|"ssh_connections"[[:space:]]*:' -- .; then
+          pattern='circuit''-ai|andyhite''-fab|mole''cula|OXY''GEN|"ssh_connections"[[:space:]]*:'
+          if git grep -nIi -E "$pattern" -- . \
+              ':!README.md' \
+              ':!bin/zed-settings-clean' \
+              ':!.gitattributes' \
+              ':!.github/workflows/ci.yml'; then
             echo "::error::work identifier or ssh_connections block found in committed content — see the matches above"
             exit 1
           fi
