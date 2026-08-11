@@ -568,10 +568,10 @@ for the ChatGPT subscription, `openai` for API keys — so the shared chain name
 
 ```yaml
 default:
-  - openai-codex/gpt-5.6-sol:high # Mac authenticates this
-  - openai/gpt-5.6:high # Linux authenticates this
-  - cursor/cursor-grok-4.5-high # both; Cursor-owned usage bucket
+  - openai-codex/gpt-5.6-terra:medium # Mac authenticates this
+  - openai/gpt-5.6-terra:medium # Linux authenticates this
   - cursor/composer-2.5 # both; Cursor-owned usage bucket
+  - cursor/cursor-grok-4.5-high # both; Cursor-owned usage bucket
 ```
 
 Each machine silently skips the entry it has no credentials for, because **omp validates
