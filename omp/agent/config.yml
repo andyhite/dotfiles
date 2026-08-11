@@ -86,51 +86,49 @@ retry:
     default:
       - openai-codex/gpt-5.6-sol:high
       - openai/gpt-5.6:high
-      - cursor/claude-opus-5-high
-      - cursor/gpt-5.6-sol-high
+      - cursor/cursor-grok-4.5-high
+      - cursor/composer-2.5
     plan:
       - openai-codex/gpt-5.6-sol:xhigh
       - openai/gpt-5.6:xhigh
-      - cursor/claude-opus-5-thinking-xhigh
-      - cursor/gpt-5.6-sol-xhigh
+      - cursor/cursor-grok-4.5-high
+      - cursor/composer-2.5
     slow:
       - openai-codex/gpt-5.6-sol:xhigh
       - openai/gpt-5.6-sol:xhigh
-      - cursor/claude-opus-5-thinking-max
-      - cursor/gpt-5.6-sol-max
+      - cursor/cursor-grok-4.5-high
+      - cursor/composer-2.5
     task:
       - openai-codex/gpt-5.6-terra:medium
       - openai/gpt-5.6-terra:medium
-      - cursor/claude-sonnet-5-medium
-      - cursor/gpt-5.6-terra-medium
+      - cursor/composer-2.5
+      - cursor/cursor-grok-4.5-high
     smol:
       - openai-codex/gpt-5.6-luna:low
       - openai/gpt-5.6-luna:low
-      - cursor/gpt-5.4-mini-low
-      - cursor/gpt-5.6-luna-low
+      - cursor/composer-2.5-fast
+      - cursor/cursor-grok-4.5-high-fast
     commit:
       - openai-codex/gpt-5.4-mini:low
       - openai/gpt-5.4-mini:low
-      - cursor/gpt-5.4-mini-low
+      - cursor/composer-2.5-fast
     tiny:
       - openai-codex/gpt-5.4-mini:low
       - openai/gpt-5.4-mini:low
-      - cursor/gpt-5.4-nano-low
+      - cursor/composer-2.5-fast
     vision:
       - openai-codex/gpt-5.6-terra:medium
       - openai/gpt-5.6-terra:medium
-      - cursor/claude-sonnet-5-medium
-      - cursor/gpt-5.6-terra-medium
     designer:
       - openai-codex/gpt-5.6-sol:high
       - openai/gpt-5.6-sol:high
-      - cursor/claude-opus-5-high
-      - cursor/gpt-5.6-sol-high
+      - cursor/composer-2.5
+      - cursor/cursor-grok-4.5-high
     advisor:
       - openai-codex/gpt-5.6-terra:medium
       - openai/gpt-5.6-terra:medium
-      - cursor/claude-opus-5-high
-      - cursor/gpt-5.6-terra-medium
+      - cursor/cursor-grok-4.5-high
+      - cursor/composer-2.5
 advisor: 
   enabled: true
 interruptMode: immediate
