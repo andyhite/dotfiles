@@ -633,6 +633,48 @@ ensure_neovim_linux() {
   fi
 }
 
+ensure_lazygit_linux() {
+  local arch current latest tmp
+  case "$(uname -m)" in
+    x86_64)  arch="x86_64" ;;
+    aarch64) arch="arm64" ;;
+    *) warned "lazygit" "unsupported arch $(uname -m) — install manually"; return ;;
+  esac
+
+  current=""
+  if command -v lazygit >/dev/null 2>&1; then
+    current="$(lazygit --version 2>/dev/null \
+      | sed -n 's/.*version=\([^,[:space:]]*\).*/\1/p')"
+  fi
+  latest="$(github_latest_tag jesseduffield/lazygit | sed 's/^v//')"
+  if [ -z "$latest" ]; then
+    if [ -n "$current" ]; then
+      ok "lazygit" "$current — skipped the update check (GitHub API unavailable)"
+    else
+      warned "lazygit" "GitHub API unavailable — re-run to install it"
+    fi
+    return 0
+  fi
+
+  if [ -n "$current" ] && [ "$current" = "$latest" ]; then
+    ok "lazygit" "up to date ($current)"
+    return
+  fi
+
+  tmp="$(mktemp -d)"
+  curl -fsSL -o "$tmp/lazygit.tar.gz" \
+    "https://github.com/jesseduffield/lazygit/releases/download/v${latest}/lazygit_${latest}_linux_${arch}.tar.gz"
+  tar -xzf "$tmp/lazygit.tar.gz" -C "$tmp" lazygit
+  mkdir -p "$HOME/.local/bin"
+  install -m 755 "$tmp/lazygit" "$HOME/.local/bin/lazygit"
+  rm -rf "$tmp"
+  if [ -n "$current" ]; then
+    updated "lazygit" "$current -> $latest"
+  else
+    added "lazygit" "$latest"
+  fi
+}
+
 ensure_nerd_font_linux() {
   # Capture fully before grepping — `fc-list | grep -q` under `set -o
   # pipefail` SIGPIPEs fc-list on the first match, and pipefail then
@@ -694,6 +736,8 @@ install_tools_linux() {
   else
     warned "apt-get" "not found — skipping distro packages; install manually"
   fi
+
+  ensure_lazygit_linux
 
   # eza predates its Ubuntu packaging (24.04+); build it where apt can't.
   command -v eza >/dev/null 2>&1 || cargo_ensure_latest eza
@@ -829,6 +873,16 @@ link_configs() {
     # local speech models, so this is linked per-file like omp's.
     "config/paseo/orchestration-preferences.json:$HOME/.paseo/orchestration-preferences.json"
   )
+
+  # Lazygit follows the native config directory on macOS rather than XDG's
+  # ~/.config default. Keep one tracked source but link it where each platform
+  # actually reads it; setting global XDG_CONFIG_HOME just for this would move
+  # unrelated applications' state.
+  if [ "$OS" = "Darwin" ]; then
+    links+=("config/lazygit/config.yml:$HOME/Library/Application Support/lazygit/config.yml")
+  else
+    links+=("config/lazygit/config.yml:$HOME/.config/lazygit/config.yml")
+  fi
 
   # An unescaped `~` in the replacement half of ${var/#pat/rep} is tilde-expanded
   # back to $HOME, making the substitution a silent no-op. `\~` keeps it literal.

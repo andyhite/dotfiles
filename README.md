@@ -21,6 +21,7 @@ NvChad for editing.
 | `config/ghostty/config` | `~/.config/ghostty/config` | Ghostty terminal: `One Dark Two` theme, shell integration — same path on macOS and Linux |
 | `config/atuin/config.toml` | `~/.config/atuin/config.toml` | Atuin (shell history): overrides only — daemon, fuzzy search, full-style UI, vi keymap, tmux popup, `atuin ai`. Also the answers `atuin setup` would otherwise re-ask on every install |
 | `config/atuin/themes/one-dark.toml` | `~/.config/atuin/themes/one-dark.toml` | One Dark for Atuin; foreground colors only, background comes from Ghostty |
+| `config/lazygit/config.yml` | `~/Library/Application Support/lazygit/config.yml` (macOS), `~/.config/lazygit/config.yml` (Linux) | Lazygit: One Dark theme, Nerd Font v3 icons, fuzzy filtering, and nvim integration; `zshrc` exposes it as `lg`, while the OS-specific destinations are Lazygit's native defaults |
 | `config/nvim` | `~/.config/nvim` | [NvChad](https://nvchad.com) starter — vendored once, `.git` stripped, fully mine to edit from here |
 | `config/zed/settings.json` | `~/.config/zed/settings.json` | Zed editor settings — `disable_ai: true` since agents run from the terminal via omp, not inside the editor, so the `agent`/`agent_servers` keys go undefined rather than tracked as dead config. `ssh_connections` is also deliberately dropped: it's per-machine session state Zed rewrites on every connect |
 | `gitconfig` | `~/.gitconfig` | tracked git identity, LFS/xet filter wiring, and defaults meant to hold on every machine; anything that varies per machine layers in through `gitconfig.local.example` below |
@@ -73,11 +74,11 @@ The steps, in order — the order is load-bearing, which is why `--only` exists 
 reordering doesn't:
 
 1. **Installs/updates the tools this config drives**: starship, zoxide, atuin,
-   fzf, eza, bat, direnv, tmux, antidote, TPM, the JetBrains Mono Nerd Font, neovim,
-   ripgrep, tree-sitter-cli, mise, omp, and NvChad. macOS applies `Brewfile` with
-   `brew bundle` (formulae + casks, including Ghostty and Paseo themselves); Linux goes
-   through `apt` where a package exists, and falls back to each tool's official
-   installer otherwise:
+   fzf, eza, bat, direnv, tmux, lazygit, antidote, TPM, the JetBrains Mono Nerd
+   Font, neovim, ripgrep, tree-sitter-cli, mise, omp, and NvChad. macOS applies
+   `Brewfile` with `brew bundle` (formulae + casks, including Ghostty and Paseo
+   themselves); Linux goes through `apt` where a package exists, and falls back
+   to each tool's official installer otherwise:
    - `brew bundle check --file Brewfile` runs first and is the common path on a
      repeat install: it exits clean only when every formula/cask is already
      installed and current, so the slower `brew bundle install` runs only when
@@ -88,6 +89,8 @@ reordering doesn't:
    - eza predates its Ubuntu packaging (24.04+), so on older releases it's built from
      source via `cargo` — bootstrapping `rustup` first if needed, and only rebuilding
      when crates.io actually has a newer version than what's installed.
+   - lazygit: Linux pulls upstream's architecture-specific release binary into
+     `~/.local/bin`, avoiding distro-version gaps and stale package transitions.
    - neovim: Ubuntu's apt package (0.9.5 on 24.04) is below NvChad's 0.11 floor, so this
      pulls the official release tarball instead and merges it into `~/.local`, which is
      already on `PATH`.

@@ -143,6 +143,9 @@ elif command -v batcat >/dev/null 2>&1; then
   alias cat='batcat'
 fi
 
+# ── Git ──────────────────────────────────────────────────────────────────────
+command -v lazygit >/dev/null 2>&1 && alias lg='lazygit'
+
 # ── Node / pnpm / bun ────────────────────────────────────────────────────────
 if [ -z "${PNPM_HOME:-}" ]; then
   case "$_os" in

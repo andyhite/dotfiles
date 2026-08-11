@@ -43,12 +43,13 @@ brew "ripgrep"
 brew "mise"
 
 # ── Git + GitHub ─────────────────────────────────────────────────────────────
-# Not conveniences — the tracked gitconfig names `gh` as its credential
-# helper and declares a `filter "lfs"` block, so both gh and git-lfs are hard
-# requirements of that config, not optional extras.
+# The tracked gitconfig names `gh` as its credential helper and declares a
+# `filter "lfs"` block, while config/lazygit/config.yml drives the lazygit TUI.
+# These are config dependencies, not optional conveniences.
 brew "git"
 brew "gh"
 brew "git-lfs"
+brew "lazygit"
 
 # ── Shell/JSON tooling this repo's own scripts use ──────────────────────────
 brew "jq"

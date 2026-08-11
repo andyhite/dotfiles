@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/jesseduffield/lazygit/master/schema/config.json
+#
+# Lazygit's config location is platform-specific. install.sh links this file to
+# ~/.config/lazygit/config.yml on Linux and to the native Application Support
+# path on macOS.
+
+gui:
+  # The tracked Ghostty and Nerd Font setup provides v3 glyphs everywhere this
+  # config is installed.
+  nerdFontsVersion: "3"
+  filterMode: fuzzy
+  showRandomTip: false
+
+  # One Dark, shared with Ghostty, starship, Herdr, Atuin, nvim, and omp.
+  # The focused border uses Ghostty's brighter terminal blue so nested TUIs
+  # agree on the active-pane accent.
+  theme:
+    activeBorderColor:
+      - "#71b9f4"
+      - bold
+    inactiveBorderColor:
+      - "#5c6370"
+    searchingActiveBorderColor:
+      - "#56b6c2"
+      - bold
+    optionsTextColor:
+      - "#61afef"
+    selectedLineBgColor:
+      - "#3d424b"
+    inactiveViewSelectedLineBgColor:
+      - "#31353c"
+    unstagedChangesColor:
+      - "#e06c75"
+    defaultFgColor:
+      - "#abb2bf"
+
+os:
+  # install.sh provides nvim on both macOS and Linux.
+  editPreset: nvim
