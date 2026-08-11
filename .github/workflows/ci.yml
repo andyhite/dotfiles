@@ -42,11 +42,12 @@ jobs:
       # warning on every single launch; the mapping assertion is what keeps the
       # shipped copy inert rather than broken.
       #
-      # The tracked-chain assertion guards a different failure: omp validates
-      # every fallback-chain entry against the live catalog, so a provider that
-      # only some machines define warns once per role at every startup on all
-      # the others. Machine-specific providers belong in the overlay, which is
-      # exactly what that split is for.
+      # The routing assertion guards the shared config: omp validates every
+      # fallback-chain entry against the model catalog, so a built-in provider
+      # is fine on a machine that cannot authenticate it — the entry is just
+      # skipped — while a custom models.yml provider id warns once per role at
+      # every startup on every machine that doesn't define it. Tracked routing
+      # therefore names built-in providers only.
       - name: Template YAML parses
         run: |
           pip install --quiet pyyaml
@@ -60,31 +61,36 @@ jobs:
           assert not d.get("providers"), f"{f}: must ship with no active providers"
           print(f"ok  {f}")
 
-          f = "omp/agent/config.local.yml.example"
-          d = yaml.safe_load(open(f))
-          assert isinstance(d, dict), f"{f}: root must be a mapping, got {type(d).__name__}"
-          chains = d.get("retry", {}).get("fallbackChains", {})
-          assert chains, f"{f}: must ship the twin's fallback chains active"
-          assert all(
-              any("anthropic-api/" in entry for entry in chain)
-              for chain in chains.values()
-          ), f"{f}: every listed role must carry an anthropic-api entry"
-          print(f"ok  {f} ({len(chains)} roles)")
-
+          # Built-in ids only. Anything else is defined in a machine-local
+          # models.yml and cannot appear in tracked routing.
+          builtin = {"anthropic", "openai", "openai-codex", "cursor"}
           f = "omp/agent/config.yml"
           d = yaml.safe_load(open(f))
-          tracked = d.get("retry", {}).get("fallbackChains", {})
-          assert tracked, f"{f}: fallback chains went missing"
-          leaked = sorted(
-              role
-              for role, chain in tracked.items()
-              if any("anthropic-api/" in entry for entry in chain)
+
+          roles = d.get("modelRoles", {})
+          chains = d.get("retry", {}).get("fallbackChains", {})
+          assert roles, f"{f}: modelRoles went missing"
+          assert chains, f"{f}: fallback chains went missing"
+
+          selectors = [(f"modelRoles.{r}", s) for r, s in roles.items()]
+          selectors += [
+              (f"retry.fallbackChains.{role}", entry)
+              for role, chain in chains.items()
+              for entry in chain
+          ]
+          foreign = sorted(
+              {
+                  f"{where} -> {sel}"
+                  for where, sel in selectors
+                  if sel.split("/", 1)[0] not in builtin
+              }
           )
-          assert not leaked, (
-              f"{f}: machine-specific provider in tracked chains for {leaked} — "
-              "move those entries to config.local.yml.example"
+          assert not foreign, (
+              f"{f}: non-built-in provider in tracked routing:\n  "
+              + "\n  ".join(foreign)
+              + "\nMove machine-specific providers out of the shared config."
           )
-          print(f"ok  {f} ({len(tracked)} roles, no machine-specific providers)")
+          print(f"ok  {f} ({len(roles)} roles, {len(chains)} chains, built-in providers only)")
           PY
 
       # The filter above protects the path through `git add`. This protects the

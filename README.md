@@ -339,10 +339,17 @@ build instead of shipping.
 ### omp — one tracked config, two machines, different accounts
 
 `omp/agent/config.yml` is symlinked to `~/.omp/agent/config.yml` and shared by every
-machine, but the two machines here don't pay for models the same way. The Mac tries
-personal subscriptions first and personal API accounts second; the Linux box bills work API accounts. That
-splits into two questions with two different answers, and conflating them is what makes
-this look harder than it is.
+machine, and the model routing in it is identical everywhere: same `modelRoles`, same
+`retry.fallbackChains`. Only the accounts differ. The Mac runs on personal subscriptions;
+the Linux box bills work API accounts:
+
+| | Anthropic | OpenAI | Cursor |
+| --- | --- | --- | --- |
+| Mac | subscription | subscription (`openai-codex`) | subscription |
+| Linux | API key (`anthropic`) | API key (`openai`) | subscription |
+
+Two questions hide in that table, and conflating them is what makes this look harder than
+it is.
 
 **Which account pays — an auth question.** The provider name doesn't change: `anthropic`
 is `anthropic` on both boxes, reached with a subscription OAuth token on one and a work
@@ -389,52 +396,43 @@ the Linux box: the Paseo daemon runs under systemd and sources no login shell. T
 Anthropic header resolver explicitly sources this file, while omp resolves OpenAI's
 `apiKey` from it through the normal dotenv path.
 
-**Which models each role resolves to — a config question.** Almost none of it differs.
-`modelRoles` and most of `retry.fallbackChains` stay in the tracked `config.yml`, because
-Pattern 1 above changes *who is billed for* `anthropic/claude-opus-5`, not *which model
-that name resolves to*. Pattern 2 below is the single exception, and the reason a
-machine-local overlay exists again.
+**Which models each role resolves to — a config question.** None of it differs. Pattern 1
+changes *who is billed for* `anthropic/claude-opus-5`, not *which model that name resolves
+to*, so `modelRoles` and `retry.fallbackChains` are tracked and shared verbatim.
 
-The one case that does need more is wanting both accounts live at once — subscription
-serving the turn, an API key catching the overflow when it rate-limits. Pinning replaces,
-so holding two credentials for one upstream needs a second provider id:
+The one asymmetry is OpenAI. Its two surfaces are separate provider ids — `openai-codex`
+for the ChatGPT subscription, `openai` for API keys — so the shared chain names both:
 
 ```yaml
-# ~/.omp/agent/models.yml — a twin of the built-in anthropic provider
-providers:
-  anthropic-api:
-    baseUrl: https://api.anthropic.com
-    api: anthropic-messages
-    auth: none
-    headers:
-      x-api-key: "!sh -c '. \"$HOME/.omp/agent/.env\"; printf %s \"$ANTHROPIC_API_KEY\"'"
-    models:
-      - id: claude-opus-5
-        name: Claude Opus 5 (API account)
-        reasoning: true
-        input: [text, image]
-        contextWindow: 1000000
-        maxTokens: 128000
-      - id: claude-sonnet-5
-        name: Claude Sonnet 5 (API account)
-        reasoning: true
-        input: [text, image]
-        contextWindow: 1000000
-        maxTokens: 128000
-      - id: claude-haiku-4-5
-        name: Claude Haiku 4.5 (API account)
-        reasoning: true
-        input: [text, image]
-        contextWindow: 200000
-        maxTokens: 64000
+default:
+  - openai-codex/gpt-5.6-sol:high # Mac authenticates this
+  - openai/gpt-5.6:high # Linux authenticates this
+  - cursor/claude-opus-5-high # both
 ```
 
-`auth: none` plus the explicit `x-api-key` header is intentional here too: it is the form
-verified against fresh interactive OMP sessions.
+Each machine silently skips the entry it has no credentials for, because **omp validates
+chain entries against the model catalog, not against credentials**, and every provider
+above is built-in. A sandbox with no auth store at all warns about none of them. What does
+warn, once per role on every launch, is a provider id that is not in the catalog:
 
-A provider carrying its own `models` list is a full custom provider, so `baseUrl` and `api`
-become required and each model has to be spelled out — omp won't clone a built-in catalog
-onto a new id.
+```
+Warning: Fallback chain for role 'default' references unknown model: nonesuch/some-model
+```
+
+That is the whole rule, and it is why the tracked chains name only built-in providers. A
+custom `models.yml` provider — a second Anthropic id holding a second credential, say —
+exists only on the machine that defines it, so putting one in the shared chains means that
+warning on every other box. CI asserts against it.
+
+Cross-tier fallback is deliberately absent: neither machine falls from a subscription to an
+API account. Each has one account per provider, and the chain moves to the next *provider*
+rather than to another way of paying for the same one.
+
+A second provider id for the same upstream — a twin holding a second Anthropic credential
+alongside the subscription — is what `models.yml` makes possible and what this setup
+deliberately does not use. It buys overflow capacity at the cost of a provider id that
+exists on one machine only, which is precisely the thing the shared chains cannot name.
+`omp/agent/models.yml.example` documents the shape if that tradeoff ever becomes worth it.
 
 `~/.omp/agent/models.yml` is created from `omp/agent/models.yml.example` on every machine,
 so the mechanism is discoverable where it isn't used. The shipped copy is inert but not
@@ -442,38 +440,9 @@ empty — it carries a literal `providers: {}`, because omp validates the root a
 and a file trimmed to pure comments parses as null and prints a validation warning on every
 startup.
 
-`anthropic-api/…` is the one routing detail that cannot be shared, because omp validates
-every fallback-chain entry against the live catalog at startup. On a machine without the
-twin, each role that names it warns on every launch:
-
-```
-Warning: Fallback chain for role 'default' references unknown model: anthropic-api/claude-opus-5
-```
-
-Ten roles, ten lines, every start. The entry is skipped and the rest of the chain still
-works, so it is noise rather than breakage — but the tracked config has no way to avoid
-it. A `provider/*` wildcard entry warns too, as an unknown provider.
-
-So the tracked chains stop at `codex -> openai -> cursor`, and the twin's entries live in
-`~/.omp/agent/config.local.yml`, copied from `omp/agent/config.local.yml.example` and read
-only when `PI_CONFIG_FILES` names it:
-
-```sh
-# ~/.zshrc.local — the machine with two Anthropic accounts
-export PI_CONFIG_FILES="$HOME/.omp/agent/config.local.yml"
-```
-
-A `PI_CONFIG_FILES` overlay was removed here once before, as machinery for a problem that
-turned out not to exist: chains were provider-identical on every box, so the overlay had
-nothing to say. The twin changed that by making one provider id machine-specific. The
-recorded sharp edge still holds — an entry naming a missing file is a hard error, so omp
-refuses to start rather than skip it — which is why `install.sh` copies the file on every
-machine and only the export differs.
-
-The overlay reaches interactive shells and everything they spawn, subagents included. It
-does not reach a daemon that sources no login shell: a Paseo agent started by systemd or
-launchd sees the tracked chains and falls back to `openai` and `cursor` without the
-API-account hop.
+That leaves nothing per-machine in `config.yml` at all, which is the point: one tracked
+file, two machines, and the only difference is which credential answers for a provider id
+both of them already have.
 
 ### Paseo
 

@@ -3,9 +3,13 @@
 # never committed, which is the whole point: config.yml is shared by every
 # machine, and this is where a machine says which account pays for it.
 #
-# This file exists for one reason — precedence. omp resolves a provider's
-# credential in a fixed order, and a stored OAuth session beats every
-# environment variable:
+# Nothing else is per-machine. modelRoles and retry.fallbackChains name built-in
+# provider ids — anthropic, openai-codex, openai, cursor — and a machine simply
+# skips the ones it cannot authenticate. This file only changes *which
+# credential* answers for one of those ids.
+#
+# It exists because of precedence. omp resolves a credential in a fixed order,
+# and a stored OAuth session beats every environment variable:
 #
 #   1  --api-key (runtime)          5  provider env var, incl. .env files
 #   2  models.yml apiKey            6  other stored API key
@@ -13,25 +17,20 @@
 #   4  login-sourced stored key
 #
 # So exporting ANTHROPIC_API_KEY on a box that has ever run `/login anthropic`
-# does nothing — the subscription keeps paying, silently, and nothing warns
-# you. Tier 2 is the only lever that beats a stored OAuth session, and it lives
-# here.
-#
-# The two patterns below are alternatives, not steps. Pattern 1 is almost
-# certainly the one you want.
+# does nothing — the subscription keeps paying, silently, and nothing warns you.
+# Tier 2 is the only lever above a stored OAuth session, and it lives here.
 
 providers: {}
 
-# Leave that line as-is on a machine that overrides nothing. It has to stay:
-# omp validates the root as an object, so a file of pure comments parses as
-# null and prints, on every single startup:
+# Leave that line as-is on a machine that pays by subscription and overrides
+# nothing. It has to stay: omp validates the root as an object, so a file of pure
+# comments parses as null and prints, on every single startup:
 #
 #   Failed to load config file models, Schema error: root: must be an object (was null)
 
 
-# ── Pattern 1: replace the account (a work VM) ───────────────────────────────
-# One account per machine — the work VM bills the work API key, the laptop
-# bills the personal subscription. Replace the `providers: {}` above with:
+# ── Billing a machine to API keys instead ────────────────────────────────────
+# The work box does this. Replace the `providers: {}` above with:
 #
 # providers:
 #   anthropic:
@@ -41,23 +40,34 @@ providers: {}
 #   openai:
 #     apiKey: OPENAI_API_KEY
 #
-# These are "override-only" entries: no `models` list, so they change auth
-# without redeclaring the built-in catalogs. config.yml needs no change at all
-# — modelRoles still say anthropic/… and openai/…, they just bill differently.
+# Both are "override-only" entries: no `models` list, so they change auth without
+# redeclaring the built-in catalogs, and config.yml needs no change at all.
 #
-# The secrets themselves go in ~/.omp/agent/.env, not ~/.zshrc.local: the
-# Paseo daemon runs under systemd and sources no login shell, so agents it
-# starts would otherwise get no credentials.
+# Anthropic needs the header form. API keys authenticate with `x-api-key`, while
+# `Authorization: Bearer` is for OAuth/WIF tokens, and on omp 17.2.13 the
+# `apiKey` form produced bearer-auth 401s in fresh interactive sessions where
+# print mode succeeded; the internal cause is unconfirmed. `auth: none` skips the
+# credential lookup so the explicit header is what authenticates.
+#
+# The `!` resolver sources the dotenv file itself: command resolvers do not
+# inherit values loaded by omp's dotenv loader, so `!printenv ANTHROPIC_API_KEY`
+# resolves to nothing for a key that lives only in ~/.omp/agent/.env. OpenAI's
+# bare env-var name is fine — that form does go through the dotenv loader. A
+# secret store can replace the shell command outright:
+#
+#   x-api-key: "!op read op://work/anthropic/api-key"
+#
+# `auth: none` also keeps the provider selectable when the command fails, so
+# verify with a live model request rather than trusting `omp models` alone.
+#
+# The secrets go in ~/.omp/agent/.env, not ~/.zshrc.local: the Paseo daemon runs
+# under systemd and sources no login shell, so agents it starts would otherwise
+# get no credentials.
 
 
-# ── Pattern 2: run both accounts at once (twin provider) ─────────────────────
-# Only worth it if you want the subscription to serve the turn and the API key
-# to catch the overflow when it rate-limits. A second provider id is the only
-# way to hold two credentials for one upstream, since Pattern 1 replaces.
-#
-# A provider that carries its own `models` list is a full custom provider, so
-# baseUrl and api are required and each model has to be spelled out — omp will
-# not clone the built-in catalog onto a new id for you.
+# ── Two accounts for one upstream (not used here) ─────────────────────────────
+# Pinning replaces, so holding a subscription *and* an API key for Anthropic at
+# the same time needs a second provider id carrying its own catalog:
 #
 # providers:
 #   anthropic-api:
@@ -73,43 +83,17 @@ providers: {}
 #         input: [text, image]
 #         contextWindow: 1000000
 #         maxTokens: 128000
-#       - id: claude-sonnet-5
-#         name: Claude Sonnet 5 (API account)
-#         reasoning: true
-#         input: [text, image]
-#         contextWindow: 1000000
-#         maxTokens: 128000
-#       - id: claude-haiku-4-5
-#         name: Claude Haiku 4.5 (API account)
-#         reasoning: true
-#         input: [text, image]
-#         contextWindow: 200000
-#         maxTokens: 64000
 #
-# Then reference it from retry.fallbackChains in config.yml — that part is
-# tracked and shared, which is fine: a chain entry naming a provider this
-# machine hasn't defined is reported as a startup config warning and skipped,
-# so the laptop ignores it.
+# A provider with its own `models` list is a full custom provider: baseUrl and
+# api become required and every model has to be spelled out, since omp will not
+# clone a built-in catalog onto a new id.
 #
-# Do the `/login anthropic` first. Adding the chain entry while tier 2 is also
-# pinned on the built-in `anthropic` gives you the same key twice wearing two
-# names, and a "fallback" that fails exactly when the primary does.
-
-
-# ── Anthropic API-key authentication ─────────────────────────────────────────
-# Anthropic API keys authenticate with `x-api-key`; `Authorization: Bearer` is
-# for short-lived OAuth/WIF tokens. On omp 17.2.13, the `apiKey` form produced
-# bearer-auth 401s in fresh interactive sessions; this explicit `x-api-key`
-# form passed. The internal cause is not yet confirmed.
+# The catch is routing. Such an id exists only on the machine that defines it,
+# and omp validates fallback-chain entries against the catalog, so naming it in
+# the tracked config.yml warns once per role on every other machine:
 #
-# `auth: none` bypasses that credential lookup. The explicit header is supported
-# by models.yml, and its `!` resolver sources the OMP dotenv file itself because
-# command resolvers do not inherit values loaded by omp's dotenv loader.
+#   Warning: Fallback chain for role 'default' references unknown model: anthropic-api/claude-opus-5
 #
-# Only enable these entries on a machine where the key exists. With `auth: none`
-# the provider remains selectable if the header command fails, so verify it with
-# a live model request rather than relying on `omp models` alone.
-#
-# A real secret store can replace the shell resolver:
-#
-#   x-api-key: "!op read op://work/anthropic/api-key"
+# A `provider/*` wildcard warns too, as an unknown provider. That is why this
+# setup routes through built-in ids only and CI asserts it — an overflow tier is
+# not worth making the shared config machine-specific.

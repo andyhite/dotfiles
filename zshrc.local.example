@@ -20,19 +20,6 @@
 # export RUNPOD_API_KEY='rpa_...'
 # export HF_TOKEN='hf_...'
 
-# ── omp: the machine-local config overlay ────────────────────────────────────
-# Turns on ~/.omp/agent/config.local.yml, which install.sh copies but omp reads
-# only when this names it. It carries the fallback-chain entries for the
-# `anthropic-api` twin, so set this on a machine whose models.yml defines that
-# provider and leave it unset everywhere else: every chain entry is validated
-# against the live catalog, and a missing provider warns once per role at every
-# startup. See omp/agent/config.local.yml.example.
-#
-# A path list, `:`-separated. Reaches interactive shells and everything they
-# spawn, but not a daemon that sources no login shell — a Paseo agent under
-# systemd or launchd gets the tracked chains only.
-# export PI_CONFIG_FILES="$HOME/.omp/agent/config.local.yml"
-
 # herdr-jira has no *_cmd field for base_url/email/default_project (only the
 # token), so those three are placeholders in the tracked config.toml. Point
 # this at an untracked directory holding your own config.toml (same [jira]

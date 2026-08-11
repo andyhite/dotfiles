@@ -955,20 +955,17 @@ link_configs() {
   # next person, and drifts if the location ever changes.
   local example target
   for example in zshrc.local.example gitconfig.local.example ssh/config.local.example \
-                 config/paseo/daemon.env.example omp/agent/models.yml.example \
-                 omp/agent/config.local.yml.example; do
+                 config/paseo/daemon.env.example omp/agent/models.yml.example; do
     # ssh's and paseo's live in a subdirectory on both sides; the rest are
     # dotfiles at $HOME. paseo's is the odd one out in that its target isn't a
     # dotfile at all — config/paseo/paseo.service names it as an
     # EnvironmentFile, and systemd resolves that path itself, so it has to land
     # where the unit says rather than where this loop's default would put it.
-    # omp's two land beside the config.yml symlink, which is already where omp
-    # looks for models.yml. models.yml.example ships inert but deliberately not
-    # empty: the active line is a literal `providers: {}`, because omp validates
-    # that file's root as an object and a copy trimmed to pure comments parses
-    # as null and warns on every startup. config.local.yml.example is the other
-    # way round — its chains ship active, and omp ignores the file entirely
-    # until PI_CONFIG_FILES names it.
+    # omp's lands beside the config.yml symlink, which is already where omp
+    # looks for it. It ships inert but deliberately not empty: the active line
+    # is a literal `providers: {}`, because omp validates the file's root as an
+    # object and a copy trimmed to pure comments parses as null and warns on
+    # every startup.
     case "$example" in
       ssh/*)          target="$HOME/.ssh/${example#ssh/}"; target="${target%.example}" ;;
       config/paseo/*) target="$HOME/.config/paseo/${example#config/paseo/}"; target="${target%.example}" ;;
