@@ -34,7 +34,7 @@ NvChad for editing.
 | `omp/agent/extensions/atuin.ts` | `~/.omp/agent/extensions/atuin.ts` | records omp's `bash` commands into Atuin history as `--author pi` (a `KNOWN_AGENTS` name, so `$all-user` hides them), with omp's intent string as `--intent`. Hand-maintained: `atuin hook install` has no omp target |
 | `omp/agent/rules/output-style.md` | `~/.omp/agent/rules/output-style.md` | `alwaysApply: true` rule that shapes every omp response for an ADHD reader — answer first, numbered steps, one next action, no preamble or recap |
 | `config/paseo/config.json` | (not linked — **merged** into `~/.paseo/config.json`) | [Paseo](https://paseo.sh) daemon settings: which agent providers are enabled, MCP/browser-tool flags, relay off. Merged rather than symlinked because Paseo rewrites this file atomically and would replace the link, and because the live file also holds secrets; see [Paseo](#paseo) below |
-| `config/paseo/orchestration-preferences.json` | `~/.paseo/orchestration-preferences.json` | which provider/model each delegated role gets (`impl`, `ui`, `research`, `planning`, `audit`). Read by Paseo's five orchestration skills, never by Paseo itself — which is what makes this one safe to link when its neighbour isn't |
+| `config/paseo/orchestration-preferences.json` | `~/.paseo/orchestration-preferences.json` | which provider/model each delegated role gets (`impl`, `ui`, `research`, `planning`, `audit`). Read by Paseo's four orchestration skills, never by Paseo itself — which is what makes this one safe to link when its neighbour isn't |
 | `config/paseo/paseo.service` | (copied to `~/.config/systemd/user/`) | `systemd --user` unit that supervises the Paseo daemon on Linux. Paseo ships no unit of its own. Unused on macOS, where the desktop app supervises its own daemon |
 | `config/paseo/daemon.env.example` | (copy, not linked) | template for `~/.config/paseo/daemon.env`, the unit's `EnvironmentFile` — this box's `PASEO_LISTEN`, `PASEO_HOSTNAMES`, and the plaintext `PASEO_PASSWORD`. The per-machine half of Paseo's config, kept out of the tracked file above |
 | `Brewfile` | (not linked — read by `install.sh`) | macOS formulae + casks for every tool this config drives, applied with `brew bundle` — replaced the old hand-maintained `brew_ensure`/`brew_ensure_cask` loop |
@@ -431,15 +431,19 @@ run while you're logged in doesn't need it. The unit is `enable`d but not starte
 it would be a surprise on a box already running a daemon under different launch overrides,
 and `restart` on an active unit kills its agents.
 
-#### The five skills come from the manifest, not the app
+#### The four skills come from the manifest, not the app
 
-`agent_skills.txt` lists Paseo's five orchestration skills (`paseo`, `paseo-advisor`,
-`paseo-committee`, `paseo-handoff`, `paseo-loop`) from `getpaseo/paseo`. The macOS app also
+`agent_skills.txt` lists Paseo's four orchestration skills (`paseo`, `paseo-advisor`,
+`paseo-committee`, `paseo-handoff`) from `getpaseo/paseo`. The macOS app also
 copies them into `~/.agents/skills` on first GUI launch, but that hook is useless here
 twice over: it never fires on the Linux box, which has no desktop app at all, and on the
 Mac it only fires once someone opens the app, which `brew bundle` never does. Going through
 the manifest means both machines get them from `install.sh` alone, and they update on the
 same schedule as everything else rather than whenever the app is next launched.
+
+A fifth, `paseo-loop`, was dropped: upstream removed agent loops (and the skill) in
+`getpaseo/paseo#3053`, and `skills add` exits 1 on a skill name the repo no longer ships,
+which failed the whole skills step.
 
 One dial deliberately left off: `daemon.mcp.injectIntoAgents` stays `false`. Turning it on
 gives every agent Paseo launches the full `create_agent`/`create_workspace` tool surface,
@@ -642,10 +646,10 @@ its own here — it picks skills up through its `agents` skill provider, reading
 symlinks any skill an installed Herdr plugin ships in its own `skills/` directory there —
 unrelated to `agent_skills.txt`, and the one part of this step that isn't new.)
 
-Paseo's five orchestration skills come through this manifest rather than through the
-desktop app's own copy hook, which can't reach either machine reliably — see [The five
+Paseo's four orchestration skills come through this manifest rather than through the
+desktop app's own copy hook, which can't reach either machine reliably — see [The four
 skills come from the manifest, not the
-app](#the-five-skills-come-from-the-manifest-not-the-app).
+app](#the-four-skills-come-from-the-manifest-not-the-app).
 
 ### `fleet` — dispatching agents herdr can reach, because omp can't
 
