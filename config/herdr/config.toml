@@ -371,17 +371,36 @@ command = "herdr plugin pane open --plugin dave.token-dashboard --entrypoint das
 ## config/herdr/palette/palette.sh has the rest of that story, including what
 ## the plugin was doing about cwd and why a popup doesn't need it.
 ##
-## Sized in cells rather than percent because the content is a fixed width:
-## the widest row is a 37-column title, two spaces and a 30-column plugin id,
-## plus fzf's pointer and the popup border — 73, with the rest as slack. A
-## percentage would be narrower than that on the Linux VM and pointlessly wide
-## on this display. Height stays proportional; the list scrolls.
+## Sized in cells rather than percent because the content is a fixed size, not
+## a fraction of whatever display it opens on. The widest row is a 37-column
+## title, two spaces and a 30-column plugin id, plus fzf's pointer and the
+## popup border — 73, with the rest as slack. A percentage would be narrower
+## than that on the Linux VM and pointlessly wide on this display.
+##
+## Height is the same argument turned around. At 70% this covered most of the
+## screen to show two dozen rows, so the popup read as a pane you had to
+## dismiss rather than something transient. 20 cells is roughly a screenful of
+## palette on any display and still shows most of the list at once; the rest
+## scrolls (palette.sh rebinds ^d/^u for that). Deliberately NOT sized to the
+## action count: the list grows and shrinks with the installed plugins, and a
+## palette that changes shape when you add a plugin is worse than one that
+## scrolls.
+##
+## The frame says "popup" and there is no way to change that as of herdr 0.8.0,
+## so don't spend the afternoon again: `keys.command` has no `title` key (`herdr
+## config check` answers `unknown config key keys.command.N.title; ignoring
+## key`), the plugin-pane API that does carry a title can't be reached from the
+## CLI (`--placement` offers overlay/split/tab/zoomed, not popup), and the label
+## is a hardcoded string in herdr's TUI, not the child's terminal title — a
+## palette.sh that set OSC 2 changed nothing. `type = "pane"` would be titled,
+## because panes track terminal_title, but a pane resizes the layout, which is
+## the whole reason this is a popup.
 [[keys.command]]
 key = "prefix+p"
 type = "popup"
 command = "$HOME/.config/herdr/palette/palette.sh"
 width = 80
-height = "70%"
+height = 20
 
 ## gh-pr — open the focused agent's branch PR in a browser. prefix+o is herdr's
 ## open_notification_target, so this takes the shift variant. The plugin's own

@@ -75,13 +75,29 @@ rows="$(
 # --no-sort keeps the title ordering from `sort` above; --ansi is what makes the
 # dim on the trailing plugin id render instead of printing as an escape.
 # Esc/Ctrl-C abort → empty selection → silent close.
+#
+# The popup is deliberately shorter than the action list (see the prefix+p
+# binding in ../config.toml), so the list scrolls and every row of chrome costs
+# a visible action. --info=inline buys one back by folding fzf's match counter
+# onto the prompt line instead of giving it a line of its own.
+#
+# Scrolling: ↑↓/^n^p and PageUp/PageDown are fzf defaults, but PageUp/PageDown
+# are fn+arrow on a laptop keyboard, so ^d/^u are rebound to half-page jumps.
+# That costs ^u's default unix-line-discard; ^w still deletes a word and Esc
+# still closes, which is enough to recover from a mistyped query in a picker
+# whose queries are a word long. Mouse wheel needs no flag — fzf enables mouse
+# by default and herdr has a popup mouse path (it carries a "failed to forward
+# popup mouse event" error), but wheel-in-popup was never confirmed by hand, so
+# treat the keys above as the supported way to scroll.
 choice="$(
   printf '%s\n' "$rows" \
     | fzf --delimiter=$'\t' \
           --with-nth=2 \
           --ansi \
           --prompt='herdr action ▸ ' \
-          --header='↑↓ select · enter run · esc cancel' \
+          --header='↑↓ move · ^d/^u page · enter run · esc cancel' \
+          --info=inline \
+          --bind='ctrl-d:half-page-down,ctrl-u:half-page-up' \
           --reverse \
           --cycle \
           --no-multi \
