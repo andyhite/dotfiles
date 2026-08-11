@@ -19,6 +19,16 @@
 # Reloads on `R` inside the pane; no herdr restart needed.
 
 [jira]
+# base_url, email, and default_project below are placeholders. The real
+# values (a specific company's Jira instance, this machine's account, this
+# team's project key) are machine-local and don't belong in a public repo.
+# Unlike the token, herdr-jira's JiraConfig (src/config.rs) has no *_cmd
+# field for these three, so they can't be shelled out to zshrc.local the
+# same way. The mechanism that does work: config_path() (src/config.rs)
+# checks $HERDR_PLUGIN_CONFIG_DIR before falling back to this tracked path,
+# so pointing it at an untracked directory with your own config.toml
+# overrides base_url/email/default_project — and everything else in this
+# file — without editing the copy that's symlinked into the repo.
 base_url = "https://your-org.atlassian.net"
 
 auth = "basic"
@@ -36,8 +46,7 @@ email = "you@example.com"
 # itself was launched with, since zsh -l sources zshrc and then zshrc.local.
 api_token_cmd = "zsh -lc 'printf %s \"$JIRA_API_TOKEN\"'"
 
-# Substituted for {project} in the filters below. The usual board is
-# .../projects/PROJ/boards/42.
+# Substituted for {project} in the filters below.
 default_project = "PROJ"
 
 max_results = 50

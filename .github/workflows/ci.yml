@@ -1,0 +1,184 @@
+# install.sh mutates an entire machine and is the only entry point this repo
+# has, so the two things worth checking on every push are that it parses and
+# that it still links a config tree end to end. Neither needs a real machine.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # Two seconds, and it catches the class of bug this repo is most exposed to:
+  # a quoting or `set -e` mistake in 1700 lines of bash that nobody runs until
+  # a fresh machine needs bootstrapping.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse
+        run: bash -n install.sh
+
+      # Three warnings are expected and deliberate — SC2088 on the literal `~`
+      # in REMOTE_DIR (only the remote knows its own $HOME) and SC2206 twice on
+      # the --host comma split, where the word splitting is the point. Each is
+      # commented at its site. A fourth warning is the actual signal, so those
+      # three are excluded by code rather than the whole check downgraded.
+      - name: ShellCheck
+        run: shellcheck -S warning -e SC2088,SC2206 install.sh
+
+      - name: zsh syntax
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq zsh
+          for f in zshrc zshenv zshrc.local.example; do
+            zsh -n "$f" && echo "ok  $f"
+          done
+
+      # omp parses models.yml at startup, and it validates the root as an
+      # object — so this checks more than syntax. A template edited down to
+      # pure comments parses as null, which omp rejects with a validation
+      # warning on every single launch; the mapping assertion is what keeps the
+      # shipped copy inert rather than broken.
+      - name: Template YAML parses
+        run: |
+          pip install --quiet pyyaml
+          python3 - <<'PY'
+          import yaml
+          f = "omp/agent/models.yml.example"
+          d = yaml.safe_load(open(f))
+          assert isinstance(d, dict), f"{f}: root must be a mapping, got {type(d).__name__}"
+          assert set(d) <= {"providers"}, f"{f}: unknown root keys {set(d) - {'providers'}}"
+          assert not d.get("providers"), f"{f}: must ship with no active providers"
+          print(f"ok  {f}")
+          PY
+
+      # The filter above protects the path through `git add`. This protects the
+      # committed result, which is not the same thing: a clone that hasn't run
+      # install.sh has no filter registered, git passes settings.json straight
+      # through, and nothing fails. New machine, clone, open a remote project in
+      # Zed, commit — that's the realistic leak, and only a check on committed
+      # content catches it.
+      #
+      # Matching the JSON key form `"ssh_connections":` rather than the bare
+      # word is what lets this run with no file exclusions: the explanatory
+      # comments in README.md, install.sh and settings.json itself all say the
+      # word in prose and are correctly ignored.
+      - name: No work identifiers in committed content
+        run: |
+          if git grep -nIi -E 'your-org|devbox|project|PROJ|"ssh_connections"[[:space:]]*:' -- .; then
+            echo "::error::work identifier or ssh_connections block found in committed content — see the matches above"
+            exit 1
+          fi
+          echo "ok  no work identifiers committed"
+
+      # The clean filter is the only thing standing between Zed and a public
+      # repo: it runs on every `git add` of settings.json, and if it silently
+      # stopped matching the key, nothing would fail — the hostnames would just
+      # start getting committed again.
+      - name: Zed clean filter strips ssh_connections
+        run: |
+          # Present: the key goes, everything else stays, JSON stays valid.
+          out="$(awk -f bin/zed-settings-clean < config/zed/settings.json)"
+          printf '%s' "$out" > /tmp/clean.json
+
+          printf '{\n  "a": 1,\n  "ssh_connections": [\n    { "host": "secret-box" }\n  ],\n  "b": 2\n}\n' > /tmp/mid.json
+          awk -f bin/zed-settings-clean < /tmp/mid.json > /tmp/mid.out
+          if grep -q 'ssh_connections\|secret-box' /tmp/mid.out; then
+            echo "::error::filter left ssh_connections in the output"; exit 1
+          fi
+          node -e 'JSON.parse(require("fs").readFileSync("/tmp/mid.out","utf8"))'
+
+          # Last key: removing it strands a comma, and `,}` is invalid JSON.
+          printf '{\n  "a": 1,\n  "ssh_connections": [\n    { "host": "x" }\n  ]\n}\n' > /tmp/last.json
+          awk -f bin/zed-settings-clean < /tmp/last.json > /tmp/last.out
+          node -e 'JSON.parse(require("fs").readFileSync("/tmp/last.out","utf8"))'
+
+          # Absent: must be a byte-for-byte pass-through, or every unrelated
+          # Zed setting would show up as spurious diff noise.
+          printf '{\n  "a": 1,\n  "b": 2\n}\n' > /tmp/none.json
+          awk -f bin/zed-settings-clean < /tmp/none.json > /tmp/none.out
+          cmp /tmp/none.json /tmp/none.out
+          echo "ok  filter strips, repairs, and passes through"
+
+  # The half that would have caught a real bug: `--only configs` exercises
+  # link_configs against a throwaway HOME, so a broken symlink target, a missing
+  # mkdir, or a step that aborts the whole run shows up here instead of on a
+  # machine being set up for the first time.
+  configs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Link configs into a throwaway HOME
+        run: |
+          export HOME="$(mktemp -d)"
+          ./install.sh --only configs --yes
+
+          test -L "$HOME/.zshrc"
+          test -L "$HOME/.gitconfig"
+          test -L "$HOME/.omp/agent/config.yml"
+
+          # Every template must be copied, not linked: a symlink here would put
+          # machine-local credentials back inside the repo.
+          test -f "$HOME/.zshrc.local" && test ! -L "$HOME/.zshrc.local"
+
+          # Lands in ~/.omp/agent/ rather than at ~/.*.local like the rest, so
+          # a regression here is silent: omp would just never see it.
+          test -f "$HOME/.omp/agent/models.yml"
+          test ! -L "$HOME/.omp/agent/models.yml"
+
+      # Re-running must be a no-op, not a pile of .bak files: the second run
+      # should report every link as already correct and back nothing up.
+      - name: Re-run is idempotent
+        run: |
+          export HOME="$(mktemp -d)"
+          ./install.sh --only configs --yes >/dev/null
+          ./install.sh --only configs --yes | tee /tmp/second.log
+          if grep -q 'backed up to' /tmp/second.log; then
+            echo "::error::re-running --only configs backed a file up; it should be a no-op"
+            exit 1
+          fi
+
+  # A failing step must not take the rest of the run down with it, and a flag
+  # with no value must fail loudly. Both were real bugs: on a Mac without
+  # Homebrew the whole script used to abort after the tools step, and bare
+  # `--only` exited 1 with no message at all.
+  cli:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Argument handling
+        run: |
+          ./install.sh --help >/dev/null
+
+          if ./install.sh --only nosuchstep --yes 2>/dev/null; then
+            echo "::error::unknown step name was accepted"; exit 1
+          fi
+
+          out="$(./install.sh --only 2>&1 || true)"
+          case "$out" in
+            *"needs a value"*) echo "ok  bare --only explains itself" ;;
+            *) echo "::error::bare --only failed without a message: '$out'"; exit 1 ;;
+          esac
+
+      # Runs the steps in the order a real bootstrap would, with a PATH that has
+      # no package manager on it, so the tools step fails the way it does on an
+      # unprepared box. The run must still reach configs and print the summary.
+      - name: A failing step does not abort the run
+        run: |
+          export HOME="$(mktemp -d)"
+          set +e
+          env PATH=/usr/bin:/bin:/usr/sbin:/sbin ./install.sh --only tools,configs --yes > /tmp/run.log 2>&1
+          rc=$?
+          set -e
+          cat /tmp/run.log
+
+          grep -q 'Done' /tmp/run.log \
+            || { echo "::error::run never reached the Done summary"; exit 1; }
+          test -L "$HOME/.zshrc" \
+            || { echo "::error::configs step never ran after tools failed"; exit 1; }
+          test "$rc" -ne 0 \
+            || { echo "::error::a step failed but the script exited 0"; exit 1; }

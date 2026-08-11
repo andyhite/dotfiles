@@ -1,0 +1,100 @@
+# Copied by install.sh to ~/.omp/agent/models.yml, beside the config.yml
+# symlink, where omp already looks for it. That copy is outside the repo and
+# never committed, which is the whole point: config.yml is shared by every
+# machine, and this is where a machine says which account pays for it.
+#
+# This file exists for one reason — precedence. omp resolves a provider's
+# credential in a fixed order, and a stored OAuth session beats every
+# environment variable:
+#
+#   1  --api-key (runtime)          5  provider env var, incl. .env files
+#   2  models.yml apiKey            6  other stored API key
+#   3  stored OAuth credential      7  models.yml custom-provider resolver
+#   4  login-sourced stored key
+#
+# So exporting ANTHROPIC_API_KEY on a box that has ever run `/login anthropic`
+# does nothing — the subscription keeps paying, silently, and nothing warns
+# you. Tier 2 is the only lever that beats a stored OAuth session, and it lives
+# here.
+#
+# The two patterns below are alternatives, not steps. Pattern 1 is almost
+# certainly the one you want.
+
+providers: {}
+
+# Leave that line as-is on a machine that overrides nothing. It has to stay:
+# omp validates the root as an object, so a file of pure comments parses as
+# null and prints, on every single startup:
+#
+#   Failed to load config file models, Schema error: root: must be an object (was null)
+
+
+# ── Pattern 1: replace the account (a work VM) ───────────────────────────────
+# One account per machine — the work VM bills the work API key, the laptop
+# bills the personal subscription. Replace the `providers: {}` above with:
+#
+# providers:
+#   anthropic:
+#     apiKey: "!printenv ANTHROPIC_API_KEY"
+#   openai:
+#     apiKey: "!printenv OPENAI_API_KEY"
+#
+# These are "override-only" entries: no `models` list, so they pin a key onto
+# a built-in provider without redeclaring its catalog. config.yml needs no
+# change at all — modelRoles still say anthropic/…, they just bill differently
+# here.
+#
+# The secrets themselves go in ~/.omp/agent/.env, not ~/.zshrc.local: the
+# Paseo daemon runs under systemd and sources no login shell, so agents it
+# starts would otherwise get no credentials.
+
+
+# ── Pattern 2: run both accounts at once (twin provider) ─────────────────────
+# Only worth it if you want the subscription to serve the turn and the API key
+# to catch the overflow when it rate-limits. A second provider id is the only
+# way to hold two credentials for one upstream, since Pattern 1 replaces.
+#
+# A provider that carries its own `models` list is a full custom provider, so
+# baseUrl and api are required and each model has to be spelled out — omp will
+# not clone the built-in catalog onto a new id for you.
+#
+# providers:
+#   anthropic-api:
+#     baseUrl: https://api.anthropic.com
+#     api: anthropic-messages
+#     apiKey: "!printenv ANTHROPIC_API_KEY"
+#     models:
+#       - id: claude-opus-5
+#         name: Claude Opus 5 (API account)
+#         reasoning: true
+#         input: [text, image]
+#         contextWindow: 200000
+#         maxTokens: 64000
+#
+# Then reference it from retry.fallbackChains in config.yml — that part is
+# tracked and shared, which is fine: a chain entry naming a provider this
+# machine hasn't defined is reported as a startup config warning and skipped,
+# so the laptop ignores it.
+#
+# Do the `/login anthropic` first. Adding the chain entry while tier 2 is also
+# pinned on the built-in `anthropic` gives you the same key twice wearing two
+# names, and a "fallback" that fails exactly when the primary does.
+
+
+# ── Always use the !printenv form ────────────────────────────────────────────
+# A bare `apiKey: ANTHROPIC_API_KEY` is read as an environment variable *name*
+# first and, when no such variable exists, as the literal token. It does not
+# fail — the provider stays available and sends the string "ANTHROPIC_API_KEY"
+# as the bearer, so an unset key surfaces as a 401 mid-turn, and a fallback
+# chain pointing at it burns its first hop instead of skipping to the next.
+#
+# `!value` runs the value as a shell command (10s timeout, stdout trimmed,
+# result cached for the process) and — the part that matters — omits the key
+# entirely when the command fails. `!printenv NAME` therefore makes an unset
+# variable mean "this provider is unavailable", which is what a fallback chain
+# needs to route around it.
+#
+# Same syntax reaches a real secret store, if the key shouldn't sit in a
+# dotenv either:
+#
+#   apiKey: "!op read op://work/anthropic/api-key"

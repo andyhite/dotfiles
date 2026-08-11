@@ -23,7 +23,7 @@ NvChad for editing.
 | `config/atuin/themes/one-dark.toml` | `~/.config/atuin/themes/one-dark.toml` | One Dark for Atuin; foreground colors only, background comes from Ghostty |
 | `config/lazygit/config.yml` | `~/Library/Application Support/lazygit/config.yml` (macOS), `~/.config/lazygit/config.yml` (Linux) | Lazygit: One Dark theme, Nerd Font v3 icons, fuzzy filtering, and nvim integration; `zshrc` exposes it as `lg`, while the OS-specific destinations are Lazygit's native defaults |
 | `config/nvim` | `~/.config/nvim` | [NvChad](https://nvchad.com) starter — vendored once, `.git` stripped, fully mine to edit from here |
-| `config/zed/settings.json` | `~/.config/zed/settings.json` | Zed editor settings — `disable_ai: true` since agents run from the terminal via omp, not inside the editor, so the `agent`/`agent_servers` keys go undefined rather than tracked as dead config. `ssh_connections` is also deliberately dropped: it's per-machine session state Zed rewrites on every connect |
+| `config/zed/settings.json` | `~/.config/zed/settings.json` | Zed editor settings — `disable_ai: true` since agents run from the terminal via omp, not inside the editor, so the `agent`/`agent_servers` keys go undefined rather than tracked as dead config. `ssh_connections` never reaches the index: Zed rewrites it through this symlink on every remote connect, so a git clean filter strips it on the way in — see [below](#zeds-ssh_connections-is-stripped-by-a-clean-filter) |
 | `gitconfig` | `~/.gitconfig` | tracked git identity, LFS/xet filter wiring, and defaults meant to hold on every machine; anything that varies per machine layers in through `gitconfig.local.example` below |
 | `gitconfig.local.example` | (copy, not linked) | template for `~/.gitconfig.local` — work identity via `includeIf "gitdir:…"`, private-registry credentials. `gitconfig`'s trailing `[include]` applies last, so anything set here wins over every default in the tracked file |
 | `config/git/ignore` | `~/.config/git/ignore` | global gitignore — git's own default `core.excludesFile` location when that setting is unset, so machine-tool droppings (`.DS_Store`, `.idea/`) never have to live in a project's own `.gitignore` |
@@ -224,11 +224,12 @@ whenever it writes something new, so the next shell rebuilds once.
 
 ### The `*.local` templates
 
-Three tracked templates, one convention: `zshrc.local.example`, `gitconfig.local.example`,
-and `ssh/config.local.example` are copied — never linked — to their `~/.*.local` targets
-at mode 600 the first time `install.sh` runs, and left alone on every run after that, so
-a filled-in file is never clobbered. Each one holds real secrets or per-machine values
-that have no business in a public repo.
+Five tracked templates, one convention: `zshrc.local.example`, `gitconfig.local.example`,
+`ssh/config.local.example`, `config/paseo/daemon.env.example` and
+`omp/agent/models.yml.example` are copied — never linked — to their targets at mode 600 the
+first time `install.sh` runs, and left alone on every run after that, so a filled-in file is
+never clobbered. Each one holds real secrets or per-machine values that have no business in
+a public repo.
 
 The two config templates exist because of how their tracked file reads the copy back, not
 just as a place to dump overrides:
@@ -245,6 +246,15 @@ just as a place to dump overrides:
 
 `zshrc.local.example` needs no such trick — `zshrc` just sources `~/.zshrc.local` near
 the top, before the tool blocks that read values like `AWS_PROFILE`.
+
+The last two don't land at `~/.*.local` like the first three.
+`config/paseo/paseo.service` names `~/.config/paseo/daemon.env` as an `EnvironmentFile` and
+systemd resolves that path itself; `models.yml` has to sit in `~/.omp/agent/` where omp
+looks for it. omp's is also the one template that ships inert rather than empty — it carries
+a literal `providers: {}`, because omp validates the file's root as an object and a copy
+trimmed to pure comments parses as null and warns on every startup. See
+[the omp section](#omp--one-tracked-config-two-machines-different-accounts) for what goes in
+it.
 
 ### mise
 
@@ -295,6 +305,137 @@ snapshot `$options` and restore the array wholesale on the way out — which tri
 the interactive layer still runs: `PATH`, mise, `compinit`, aliases, zoxide, direnv and
 atuin all load exactly as before, so a scripted shell resolves the same commands an
 interactive one does.
+
+## Notes by tool
+
+### Zed's `ssh_connections` is stripped by a clean filter
+
+`config/zed/settings.json` is symlinked into `~/.config/zed`, and Zed rewrites
+`ssh_connections` every time you connect to or disconnect from a remote host. So the
+moment you open a project on a remote box, its hostname and absolute project paths are
+written straight into a tracked file in a public repo. Deleting the key by hand fixes it
+until the next connect, which is to say it doesn't fix it.
+
+`.gitattributes` routes the file through a clean filter — `bin/zed-settings-clean`, run by
+git on the way into the index, leaving the working file exactly as Zed wrote it:
+
+```
+config/zed/settings.json filter=zed-local
+```
+
+Three choices worth naming. It's a filter rather than `update-index --skip-worktree`,
+which hides *every* change to a file — and the reason this one is tracked at all is that
+settings changed in Zed's UI should show up as diffs here. It's a line filter rather than
+`jq`, because the file is JSONC with `//` comments in its header *and* through its body,
+which jq can't read and any reformatting pass would throw away. And there's no smudge
+half: the filter only ever removes machine state on the way in, so reversing it on
+checkout would mean writing one machine's hosts into another's file.
+
+The filter definition can't be committed — it names an absolute path, and this repo sits
+somewhere different on every machine — so `install.sh`'s configs step registers it with
+`git config filter.zed-local.clean`. Until that runs, git treats an unknown filter as a
+pass-through: nothing errors, and nothing is stripped either. That gap is real — clone
+onto a new machine, open a remote project in Zed before running `install.sh`, and the
+hostnames commit exactly as they used to. CI closes it from the other end by grepping
+committed content for work identifiers, so a leak through any unfiltered path fails the
+build instead of shipping.
+
+### omp — one tracked config, two machines, different accounts
+
+`omp/agent/config.yml` is symlinked to `~/.omp/agent/config.yml` and shared by every
+machine, but the two machines here don't pay for models the same way. The Mac uses
+personal subscriptions (Claude Code, ChatGPT); the Linux box bills work API accounts. That
+splits into two questions with two different answers, and conflating them is what makes
+this look harder than it is.
+
+**Which account pays — an auth question.** The provider name doesn't change: `anthropic`
+is `anthropic` on both boxes, reached with a subscription OAuth token on one and a work
+API key on the other. But setting `ANTHROPIC_API_KEY` is *not* enough to force the second,
+and this is the trap: omp resolves credentials in a fixed order, and a stored OAuth session
+outranks any environment variable.
+
+```
+1  --api-key (runtime)          5  provider env var, incl. .env files
+2  models.yml apiKey            6  other stored API key
+3  stored OAuth credential      7  models.yml custom-provider resolver
+4  login-sourced stored key
+```
+
+So on a box that has ever run `/login anthropic`, an `ANTHROPIC_API_KEY` in the
+environment is silently ignored and the personal subscription pays for work usage. Nothing
+warns you. Tier 2 is the only lever above a stored OAuth session, and it lives in
+`~/.omp/agent/models.yml` — untracked, copied from a template, one per machine:
+
+```yaml
+# ~/.omp/agent/models.yml — work box only
+providers:
+  anthropic: { apiKey: "!printenv ANTHROPIC_API_KEY" }
+  openai:    { apiKey: "!printenv OPENAI_API_KEY" }
+```
+
+A provider entry with no `models` list is an override-only entry, which is what makes
+pinning a key onto a built-in provider legal without redeclaring its catalog. `config.yml`
+needs no change: `modelRoles` still say `anthropic/…`, they just bill differently here.
+
+The `!` prefix is load-bearing rather than stylistic. A bare `apiKey: ANTHROPIC_API_KEY` is
+read as an environment-variable *name* first and, when no such variable exists, as the
+literal token — so an unset key leaves the provider **available** and sends the string
+`ANTHROPIC_API_KEY` as the bearer, surfacing as a 401 mid-turn. A `!value` runs as a shell
+command and is omitted entirely when the command fails, so `!printenv NAME` makes an unset
+variable mean "unavailable", which is what anything downstream needs in order to route
+around it.
+
+The values behind those names go in `~/.omp/agent/.env`, not `~/.zshrc.local`. That
+distinction matters on the Linux box: the Paseo daemon runs under systemd, which sources no
+login shell, so agents it launches would see nothing set in `zshrc.local`. omp reads
+`.env` itself for any variable still unset in the environment — verified to feed the
+`models.yml` indirection above — so the daemon's agents and an interactive shell resolve
+the same key.
+
+**Which models each role resolves to — a config question.** This one turns out not to
+differ, and the earlier version of this section was wrong to build machinery for it.
+`modelRoles` and `retry.fallbackChains` stay in the tracked `config.yml` on both machines,
+because Pattern 1 above changes *who is billed for* `anthropic/claude-opus-5`, not *which
+model that name resolves to*. Nothing per-machine is left for a config overlay to say.
+
+The one case that does need more is wanting both accounts live at once — subscription
+serving the turn, work API key catching the overflow when it rate-limits. Pinning replaces,
+so holding two credentials for one upstream needs a second provider id:
+
+```yaml
+# ~/.omp/agent/models.yml — a twin of the built-in anthropic provider
+providers:
+  anthropic-api:
+    baseUrl: https://api.anthropic.com
+    api: anthropic-messages
+    apiKey: "!printenv ANTHROPIC_API_KEY"
+    models:
+      - id: claude-opus-5
+        name: Claude Opus 5 (API account)
+        reasoning: true
+        input: [text, image]
+        contextWindow: 200000
+        maxTokens: 64000
+```
+
+A provider carrying its own `models` list is a full custom provider, so `baseUrl` and `api`
+become required and each model has to be spelled out — omp won't clone a built-in catalog
+onto a new id. `anthropic-api/…` then goes in `retry.fallbackChains`, which is tracked and
+shared, and that's fine: a chain entry naming a provider this machine hasn't defined is
+reported as a config warning at startup and skipped, so the laptop ignores it.
+
+`~/.omp/agent/models.yml` is created from `omp/agent/models.yml.example` on every machine,
+so the mechanism is discoverable where it isn't used. The shipped copy is inert but not
+empty — it carries a literal `providers: {}`, because omp validates the root as an object
+and a file trimmed to pure comments parses as null and prints a validation warning on every
+startup.
+
+A `PI_CONFIG_FILES` overlay (`config.local.yml`, applied after the tracked `config.yml`)
+was the previous answer here and has been removed. It solved the config question, which
+turned out not to need solving, while leaving the auth question — the one that actually
+costs money — untouched. It also came with a sharp edge worth recording: a
+`PI_CONFIG_FILES` entry naming a missing file is a hard error, so omp refuses to start
+rather than skip it, which made an otherwise-pointless file mandatory on every machine.
 
 ### Paseo
 

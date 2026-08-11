@@ -5,13 +5,27 @@
 # chmod 600 ~/.zshrc.local — it holds credentials.
 
 # ── Secrets ──────────────────────────────────────────────────────────────────
-# export ANTHROPIC_API_KEY='sk-ant-...'
-# export OPENAI_API_KEY='sk-proj-...'
+# Model-provider keys are the exception to this file. Put ANTHROPIC_API_KEY and
+# OPENAI_API_KEY in ~/.omp/agent/.env instead: this file only reaches processes
+# started from a login shell, and on the Linux box the Paseo daemon runs under
+# systemd — agents it launches would get no credentials at all.
+#
+# Setting the variable is also not sufficient on its own. A stored OAuth session
+# outranks every environment variable in omp's credential order, so on a machine
+# that has run `/login`, the key is ignored until it is pinned in
+# ~/.omp/agent/models.yml. See omp/agent/models.yml.example.
 # export GITHUB_PERSONAL_ACCESS_TOKEN='github_pat_...'
 # export JIRA_API_TOKEN='ATATT...'
 # export FIGMA_ACCESS_TOKEN='figd_...'
 # export RUNPOD_API_KEY='rpa_...'
 # export HF_TOKEN='hf_...'
+
+# herdr-jira has no *_cmd field for base_url/email/default_project (only the
+# token), so those three are placeholders in the tracked config.toml. Point
+# this at an untracked directory holding your own config.toml (same [jira]
+# shape, real values) to override them — see config_path() in the plugin's
+# src/config.rs for the fallback path this replaces.
+# export HERDR_PLUGIN_CONFIG_DIR="$HOME/.config/herdr-jira-local"
 
 # ── Work context ─────────────────────────────────────────────────────────────
 # export AWS_PROFILE='...'

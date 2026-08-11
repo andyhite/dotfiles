@@ -186,13 +186,23 @@ EOF
 
 die() { printf '%s%s%s %s\n' "$C_RED" "$G_ERR" "$C_RESET" "$*" >&2; exit 1; }
 
+# --only/--skip take a required value. An empty or `-`-prefixed one means the
+# flag swallowed the next flag's name instead of a step list — without this
+# check, the loop's own `shift` below runs with $# already 0, returns
+# non-zero, and set -e aborts with no message at all.
+require_value() {
+  case "${2:-}" in
+    ""|-*) die "$1 needs a value — try --help" ;;
+  esac
+}
+
 while [ $# -gt 0 ]; do
   case "$1" in
     -y|--yes)     ASSUME_YES=1; FORWARD_ARGS+=("$1") ;;
     -v|--verbose) VERBOSE=1;    FORWARD_ARGS+=("$1") ;;
-    --only)       ONLY="${2:-}"; FORWARD_ARGS+=("$1" "${2:-}"); shift ;;
+    --only)       require_value "--only" "${2:-}"; ONLY="$2"; FORWARD_ARGS+=("$1" "$2"); shift ;;
     --only=*)     ONLY="${1#*=}"; FORWARD_ARGS+=("$1") ;;
-    --skip)       SKIP="${2:-}"; FORWARD_ARGS+=("$1" "${2:-}"); shift ;;
+    --skip)       require_value "--skip" "${2:-}"; SKIP="$2"; FORWARD_ARGS+=("$1" "$2"); shift ;;
     --skip=*)     SKIP="${1#*=}"; FORWARD_ARGS+=("$1") ;;
     # Unquoted on purpose: the comma split is the point, and a hostname can't
     # contain whitespace. Repeating the flag accumulates instead of replacing.
@@ -227,7 +237,12 @@ run_step() {
   step_wanted "$key" || return 0
   heading "$title" "$blurb"
   confirm "Run this step?" || { skipped "$key" "declined"; return 0; }
-  "$fn"
+  # A step's own failure is already recorded by failed() and reflected in the
+  # exit status check at the bottom of this file — piping it straight through
+  # would let one failing step's non-zero status take set -e down with it,
+  # skipping every step still queued after it (configs, runtimes, the Done
+  # summary) instead of just this one.
+  "$fn" || true
 }
 
 # Everything installed without a package manager lands here, and zshrc puts it
@@ -280,7 +295,14 @@ ensure_omp() {
     return
   fi
   added "omp" "installing"
-  curl -fsSL https://omp.sh/install | sh
+  # Every curl (or curl|sh) in this file is guarded the same way: set -o
+  # pipefail already fails the pipeline on a curl error, and leaving it
+  # unguarded would abort the whole run under set -e on a transient network
+  # blip instead of warning and letting the rest of the run continue.
+  if ! curl -fsSL https://omp.sh/install | sh; then
+    warned "omp" "download failed — re-run to retry"
+    return 0
+  fi
 }
 
 ensure_atuin_account() {
@@ -464,8 +486,16 @@ ensure_tree_sitter_cli() {
   # correctly and fails on stock Ubuntu with a missing stdbool.h. NvChad only
   # needs the binary on PATH; this sidesteps the build entirely.
   tmp="$(mktemp -d)"
-  curl -fsSL -o "$tmp/tree-sitter.gz" \
-    "https://github.com/tree-sitter/tree-sitter/releases/latest/download/tree-sitter-$os_part.gz"
+  # Pinned to the tag already resolved above, not /latest/download/ — that
+  # re-resolves at download time, and a release landing in the gap between
+  # the two calls would install a version this function never verified, then
+  # report the wrong "$current -> $latest" name.
+  if ! curl -fsSL -o "$tmp/tree-sitter.gz" \
+    "https://github.com/tree-sitter/tree-sitter/releases/download/v$latest/tree-sitter-$os_part.gz"; then
+    rm -rf "$tmp"
+    warned "tree-sitter-cli" "download failed — re-run to retry"
+    return 0
+  fi
   gunzip -f "$tmp/tree-sitter.gz"
   mkdir -p "$HOME/.local/bin"
   install -m 755 "$tmp/tree-sitter" "$HOME/.local/bin/tree-sitter"
@@ -552,7 +582,10 @@ apt_ensure() {
 ensure_rustup() {
   if ! command -v cargo >/dev/null 2>&1; then
     added "rustup" "cargo not found — installing"
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y -q
+    if ! curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y -q; then
+      warned "rustup" "download failed — re-run to retry"
+      return 0
+    fi
     # shellcheck disable=SC1091
     source "$HOME/.cargo/env"
   fi
@@ -619,7 +652,13 @@ ensure_neovim_linux() {
     return
   fi
   tmp="$(mktemp -d)"
-  curl -fsSL -o "$tmp/nvim.tar.gz" "https://github.com/neovim/neovim/releases/latest/download/$tarball"
+  # Pinned to the tag resolved above, not /latest/download/ — same race
+  # tree-sitter's download guards against.
+  if ! curl -fsSL -o "$tmp/nvim.tar.gz" "https://github.com/neovim/neovim/releases/download/$latest/$tarball"; then
+    rm -rf "$tmp"
+    warned "neovim" "download failed — re-run to retry"
+    return 0
+  fi
   tar -xzf "$tmp/nvim.tar.gz" -C "$tmp"
   # Ubuntu's apt neovim (0.9.5) is below NvChad's 0.11 floor, and there's no
   # PPA guaranteed available everywhere — take the official release tarball
@@ -663,8 +702,12 @@ ensure_lazygit_linux() {
   fi
 
   tmp="$(mktemp -d)"
-  curl -fsSL -o "$tmp/lazygit.tar.gz" \
-    "https://github.com/jesseduffield/lazygit/releases/download/v${latest}/lazygit_${latest}_linux_${arch}.tar.gz"
+  if ! curl -fsSL -o "$tmp/lazygit.tar.gz" \
+    "https://github.com/jesseduffield/lazygit/releases/download/v${latest}/lazygit_${latest}_linux_${arch}.tar.gz"; then
+    rm -rf "$tmp"
+    warned "lazygit" "download failed — re-run to retry"
+    return 0
+  fi
   tar -xzf "$tmp/lazygit.tar.gz" -C "$tmp" lazygit
   mkdir -p "$HOME/.local/bin"
   install -m 755 "$tmp/lazygit" "$HOME/.local/bin/lazygit"
@@ -689,8 +732,12 @@ ensure_nerd_font_linux() {
   fi
   local tmp
   tmp="$(mktemp -d)"
-  curl -fsSL -o "$tmp/font.zip" \
-    "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip"
+  if ! curl -fsSL -o "$tmp/font.zip" \
+    "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip"; then
+    rm -rf "$tmp"
+    warned "JetBrainsMono Nerd Font" "download failed — re-run to retry"
+    return 0
+  fi
   mkdir -p "$HOME/.local/share/fonts/JetBrainsMonoNerdFont"
   unzip -oq "$tmp/font.zip" -d "$HOME/.local/share/fonts/JetBrainsMonoNerdFont"
   fc-cache -f "$HOME/.local/share/fonts/JetBrainsMonoNerdFont" >/dev/null
@@ -926,7 +973,32 @@ link_configs() {
     fi
   fi
 
-  # Templates are copied, not linked: each holds machine-local values, and three
+  # .gitattributes points config/zed/settings.json at a clean filter, but a
+  # filter definition can't be committed: it names an absolute path, and this
+  # repo sits somewhere different on every machine. Register it here instead.
+  #
+  # Without it Zed writes ssh_connections — real internal hosts, real work
+  # project paths — through the symlink into a tracked file in a public repo,
+  # on every remote connect. Deleting the key by hand doesn't hold; the next
+  # connect restores it. git treats an unconfigured filter as a pass-through,
+  # so this is what actually turns the .gitattributes entry on.
+  #
+  # `git config` overwrites rather than appends, so re-running is a no-op.
+  if [ -d "$DOTFILES_DIR/.git" ]; then
+    # `awk -f <script>`, not the script as a program: it carries no shebang on
+    # purpose, because `#!/usr/bin/env awk -f` silently works on macOS and
+    # fails on Linux. The path is single-quoted for git's `sh -c`, so a repo
+    # checked out under a path with spaces still resolves.
+    git -C "$DOTFILES_DIR" config filter.zed-local.clean \
+      "awk -f '$DOTFILES_DIR/bin/zed-settings-clean'"
+    # No smudge: the working file is Zed's, and this filter only ever removes
+    # machine state on the way in. Reversing it on checkout would mean writing
+    # this machine's hosts into another machine's file.
+    git -C "$DOTFILES_DIR" config filter.zed-local.smudge cat
+    ok "git filter" "zed-local — strips ssh_connections from the index"
+  fi
+
+  # Templates are copied, not linked: each holds machine-local values, and most
   # of them hold credentials. Copied only when absent, so a re-run can never
   # overwrite an already filled-in file.
   #
@@ -935,15 +1007,21 @@ link_configs() {
   # next person, and drifts if the location ever changes.
   local example target
   for example in zshrc.local.example gitconfig.local.example ssh/config.local.example \
-                 config/paseo/daemon.env.example; do
+                 config/paseo/daemon.env.example omp/agent/models.yml.example; do
     # ssh's and paseo's live in a subdirectory on both sides; the rest are
     # dotfiles at $HOME. paseo's is the odd one out in that its target isn't a
     # dotfile at all — config/paseo/paseo.service names it as an
     # EnvironmentFile, and systemd resolves that path itself, so it has to land
     # where the unit says rather than where this loop's default would put it.
+    # omp's lands beside the config.yml symlink, which is already where omp
+    # looks for it. It ships inert but deliberately not empty: the active line
+    # is a literal `providers: {}`, because omp validates the file's root as an
+    # object and a copy trimmed to pure comments parses as null and warns on
+    # every startup.
     case "$example" in
       ssh/*)          target="$HOME/.ssh/${example#ssh/}"; target="${target%.example}" ;;
       config/paseo/*) target="$HOME/.config/paseo/${example#config/paseo/}"; target="${target%.example}" ;;
+      omp/agent/*)    target="$HOME/.omp/agent/${example#omp/agent/}"; target="${target%.example}" ;;
       *)              target="$HOME/.${example%.example}" ;;
     esac
 

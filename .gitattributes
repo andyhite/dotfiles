@@ -1,0 +1,9 @@
+# Zed rewrites ssh_connections into this file on every remote connect, and the
+# file is symlinked out of this repo — so without a filter, internal hostnames
+# and work project paths land in a public repo on their own. bin/zed-settings-clean
+# drops that one key on the way into the index and leaves the rest byte-for-byte.
+#
+# install.sh registers the filter per-machine (the repo's absolute path differs
+# on each one, so the definition can't be committed). Until it runs, git treats
+# an unknown filter as a pass-through, so a fresh clone behaves as it always did.
+config/zed/settings.json filter=zed-local

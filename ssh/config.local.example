@@ -10,8 +10,10 @@
 # be stale noise if tracked.
 # Include ~/.dstack/ssh/config
 
+# A remote dev box reached by short name. The tracked ssh/config carries no
+# hostnames of its own, so every machine-specific alias belongs here.
 # Host devbox
-#   User andyhite
+#   User you
 
 # Throwaway localhost port-forward for testing tmux/moor over ssh instead of
 # a real network host. StrictHostKeyChecking/UserKnownHostsFile/LogLevel below
