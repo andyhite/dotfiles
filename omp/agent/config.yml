@@ -18,6 +18,9 @@ modelRoles:
 modelProviderOrder: 
   - anthropic
   - openai-codex
+disabledProviders:
+  - amazon-bedrock
+  - bedrock-mantle
 symbolPreset: nerd
 theme: 
   dark: dark-one-tuned
