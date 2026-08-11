@@ -54,7 +54,7 @@ target = "devbox"
 
 ## Sidebar label prefix, giving "work: <remote workspace name>". Defaults to the
 ## table key, so this line is only here to make the naming explicit.
-prefix = "Fab"
+prefix = "fab"
 
 ## Where herdr lives on the remote. This is the default; the tilde is expanded
 ## by the remote shell, not locally.
