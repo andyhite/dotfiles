@@ -93,6 +93,6 @@ Conventional Commits, one line, all lowercase, imperative mood, no trailing peri
   repo-wide changes.
 - Add a body only when the reasoning is worth recording.
 
-Branch names are a short kebab-case slug led by a verb, with no type prefix and no issue
-number: `add-nvchad`, `fix-paseo-host-allowlist`. `main` is protected — push a branch and
-open a PR.
+Changes normally land as a direct push to `main`, which is where CI runs. When a change
+does warrant a branch, name it with a short kebab-case slug led by a verb, with no type
+prefix and no issue number: `add-nvchad`, `fix-paseo-host-allowlist`.

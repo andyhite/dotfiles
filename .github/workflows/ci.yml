@@ -3,10 +3,12 @@
 # that it still links a config tree end to end. Neither needs a real machine.
 name: CI
 
+# Every branch, not just main: work here usually lands as a direct push, so a
+# branch filter would mean the checks only ever ran after the fact. Runs are
+# attached to the commit SHA, so a push run still reports on a pull request
+# opened from that branch — a `pull_request:` trigger would only duplicate it.
 on:
   push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 jobs:
