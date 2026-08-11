@@ -6,8 +6,8 @@
 # that wants a real branch, a real checkout, and an agent you can still talk to
 # an hour later needs separate omp processes. herdr already has every primitive
 # for that (`worktree create`, `agent start/prompt/read/wait`), but stringing
-# them together per dispatch is six commands, two JSON digs, and a race against
-# the workspace-manager plugin that starts the agent asynchronously. This is
+# them together per dispatch is several commands, a JSON dig, and knowing which
+# of them yields an agent herdr will actually recognise and address. This is
 # that sequence, done once, correctly.
 #
 # The other half is addressing. Two omp processes cannot see each other —
@@ -28,9 +28,9 @@ set -euo pipefail
 
 FLEET_STATE="${FLEET_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/fleet}"
 
-# herdr requires >3000 for agent readiness. The workspace-manager plugin starts
-# the agent itself, so this is how long we wait for its layout apply to land an
-# agent in the new workspace, not how long omp takes to boot.
+# Bound on getting a named, input-ready omp into a fresh worktree. `agent
+# start` blocks until herdr has detected the agent, so this covers omp's own
+# boot; herdr caps its --timeout at 300000 and the value is clamped to that.
 SPAWN_TIMEOUT_MS="${FLEET_SPAWN_TIMEOUT_MS:-120000}"
 # Bound on a single `fleet ask`/`fleet join`. Long by default: the whole point
 # of a worker is that it does something substantial.
@@ -39,6 +39,13 @@ WAIT_TIMEOUT_MS="${FLEET_WAIT_TIMEOUT_MS:-3600000}"
 # on an agent that is idle for the wrong reason. herdr already fails fast on a
 # stalled prompt; this is the second check, on the state it actually reached.
 DISPATCH_SETTLE_MS="${FLEET_DISPATCH_SETTLE_MS:-15000}"
+# Commands the `full` layout runs beside the agent. Overridable because they
+# are a preference, not a mechanism.
+FLEET_EDITOR="${FLEET_EDITOR:-nvim}"
+FLEET_GIT_UI="${FLEET_GIT_UI:-lazygit}"
+# A new shell may still be loading zsh/mise/direnv when a layout command is
+# sent. Verify that the requested TUI actually became foreground and retry.
+LAYOUT_START_TIMEOUT_MS="${FLEET_LAYOUT_START_TIMEOUT_MS:-15000}"
 
 die() { printf 'fleet: %s\n' "$*" >&2; exit 1; }
 note() { printf '%s\n' "$*" >&2; }
@@ -133,6 +140,44 @@ repo_key() {
   common=$(cd "$top" && git rev-parse --git-common-dir 2>/dev/null) || return 0
   [ -n "$common" ] || return 0
   ( cd "$top" && cd "$common" && pwd -P )
+}
+
+# Whether the enabled workspace-manager plugin declares this repo. This is the
+# deterministic coexistence gate: a covered repo belongs to the plugin for as
+# long as it is enabled; every other repo belongs to fleet. Letting both race
+# and inferring ownership from who started the agent first has an inverse race
+# where the loser can still apply its layout afterwards.
+workspace_manager_owns_repo() {
+  local repo=$1 line config_dir config configured candidate repo_id
+  line=$(herdr plugin list 2>/dev/null \
+    | sed -n '/^- herdr-plugin-workspace-manager /p')
+  case "$line" in *" enabled "*) ;; *) return 1 ;; esac
+  config_dir=$(herdr plugin config-dir herdr-plugin-workspace-manager 2>/dev/null) \
+    || return 1
+  config="$config_dir/config.yml"
+  [ -f "$config" ] || return 1
+  repo_id=$(repo_key "$repo")
+
+  while IFS= read -r configured; do
+    # `repo` accepts a path (including ~) or a bare repo name.
+    configured=${configured#"${configured%%[![:space:]]*}"}
+    configured=${configured%"${configured##*[![:space:]]}"}
+    case "$configured" in
+      \"*\") configured=${configured#\"}; configured=${configured%\"} ;;
+      \'*\') configured=${configured#\'}; configured=${configured%\'} ;;
+    esac
+    case "$configured" in
+      \~/*) configured="$HOME/${configured#\~/}" ;;
+    esac
+    case "$configured" in
+      */*)
+        candidate=$(repo_key "$configured")
+        [ -n "$candidate" ] && [ "$candidate" = "$repo_id" ] && return 0
+        ;;
+      *) [ "$(basename "$repo")" = "$configured" ] && return 0 ;;
+    esac
+  done < <(sed -E -n 's/^[[:space:]]*-[[:space:]]*repo:[[:space:]]*(.*)$/\1/p' "$config")
+  return 1
 }
 
 # ── State ────────────────────────────────────────────────────────────────────
@@ -316,9 +361,16 @@ usage: fleet spawn <branch> [options]
   --repo <path>       repo to branch from (default: current repo)
   --path <path>       worktree location (default: sibling <repo>-<slug>)
   --handle <name>     agent handle (default: derived from the branch)
+  --layout <shape>    agent (default) | full — see below
   --task <text>       task to dispatch once the agent is ready
   --task-file <path>  read the task from a file ('-' for stdin)
-  --no-dispatch       create the worktree and stop
+  --no-dispatch       build the worktree, agent, and layout without a task
+
+layouts:
+  agent   one pane, running omp. All a worker needs.
+  full    omp with an editor beside it, plus shell and review tabs, for a
+          worktree you intend to sit in yourself. $FLEET_EDITOR (nvim) and
+          $FLEET_GIT_UI (lazygit) choose the commands.
 EOF
   exit 2
 }
@@ -326,6 +378,7 @@ EOF
 cmd_spawn() {
   require_herdr
   local branch="" base="" repo="" wtpath="" handle="" task="" taskfile="" dispatch=1
+  local layout=agent
   [ $# -gt 0 ] || usage_spawn
   branch=$1; shift
   case "$branch" in -*) usage_spawn ;; esac
@@ -335,6 +388,7 @@ cmd_spawn() {
       --repo) repo=${2:?}; shift 2 ;;
       --path) wtpath=${2:?}; shift 2 ;;
       --handle) handle=${2:?}; shift 2 ;;
+      --layout) layout=${2:?}; shift 2 ;;
       --task) task=${2:?}; shift 2 ;;
       --task-file) taskfile=${2:?}; shift 2 ;;
       --no-dispatch) dispatch=0; shift ;;
@@ -342,9 +396,20 @@ cmd_spawn() {
     esac
   done
 
+  case "$layout" in
+    agent|full) ;;
+    *) die "unknown layout '$layout' (expected: agent, full)" ;;
+  esac
+
   repo=${repo:-$(git rev-parse --show-toplevel 2>/dev/null || true)}
   [ -n "$repo" ] || die "not in a git repo and --repo was not given"
   repo=$(cd "$repo" && pwd -P)
+  if workspace_manager_owns_repo "$repo"; then
+    die "workspace-manager is enabled and configured for $repo
+  fleet will not race it or depend on it; remove this repo from:
+  $(herdr plugin config-dir herdr-plugin-workspace-manager)/config.yml
+  or disable the plugin, then retry"
+  fi
 
   if [ -z "$base" ]; then
     # origin/HEAD is the branch the remote considers default; fall back to
@@ -377,52 +442,201 @@ cmd_spawn() {
   [ -n "$boss" ] || die "this pane has no herdr agent name; run 'fleet boss' first"
 
   note "fleet: creating $branch at $wtpath (from $base)"
-  local created ws
+  local created ws tab pane
   created=$(h worktree create --cwd "$repo" --branch "$branch" --base "$base" \
     --path "$wtpath" --no-focus)
-  ws=$(printf '%s' "$created" | jq -r '.result.workspace.workspace_id')
-  [ -n "$ws" ] && [ "$ws" != null ] || die "worktree create returned no workspace id"
+  ws=$(printf '%s' "$created" | jq -r '.result.workspace.workspace_id // empty')
+  tab=$(printf '%s' "$created" | jq -r '.result.tab.tab_id // empty')
+  pane=$(printf '%s' "$created" | jq -r '.result.root_pane.pane_id // empty')
+  [ -n "$ws" ] || die "worktree create returned no workspace id"
+  [ -n "$tab" ] || die "worktree create returned no root tab id"
+  [ -n "$pane" ] || die "worktree create returned no root pane id"
 
   # Recorded before the agent exists. Every value here is already known, and a
-  # spawn that dies further down — no agent ever became ready, herdr refused
-  # the rename — must still leave something `fleet ls` shows and `fleet reap`
-  # can remove. Otherwise the failure orphans a worktree no fleet command can
-  # even see.
+  # spawn that dies further down — no agent could be started, herdr refused a
+  # rename — must still leave something `fleet ls` shows and `fleet reap` can
+  # remove. Otherwise the failure orphans a worktree no fleet command can see.
   meta_set "$handle" "BOSS=$boss" "BRANCH=$branch" "DIR=$wtpath" "WORKSPACE=$ws" \
     "REPO=$repo" "REPO_KEY=$(repo_key "$repo")"
   : >"$(report_file "$handle")"
 
-  # herdr returns as soon as the workspace exists; the workspace-manager plugin
-  # applies the layout and runs `herdr agent start` afterwards, out of band. So
-  # the agent is discovered, never predicted — the plugin's default naming is
-  # an implementation detail we deliberately do not depend on.
-  #
-  # `interactive_ready` is the only sound readiness signal, and nothing weaker
-  # substitutes for it: herdr publishes an `agent_status` of `idle` for a pane
-  # whose agent is still launching, and renaming that pane fails with
-  # `agent_launch_pending`. The flag is set by `herdr agent start`, which is
-  # what an `agent:` layout pane uses — an agent herdr merely detected in a
-  # shell never carries it, and such a pane is not spawnable-into anyway.
-  local waited=0 found=""
-  while [ "$waited" -lt "$SPAWN_TIMEOUT_MS" ]; do
-    found=$(h agent list | jq -r --arg w "$ws" \
-      '[ .result.agents[]?
-         | select(.workspace_id == $w and .interactive_ready == true)
-         | .pane_id ][0] // empty')
-    [ -n "$found" ] && break
-    sleep 0.5; waited=$((waited + 500))
-  done
-  [ -n "$found" ] || die "no agent became ready in workspace $ws within $((SPAWN_TIMEOUT_MS / 1000))s
-  (is this repo covered by a workspace-manager layout with an 'agent:' pane?)
-  clean up the worktree with: fleet reap $handle --force"
-
-  h agent rename "$found" "$handle" >/dev/null
+  start_worker_agent "$handle" "$ws" "$pane"
+  # After the agent, deliberately. The agent is the deliverable; the rest of
+  # the layout is scenery, and a worker that works beats a tidy dead workspace.
+  apply_layout "$layout" "$ws" "$tab" "$pane" "$wtpath"
 
   printf '%s\n' "$handle"
 
   if [ "$dispatch" = 1 ] && [ -n "$task" ]; then
     dispatch_to "$handle" "$task$(protocol_block "$handle" "$boss" "$branch" "$wtpath")"
   fi
+}
+
+# Put a named, input-ready omp in the worktree's own pane.
+#
+# `worktree create` hands back the workspace's root pane, so there is nothing
+# to discover: `agent start` launches omp there, takes the name up front, and
+# returns only once herdr has detected it and considers it ready for input.
+# That one call replaces a poll for `interactive_ready` followed by a rename,
+# and it means fleet no longer needs a layout plugin to start an agent.
+#
+# `agent start` is a loop because it requires the pane to be *at its interactive
+# shell prompt*, and a brand-new worktree pane is not — zsh, mise and direnv
+# take a few seconds — so early attempts fail fast and are retried. A configured
+# workspace-manager is rejected before worktree creation, so this function
+# never participates in a layout race with it.
+start_worker_agent() {
+  local handle=$1 ws=$2 pane=$3
+  # herdr caps `agent start --timeout` at 300000.
+  local start_ms=$SPAWN_TIMEOUT_MS
+  [ "$start_ms" -le 300000 ] || start_ms=300000
+
+  local waited=0 err="" found=""
+
+  while :; do
+    if err=$(herdr agent start "$handle" --kind omp --pane "$pane" \
+               --timeout "$start_ms" 2>&1); then
+      return 0
+    fi
+    # A failed CLI response can race with the agent it started becoming ready.
+    # Recover only if that agent already has the requested handle; a differently
+    # named occupant belongs to something else and must never be adopted.
+    found=$(workspace_ready_agent "$ws")
+    if [ -n "$found" ]; then
+      if [ "$(agent_field "$handle" pane_id)" = "$found" ]; then
+        note "fleet: the started agent became ready in $found"
+        return 0
+      fi
+      die "workspace $ws already contains an unexpected agent in $found
+  fleet will not adopt or rename it
+  clean up the worktree with: fleet reap $handle --force"
+    fi
+    [ "$waited" -lt "$SPAWN_TIMEOUT_MS" ] || break
+    sleep 0.5; waited=$((waited + 500))
+  done
+
+  die "could not get an agent into workspace $ws within $((SPAWN_TIMEOUT_MS / 1000))s
+  agent start said: $err
+  clean up the worktree with: fleet reap $handle --force"
+}
+
+# The pane id of an input-ready agent in workspace $1, if there is one.
+workspace_ready_agent() {
+  h agent list | jq -r --arg w "$1" \
+    '[ .result.agents[]?
+       | select(.workspace_id == $w and .interactive_ready == true)
+       | .pane_id ][0] // empty'
+}
+
+# Arrange the worktree's workspace from herdr's own primitives, so that
+# removing a layout plugin costs a fleet worktree nothing.
+#
+# `agent` is the default and is the whole job for a worker: the single pane
+# `worktree create` returned, running omp. `full` is for a worktree you intend
+# to sit in yourself — editor beside the agent, a shell, and a git UI — and is
+# the shape worth pairing with `--no-dispatch`.
+#
+# Panes and tabs are created unfocused: spawning is something an orchestrator
+# does in the background, and it must not yank the view out from under whoever
+# is reading something else.
+apply_layout() {
+  local layout=$1 ws=$2 tab=$3 root=$4 dir=$5
+  h tab rename "$tab" agent >/dev/null
+  h pane rename "$root" omp >/dev/null
+  [ "$layout" = full ] || return 0
+
+  local editor shell review created
+  editor=$(h pane split "$root" --direction right --ratio 0.45 --cwd "$dir" \
+    --no-focus | jq -r '.result.pane.pane_id // empty')
+  [ -n "$editor" ] || die "pane split returned no pane id"
+  h pane rename "$editor" editor >/dev/null
+  run_pane_command "$editor" "$FLEET_EDITOR"
+
+  created=$(h tab create --workspace "$ws" --cwd "$dir" --label shell --no-focus)
+  shell=$(printf '%s' "$created" | jq -r '.result.root_pane.pane_id // empty')
+  [ -n "$shell" ] || die "tab create returned no shell pane id"
+  h pane rename "$shell" shell >/dev/null
+
+  created=$(h tab create --workspace "$ws" --cwd "$dir" --label review --no-focus)
+  review=$(printf '%s' "$created" | jq -r '.result.root_pane.pane_id // empty')
+  [ -n "$review" ] || die "tab create returned no review pane id"
+  h pane rename "$review" review >/dev/null
+  run_pane_command "$review" "$FLEET_GIT_UI"
+}
+
+# Start a persistent TUI only after the new pane proves its shell can accept
+# input. `pane run` is intentionally fire-and-forget; during shell startup it
+# can be a successful API call whose input was never consumed.
+#
+# Retrying nvim/lazygit itself would be unsafe: if the first launch were merely
+# slow, the retry would land inside the TUI as keystrokes. Instead retry only a
+# harmless printf sentinel. Seeing that exact marker acknowledges the shell;
+# the real command is then sent exactly once and only observed. Optional layout
+# tools stay optional: if the pane's own shell cannot resolve one, its tab is
+# left as a useful shell and spawn says why.
+run_pane_command() {
+  local pane=$1 command=$2
+  local executable=${command%% *}
+  executable=$(basename "$executable")
+  wait_shell_ready "$pane"
+  if ! pane_has_command "$pane" "$executable"; then
+    note "fleet: '$executable' is unavailable in $pane; leaving it as a shell"
+    return 0
+  fi
+  h pane run "$pane" "$command" >/dev/null
+
+  local waited=0
+  while [ "$waited" -lt "$LAYOUT_START_TIMEOUT_MS" ]; do
+    if pane_runs "$pane" "$executable"; then return 0; fi
+    sleep 0.25; waited=$((waited + 250))
+  done
+  die "'$command' did not start in pane $pane within $((LAYOUT_START_TIMEOUT_MS / 1000))s"
+}
+
+pane_has_command() {
+  local pane=$1 executable=$2 id=${1//[:]/_} quoted result line
+  printf -v quoted '%q' "$executable"
+  local available="__fleet_command_available_${id}__"
+  local missing="__fleet_command_missing_${id}__"
+  # The full marker is not present in this input line: `%s` is filled only
+  # during execution. wait-output therefore cannot mistake terminal echo for
+  # the command's result.
+  h pane run "$pane" \
+    "if command -v $quoted >/dev/null 2>&1; then state=available; else state=missing; fi; printf '__fleet_command_%s_${id}__\\n' \"\$state\"" \
+    >/dev/null
+  result=$(herdr pane wait-output "$pane" \
+    --regex "__fleet_command_(available|missing)_${id}__" \
+    --source recent-unwrapped --lines 20 --timeout "$LAYOUT_START_TIMEOUT_MS" 2>&1) \
+    || die "pane $pane did not answer the command-availability check: $result"
+  line=$(printf '%s' "$result" | jq -r '.result.matched_line // empty')
+  case "$line" in *"$available"*) return 0 ;; *"$missing"*) return 1 ;;
+    *) die "pane $pane returned an invalid command-availability result: $line" ;; esac
+}
+
+wait_shell_ready() {
+  local pane=$1 id=${1//[:]/_}
+  local marker="__fleet_shell_ready_${id}__"
+  local waited=0
+  while [ "$waited" -lt "$LAYOUT_START_TIMEOUT_MS" ]; do
+    # The full marker is assembled by printf, so terminal echo cannot satisfy
+    # the wait. Repetition is harmless; marker output is the acknowledgement.
+    h pane run "$pane" "printf '__fleet_shell_%s_${id}__\\n' ready" >/dev/null
+    if herdr pane wait-output "$pane" --match "$marker" \
+         --source recent-unwrapped --lines 20 --timeout 1000 >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.25; waited=$((waited + 1250))
+  done
+  die "pane $pane did not reach an interactive shell prompt within $((LAYOUT_START_TIMEOUT_MS / 1000))s"
+}
+
+pane_runs() {
+  herdr pane process-info --pane "$1" 2>/dev/null \
+    | jq -e --arg executable "$2" '
+        any(.result.process_info.foreground_processes[]?;
+            .name == $executable
+            or ((.argv0 // "") | split("/")[-1] == $executable))' \
+      >/dev/null
 }
 
 # ── Dispatch ─────────────────────────────────────────────────────────────────

@@ -662,10 +662,31 @@ and different launch-broker scopes — there is no omp-level channel between the
 herdr has one. Every agent it recognises is addressable by name, and `herdr agent prompt
 <name>` writes into that agent's live input. That makes the channel symmetric: a worker
 answers its orchestrator with the same command the orchestrator used to reach it. So the
-transport is herdr's, and `fleet` is the part that makes it usable — `worktree create`
-returns before the workspace-manager plugin has started an agent, the agent has to be
-discovered rather than predicted, renamed to something addressable, and only then
-prompted. Six commands and a race, per dispatch.
+transport is herdr's, and `fleet` is the part that makes it usable — create the worktree,
+get a named agent into the pane it hands back, wait for herdr to consider that agent ready
+for input, and only then prompt it. Several commands and a JSON dig, per dispatch.
+
+`fleet` starts that agent itself, with `herdr agent start <handle> --kind omp --pane
+<root_pane>`, which names the agent up front and returns only once herdr has detected it.
+It deliberately does not rely on `herdr-plugin-workspace-manager` having started one out
+of band. The default `agent` layout is exactly one named tab and the omp pane a worker
+needs. `--layout full` builds the old `issue` shape directly — omp and nvim together,
+then shell and review tabs — using `herdr tab create`, `pane split`, `pane rename` and
+`pane run`. nvim/lazygit are preferences (`$FLEET_EDITOR` / `$FLEET_GIT_UI`); if the
+pane's own shell cannot resolve one, the pane remains a shell rather than killing spawn.
+
+Fresh panes are not at their shell prompts for the first few seconds — zsh, mise and
+direnv — so inputs can be accepted by the API and dropped by the shell. Agent start is
+retried until it takes. Layout commands use a safer handshake: fleet retries only a
+harmless printf sentinel whose literal output does not appear in the input line, sends
+the real TUI command exactly once after observing that output, then verifies the
+executable became foreground.
+
+There is no race-based coexistence with workspace-manager: it has an inverse race where
+fleet can start the agent first and the plugin can still apply its layout afterwards.
+Before creating a branch or worktree, fleet checks whether the enabled plugin's config
+covers that repo and refuses with the exact config path to change. Disable the plugin or
+remove that repo entry and the same `fleet spawn` owns agent startup and layout directly.
 
 Two details worth knowing before reading the script:
 

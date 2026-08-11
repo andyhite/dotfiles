@@ -50,9 +50,12 @@ the fleet of whoever it displaces.
 
 ## Dispatching
 
-One worker per branch. `spawn` creates the worktree, waits for herdr's
-workspace-manager plugin to start an omp in it, renames that agent to a handle
-derived from the branch, and submits the task.
+One worker per branch. `spawn` creates the worktree, starts an omp in the
+workspace's own pane under a handle derived from the branch, builds the selected
+layout, and submits the task. It needs no layout plugin: `herdr worktree create`
+returns the root pane, and `herdr agent start` names the agent and blocks until
+herdr has it ready. A repo covered by an enabled workspace-manager is rejected
+before the branch or worktree exists; fleet never adopts or races it.
 
 ```bash
 fleet spawn feat/412-webhook-retry \
@@ -73,7 +76,23 @@ fleet spawn fix/301-null-guard --task-file /tmp/task-301.md
 ```
 
 `--base` overrides the branch point (default: `origin/HEAD`). `--no-dispatch`
-creates the worktree and stops, for when you want to inspect it first.
+creates the worktree and starts its agent without assigning work.
+
+`--layout agent` (the default) is the worker shape: one `agent` tab, one `omp`
+pane. `--layout full` is for a worktree a human will also occupy:
+
+```text
+agent tab:  omp | nvim
+shell tab:  zsh
+review tab: lazygit (or a shell when lazygit is unavailable)
+```
+
+Fleet creates that shape from `herdr tab`/`pane` commands directly. It does not
+need workspace-manager, and it refuses to race or silently depend on one: if
+the enabled plugin config covers the repo, spawn stops before creating a branch
+or worktree and names the config entry to remove (or disable the plugin). Once
+the repo is no longer covered, the same command takes direct ownership.
+`$FLEET_EDITOR` and `$FLEET_GIT_UI` override `nvim` and `lazygit`.
 
 ## Collecting
 
