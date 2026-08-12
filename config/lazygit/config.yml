@@ -10,7 +10,6 @@ gui:
   nerdFontsVersion: "3"
   filterMode: fuzzy
   showRandomTip: false
-
   # One Dark, shared with Ghostty, starship, Herdr, Atuin, nvim, and omp.
   # The focused border uses Ghostty's brighter terminal blue so nested TUIs
   # agree on the active-pane accent.
@@ -33,28 +32,26 @@ gui:
       - "#e06c75"
     defaultFgColor:
       - "#abb2bf"
-
 git:
   # Delta re-renders the diff and commit panels using the [delta] section in
   # gitconfig: same One Dark theme, navigate keys, and hyperlinks as `git
   # diff` on the command line. Delta reads that config directly (it walks up
   # to the repo's .git), so nothing needs to be duplicated here.
-  paging:
-    # Forces color even though lazygit captures delta's output into a panel
-    # instead of a real terminal — without this, delta (like git) detects a
-    # non-tty stdout and drops color, and the diff panel goes plain-text.
-    colorArg: always
-    # `--paging=never` is load-bearing: lazygit already scrolls the diff panel
-    # itself, and a delta that also pages internally (spawns its own `less`)
-    # fights it for raw terminal input — deadlocking the panel instead of just
-    # failing loudly. `--dark` picks delta's dark palette; everything else
-    # (theme, navigate, line-numbers, hyperlinks) comes from gitconfig's
-    # [delta] section. Deliberately no `|| less` fallback like gitconfig's
-    # core.pager: lazygit shells this differently, and a missing delta
-    # degrades to an error inside one panel instead of breaking every git
-    # command outside lazygit too — not worth the noise of guarding it here.
-    pager: delta --dark --paging=never
-
+  diffRenderers:
+    - # Forces color even though lazygit captures delta's output into a panel
+      # instead of a real terminal — without this, delta (like git) detects a
+      # non-tty stdout and drops color, and the diff panel goes plain-text.
+      colorArg: always
+      # `--paging=never` is load-bearing: lazygit already scrolls the diff panel
+      # itself, and a delta that also pages internally (spawns its own `less`)
+      # fights it for raw terminal input — deadlocking the panel instead of just
+      # failing loudly. `--dark` picks delta's dark palette; everything else
+      # (theme, navigate, line-numbers, hyperlinks) comes from gitconfig's
+      # [delta] section. Deliberately no `|| less` fallback like gitconfig's
+      # core.pager: lazygit shells this differently, and a missing delta
+      # degrades to an error inside one panel instead of breaking every git
+      # command outside lazygit too — not worth the noise of guarding it here.
+      command: delta --dark --paging=never
 os:
   # install.sh provides nvim on both macOS and Linux.
   editPreset: nvim
