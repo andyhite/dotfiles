@@ -418,11 +418,12 @@ symlink with a portable loop — not `readlink -f`, which BSD/macOS lacks before
 
 Five modes, all parsing the same corpus:
 
-- **default** (no args, with a tty and `fzf`): interactive picker with a preview pane
-  that re-invokes `dotfiles-help <name>` so the preview cannot drift from a direct lookup
+- **default** (no args, with a tty and `fzf`): interactive picker sorted A–Z by
+  name, with a preview pane that re-invokes `dotfiles-help <name>` so the preview
+  cannot drift from a direct lookup
 - **`<name>`**: print one section — exact match first, then case-insensitive substring on
   name and tagline
-- **`--list` / `-l`**: one line per tool, name then tagline
+- **`--list` / `-l`**: tools grouped by category (A–Z), name A–Z within each
 - **`--all` / `-a`**: the whole corpus in curated file order (`00-shell.md`, …)
 - **`--search` / `-s TEXT`**: grep section bodies, list matching lines tagged by tool
 
