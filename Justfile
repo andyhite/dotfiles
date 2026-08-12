@@ -62,8 +62,13 @@ zsh-syntax:
 # fallback-chain entry against the model catalog, so a built-in provider is
 # fine on a machine that cannot authenticate it — the entry is just skipped —
 # while a custom models.yml provider id warns once per role at every startup
-# on every machine that doesn't define it. Tracked routing therefore names
-# built-in providers only.
+# on every machine that doesn't define it (observed on the andyhite-fab VM
+# before it had one). Tracked routing may therefore only name omp's built-in
+# providers, plus `anthropic-api`: every machine this config runs on defines
+# that one locally (see omp/agent/models.yml.example) as a second Anthropic
+# identity billed by API key instead of the subscription OAuth login behind
+# the built-in `anthropic` id — that's what lets one fallback chain list both
+# as distinct tiers.
 [doc("Assert the tracked omp YAML parses and names built-in providers only")]
 templates:
     #!/usr/bin/env bash
@@ -78,9 +83,11 @@ templates:
     assert not d.get("providers"), f"{f}: must ship with no active providers"
     print(f"ok  {f}")
 
-    # Built-in ids only. Anything else is defined in a machine-local
-    # models.yml and cannot appear in tracked routing.
-    builtin = {"anthropic", "openai", "openai-codex", "cursor"}
+    # Built-in ids, plus anthropic-api: not an omp built-in, but a custom
+    # provider every machine running this config is required to define
+    # locally (unlike an ad hoc custom id, which would warn on any machine
+    # that hasn't defined it).
+    builtin = {"anthropic", "openai", "openai-codex", "cursor", "anthropic-api"}
     f = "omp/agent/config.yml"
     d = yaml.safe_load(open(f))
 

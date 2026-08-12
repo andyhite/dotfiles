@@ -604,21 +604,28 @@ build instead of shipping.
 
 `omp/agent/config.yml` is symlinked to `~/.omp/agent/config.yml` and shared by every
 machine, and the model routing in it is identical everywhere: same `modelRoles`, same
-`retry.fallbackChains`. Only the accounts differ. The Mac runs on personal subscriptions;
-the Linux box bills work API accounts:
+`retry.fallbackChains`. Every role names five provider ids in try order — two Anthropic
+identities, two OpenAI identities, and Cursor:
 
-| | Anthropic | OpenAI | Cursor |
-| --- | --- | --- | --- |
-| Mac | subscription | subscription (`openai-codex`) | subscription |
-| Linux | API key (`anthropic`) | API key (`openai`) | subscription |
+```yaml
+default:
+  - anthropic/claude-sonnet-5         # modelRoles primary — subscription
+  - openai-codex/gpt-5.6-terra:medium # subscription
+  - anthropic-api/claude-sonnet-5     # API key
+  - openai/gpt-5.6-terra:medium       # API key
+  - cursor/composer-2.5               # subscription, employer-billed on both machines
+```
 
-Two questions hide in that table, and conflating them is what makes this look harder than
-it is.
+The Mac authenticates all five, in that order: personal subscriptions first, personal API
+keys as overflow once subscription usage is exhausted. A work box authenticates only the
+last three and never logs into the subscription providers at all, so its effective order
+collapses to `anthropic-api -> openai -> cursor` — with no `config.yml` difference behind
+that, only different accounts on each machine.
 
 **Which account pays — an auth question.** The provider name doesn't change: `anthropic`
-is `anthropic` on both boxes, reached with a subscription OAuth token on one and a work
-API key on the other. Setting `ANTHROPIC_API_KEY` alone does not force the second because
-omp resolves credentials in this order:
+is `anthropic` everywhere, reached with a subscription OAuth token wherever one is logged
+in. omp resolves credentials in a fixed order, and a stored OAuth session beats every
+environment variable:
 
 ```
 1  --api-key (runtime)          5  provider env var, incl. .env files
@@ -627,87 +634,86 @@ omp resolves credentials in this order:
 4  login-sourced stored key
 ```
 
-For OpenAI, a `models.yml` `apiKey` pins the API account above stored OAuth. Anthropic
-needs one extra constraint: API keys authenticate with `x-api-key`, while bearer auth is
-for OAuth/WIF tokens. On omp 17.2.13, the `apiKey` form produced bearer-auth 401s in fresh
-interactive sessions; the explicit `x-api-key` form below passed. The internal cause is
-not yet confirmed.
+So exporting `ANTHROPIC_API_KEY` on a box that has ever run `/login anthropic` does
+nothing for the bare `anthropic` id — the subscription keeps paying, silently, and
+nothing warns you.
+
+**Anthropic needs a second provider id, not a credential swap.** A `models.yml`
+`providers.anthropic.apiKey` override replaces the one credential `anthropic` resolves
+to; it can't hold a subscription and an API key concurrently for the same id. Since the
+chain wants both as distinct, ordered tiers, the API-key account gets its own id —
+`anthropic-api` — with its own full model catalog, because a custom provider id doesn't
+inherit the built-in one:
 
 ```yaml
-# ~/.omp/agent/models.yml — work box only
+# ~/.omp/agent/models.yml
 providers:
-  anthropic:
+  anthropic-api:
+    baseUrl: https://api.anthropic.com
+    api: anthropic-messages
     auth: none
     headers:
       x-api-key: "!sh -c '. \"$HOME/.omp/agent/.env\"; printf %s \"$ANTHROPIC_API_KEY\"'"
-  openai:
-    apiKey: OPENAI_API_KEY
+    models:
+      - id: claude-sonnet-5
+        name: Claude Sonnet 5 (API)
+        reasoning: true
+        input: [text, image]
+        contextWindow: 1000000
+        maxTokens: 128000
+      # ...one entry per model referenced from config.yml
 ```
 
-Both entries are override-only: with no `models` list they change auth without
-redeclaring the built-in catalogs. `auth: none` skips provider credential lookup, and the
-explicit header uses the authentication form Anthropic documents.
-`config.yml` needs no change; `modelRoles` still use the built-in provider ids.
+`auth: none` skips the normal credential lookup so the explicit header authenticates
+instead. API keys use `x-api-key`; `Authorization: Bearer` is for OAuth/WIF tokens, and on
+omp 17.2.13 the plain `apiKey` field produced bearer-auth 401s in fresh interactive
+sessions where print mode succeeded — the internal cause is unconfirmed, so the header
+form is deliberate. The `!` resolver sources the dotenv file itself: command resolvers do
+not inherit values loaded by omp's own dotenv loader, so `!printenv ANTHROPIC_API_KEY`
+resolves to nothing for a key that lives only in `~/.omp/agent/.env`. OpenAI's API tier
+needs no override at all — the built-in `openai` id already means "API key", separate
+from the subscription `openai-codex` id, so a plain `export OPENAI_API_KEY` is enough as
+long as that box has never run `/login openai`.
 
-Header and `apiKey` values support `!command` secret resolution, but those commands do
-not inherit values loaded by omp's dotenv loader. The Anthropic command therefore sources
-`~/.omp/agent/.env` itself. Only enable it where the key exists and verify it with a live
-model request; `auth: none` keeps the provider selectable even if the command fails. A
-secret store can replace the shell command with `!op read op://work/anthropic/api-key`.
+Secrets go in `~/.omp/agent/.env`, not `~/.zshrc.local`: the Paseo daemon runs under
+systemd and sources no login shell, so agents it starts would otherwise get no
+credentials.
 
-The values go in `~/.omp/agent/.env`, not `~/.zshrc.local`. That distinction matters on
-the Linux box: the Paseo daemon runs under systemd and sources no login shell. The
-Anthropic header resolver explicitly sources this file, while omp resolves OpenAI's
-`apiKey` from it through the normal dotenv path.
-
-**Which models each role resolves to — a config question.** None of it differs. Pattern 1
-changes *who is billed for* `anthropic/claude-opus-5`, not *which model that name resolves
-to*, so `modelRoles` and `retry.fallbackChains` are tracked and shared verbatim.
-
-The one asymmetry is OpenAI. Its two surfaces are separate provider ids — `openai-codex`
-for the ChatGPT subscription, `openai` for API keys — so the shared chain names both:
-
-```yaml
-default:
-  - openai-codex/gpt-5.6-terra:medium # Mac authenticates this
-  - openai/gpt-5.6-terra:medium # Linux authenticates this
-  - cursor/composer-2.5 # both; Cursor-owned usage bucket
-  - cursor/cursor-grok-4.5-high # both; Cursor-owned usage bucket
-```
-
-Each machine silently skips the entry it has no credentials for, because **omp validates
-chain entries against the model catalog, not against credentials**, and every provider
-above is built-in. A sandbox with no auth store at all warns about none of them. What does
-warn, once per role on every launch, is a provider id that is not in the catalog:
+**Why a custom provider id in a shared chain is normally forbidden, and why this one is
+allowed.** omp validates every fallback-chain entry against its model catalog, not
+against credentials: an unresolvable *built-in* id (no credential) is skipped silently,
+but an unresolvable *custom* id (missing from `models.yml` entirely) warns once per role
+at every startup:
 
 ```
-Warning: Fallback chain for role 'default' references unknown model: nonesuch/some-model
+Warning: Fallback chain for role 'default' references unknown model: anthropic-api/claude-sonnet-5
 ```
 
-That is the whole rule, and it is why the tracked chains name only built-in providers. A
-custom `models.yml` provider — a second Anthropic id holding a second credential, say —
-exists only on the machine that defines it, so putting one in the shared chains means that
-warning on every other box. CI asserts against it.
+That is why the Justfile's routing check allows built-in ids plus `anthropic-api`
+specifically, and nothing else: every machine that runs this config is required to define
+`anthropic-api` locally — even a fresh personal machine — so that warning never fires. A
+one-off custom id doesn't carry that guarantee and has no business in the tracked chains.
 
-Cross-tier fallback is deliberately absent: neither machine falls from a subscription to an
-API account. Each has one account per provider, and the chain moves to the next *provider*
-rather than to another way of paying for the same one.
-
-A second provider id for the same upstream — a twin holding a second Anthropic credential
-alongside the subscription — is what `models.yml` makes possible and what this setup
-deliberately does not use. It buys overflow capacity at the cost of a provider id that
-exists on one machine only, which is precisely the thing the shared chains cannot name.
-`omp/agent/models.yml.example` documents the shape if that tradeoff ever becomes worth it.
+**Reducing a machine to API tiers only needs no `config.yml` change.** A work VM that must
+only ever bill an employer's API accounts doesn't get a different `config.yml` — it gets a
+different `~/.omp/agent/models.yml` and a different set of authenticated providers.
+Define `anthropic-api` there (the same block, an employer key), export
+`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` in its `~/.omp/agent/.env`, and never run `/login
+anthropic` or `/login openai-codex` on that box. With both subscription ids permanently
+unresolvable there, every role's fallback order collapses on its own — no separate config,
+no warning, because "no credential" and "no such provider" are different failure modes and
+only the second one is noisy. Cursor is unaffected either way: it's the one tier both
+machines are meant to share, billed to the same employer-provided account on both.
 
 `~/.omp/agent/models.yml` is created from `omp/agent/models.yml.example` on every machine,
-so the mechanism is discoverable where it isn't used. The shipped copy is inert but not
-empty — it carries a literal `providers: {}`, because omp validates the root as an object
-and a file trimmed to pure comments parses as null and prints a validation warning on every
-startup.
+so the mechanism is discoverable even where a given machine only uses part of it. The
+shipped copy is inert but not empty — it carries a literal `providers: {}`, because omp
+validates the root as an object and a file trimmed to pure comments parses as null and
+prints a validation warning on every startup.
 
 That leaves nothing per-machine in `config.yml` at all, which is the point: one tracked
-file, two machines, and the only difference is which credential answers for a provider id
-both of them already have.
+file, every machine, and the only difference is which providers each one has bothered to
+authenticate.
 
 ### Paseo
 

@@ -3,10 +3,16 @@
 # never committed, which is the whole point: config.yml is shared by every
 # machine, and this is where a machine says which account pays for it.
 #
-# Nothing else is per-machine. modelRoles and retry.fallbackChains name built-in
-# provider ids — anthropic, openai-codex, openai, cursor — and a machine simply
-# skips the ones it cannot authenticate. This file only changes *which
-# credential* answers for one of those ids.
+# `modelRoles` and `retry.fallbackChains` in the shared config.yml name five
+# provider ids across two Anthropic identities, two OpenAI identities, and
+# Cursor: `anthropic` (subscription), `openai-codex` (subscription),
+# `anthropic-api` (API key), `openai` (API key), `cursor` (subscription).
+# A machine simply never resolves the ids it hasn't set up, and omp validates
+# every fallback-chain entry against its model catalog, so an unresolvable
+# built-in id is skipped without a word — that's the whole mechanism a
+# personal box (all five) and a work box (API tiers plus Cursor) need to
+# behave differently from one byte-identical config.yml. See "Reducing a
+# machine to API tiers only" below for the work-box side of that.
 #
 # It exists because of precedence. omp resolves a credential in a fixed order,
 # and a stored OAuth session beats every environment variable:
@@ -17,57 +23,25 @@
 #   4  login-sourced stored key
 #
 # So exporting ANTHROPIC_API_KEY on a box that has ever run `/login anthropic`
-# does nothing — the subscription keeps paying, silently, and nothing warns you.
-# Tier 2 is the only lever above a stored OAuth session, and it lives here.
+# does nothing for the bare `anthropic` id — the subscription keeps paying,
+# silently, and nothing warns you. That's exactly why the API-key tier below
+# is a second provider id, not an override of `anthropic` itself.
 
 providers: {}
 
-# Leave that line as-is on a machine that pays by subscription and overrides
-# nothing. It has to stay: omp validates the root as an object, so a file of pure
-# comments parses as null and prints, on every single startup:
+# Leave that line as-is on a machine that pays every tier by subscription (or
+# has none of the API-key tiers set up yet) and overrides nothing. It has to
+# stay: omp validates the root as an object, so a file of pure comments parses
+# as null and prints, on every single startup:
 #
 #   Failed to load config file models, Schema error: root: must be an object (was null)
 
 
-# ── Billing a machine to API keys instead ────────────────────────────────────
-# The work box does this. Replace the `providers: {}` above with:
-#
-# providers:
-#   anthropic:
-#     auth: none
-#     headers:
-#       x-api-key: "!sh -c '. \"$HOME/.omp/agent/.env\"; printf %s \"$ANTHROPIC_API_KEY\"'"
-#   openai:
-#     apiKey: OPENAI_API_KEY
-#
-# Both are "override-only" entries: no `models` list, so they change auth without
-# redeclaring the built-in catalogs, and config.yml needs no change at all.
-#
-# Anthropic needs the header form. API keys authenticate with `x-api-key`, while
-# `Authorization: Bearer` is for OAuth/WIF tokens, and on omp 17.2.13 the
-# `apiKey` form produced bearer-auth 401s in fresh interactive sessions where
-# print mode succeeded; the internal cause is unconfirmed. `auth: none` skips the
-# credential lookup so the explicit header is what authenticates.
-#
-# The `!` resolver sources the dotenv file itself: command resolvers do not
-# inherit values loaded by omp's dotenv loader, so `!printenv ANTHROPIC_API_KEY`
-# resolves to nothing for a key that lives only in ~/.omp/agent/.env. OpenAI's
-# bare env-var name is fine — that form does go through the dotenv loader. A
-# secret store can replace the shell command outright:
-#
-#   x-api-key: "!op read op://work/anthropic/api-key"
-#
-# `auth: none` also keeps the provider selectable when the command fails, so
-# verify with a live model request rather than trusting `omp models` alone.
-#
-# The secrets go in ~/.omp/agent/.env, not ~/.zshrc.local: the Paseo daemon runs
-# under systemd and sources no login shell, so agents it starts would otherwise
-# get no credentials.
-
-
-# ── Two accounts for one upstream (not used here) ─────────────────────────────
-# Pinning replaces, so holding a subscription *and* an API key for Anthropic at
-# the same time needs a second provider id carrying its own catalog:
+# ── Anthropic's API-key tier: a second provider id ────────────────────────────
+# Pinning (below) replaces a built-in id's credential; it can't hold a
+# subscription and an API key for the same id at once. Since the fallback
+# chain wants both as distinct tiers, the API key gets its own id instead,
+# with its own catalog (custom providers don't inherit the built-in one):
 #
 # providers:
 #   anthropic-api:
@@ -78,22 +52,68 @@ providers: {}
 #       x-api-key: "!sh -c '. \"$HOME/.omp/agent/.env\"; printf %s \"$ANTHROPIC_API_KEY\"'"
 #     models:
 #       - id: claude-opus-5
-#         name: Claude Opus 5 (API account)
+#         name: Claude Opus 5 (API)
 #         reasoning: true
 #         input: [text, image]
 #         contextWindow: 1000000
 #         maxTokens: 128000
+#       - id: claude-sonnet-5
+#         name: Claude Sonnet 5 (API)
+#         reasoning: true
+#         input: [text, image]
+#         contextWindow: 1000000
+#         maxTokens: 128000
+#       - id: claude-haiku-4-5
+#         name: Claude Haiku 4.5 (API)
+#         reasoning: true
+#         input: [text, image]
+#         contextWindow: 200000
+#         maxTokens: 64000
 #
-# A provider with its own `models` list is a full custom provider: baseUrl and
-# api become required and every model has to be spelled out, since omp will not
-# clone a built-in catalog onto a new id.
+# `auth: none` skips the normal credential lookup so the explicit header is
+# what authenticates. API keys use `x-api-key`; `Authorization: Bearer` is for
+# OAuth/WIF tokens, and on omp 17.2.13 the plain `apiKey` field produced
+# bearer-auth 401s in fresh interactive sessions where print mode succeeded —
+# the internal cause is unconfirmed, so the header form is deliberate, not
+# decorative.
 #
-# The catch is routing. Such an id exists only on the machine that defines it,
-# and omp validates fallback-chain entries against the catalog, so naming it in
-# the tracked config.yml warns once per role on every other machine:
+# The `!` resolver sources the dotenv file itself: command resolvers do not
+# inherit values loaded by omp's own dotenv loader, so `!printenv
+# ANTHROPIC_API_KEY` resolves to nothing for a key that lives only in
+# ~/.omp/agent/.env. A secret store can replace the shell command outright:
 #
-#   Warning: Fallback chain for role 'default' references unknown model: anthropic-api/claude-opus-5
+#   x-api-key: "!op read op://work/anthropic/api-key"
 #
-# A `provider/*` wildcard warns too, as an unknown provider. That is why this
-# setup routes through built-in ids only and CI asserts it — an overflow tier is
-# not worth making the shared config machine-specific.
+# Reference this id as `anthropic-api/claude-opus-5` etc. It exists only on
+# machines that define it, and every machine sharing config.yml is expected
+# to (see the Justfile's `templates` check) — an undefined reference warns
+# once per role at every startup instead of failing outright.
+#
+# Verify with a live model request rather than trusting `omp models` alone;
+# `auth: none` keeps the provider selectable even when the header command
+# fails.
+
+
+# ── OpenAI's API-key tier: no entry needed ────────────────────────────────────
+# The built-in `openai` id already means "API key", separate from the
+# subscription `openai-codex` id, so there's nothing to pin here — just
+# export OPENAI_API_KEY and the plain env-var credential tier (5, above)
+# picks it up, as long as this machine has never run `/login openai`.
+
+
+# ── Reducing a machine to API tiers only ──────────────────────────────────────
+# A machine that should never touch personal subscriptions — a work VM
+# billing an employer's API accounts, say — needs no config.yml changes and no
+# separate routing. Define `anthropic-api` above, export ANTHROPIC_API_KEY and
+# OPENAI_API_KEY in ~/.omp/agent/.env, and simply never run `/login anthropic`
+# or `/login openai-codex` on that box. With both subscription ids permanently
+# unresolvable there, every role's effective order collapses to
+# `anthropic-api -> openai -> cursor` on its own — the two subscription tiers
+# were never reachable to begin with, so there's no live failed request behind
+# the fallback, just an id the catalog can't resolve.
+#
+# The secrets go in ~/.omp/agent/.env, not ~/.zshrc.local: the Paseo daemon
+# runs under systemd and sources no login shell, so agents it starts would
+# otherwise get no credentials. Cursor is unaffected either way — it's the one
+# tier both machines are meant to share, so its subscription login is set up
+# on both.

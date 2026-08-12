@@ -78,12 +78,21 @@ the machine-local file — not in a comment, an example, or a commit message.
 ## omp model routing
 
 `omp/agent/config.yml` is shared by every machine, so `modelRoles` and
-`retry.fallbackChains` may name built-in providers only: `anthropic`, `openai`,
-`openai-codex`, `cursor`. CI enforces it. A built-in provider the machine can't
-authenticate is skipped silently; a custom provider id warns once per role at every
-startup on every machine that doesn't define it. Machine-specific providers go in
-`~/.omp/agent/models.yml`, whose tracked template stays inert (`providers: {}` — trimming
-it to pure comments parses as null and omp rejects that on launch).
+`retry.fallbackChains` may only name omp's built-in providers — `anthropic`,
+`openai`, `openai-codex`, `cursor` — plus `anthropic-api`, a second Anthropic
+identity every machine running this config is required to define locally
+(billed by API key, distinct from the subscription OAuth login behind the
+bare `anthropic` id; see `omp/agent/models.yml.example`). CI enforces both
+halves of that rule. A built-in provider the machine can't authenticate is
+skipped silently; any other custom provider id warns once per role at every
+startup on every machine that doesn't define it. Machine-specific providers
+go in `~/.omp/agent/models.yml`, whose tracked template stays inert
+(`providers: {}` — trimming it to pure comments parses as null and omp
+rejects that on launch). A machine that should only ever bill API accounts
+needs no `config.yml` divergence at all: define `anthropic-api`, export its
+API keys, and simply never authenticate the subscription providers there —
+unresolvable built-in ids drop out of every role's fallback order on their
+own.
 
 ## install.sh step order is load-bearing
 
