@@ -24,6 +24,8 @@ which several completion and plugin scripts assume are available.
     setopt HIST_VERIFY           # recalled history expands into the buffer, doesn't run blind
     setopt AUTO_CD               # bare `../dir` or `~/project` changes directory
     setopt EXTENDED_GLOB         # enables `~`/`^`/`#` glob qualifiers
+    zsh -n path/to/script.zsh    # check a script for syntax errors without running it
+    zsh -f                       # start without zshrc/zshenv — isolate a config-load bug
     history | grep <cmd>         # grep the histfile directly, bypassing atuin
     fc -e - <cmd>                # edit and rerun the last command matching <cmd>
 
@@ -44,11 +46,13 @@ Currently four plugins: zsh-autosuggestions, zsh-syntax-highlighting, fzf-tab, a
 highlighting wants to load after anything that wraps widgets, vi-mode wants to load last so its
 `precmd` hook is the final say on keymaps).
 
-    $EDITOR zsh_plugins.txt            # add a plugin — one `owner/repo` per line
-    exec zsh                           # reload so antidote clones and sources the new line
-    antidote list                      # show every plugin antidote currently has loaded
-    antidote bundle owner/repo         # clone+source one plugin ad hoc, outside the file
-    rm -rf ~/.antidote/.../owner_repo  # force a specific plugin to re-clone
+    $EDITOR zsh_plugins.txt           # add a plugin — one `owner/repo` per line
+    exec zsh                          # reload so antidote clones and sources the new line
+    antidote load ~/.zsh_plugins.txt  # what zshrc runs — (re)load every plugin in the file
+    antidote list                     # show every plugin antidote currently has loaded
+    antidote bundle owner/repo        # clone+source one plugin ad hoc, outside the file
+    antidote path owner/repo          # print a plugin's local clone path under ~/.antidote
+    rm -rf $(antidote path owner/repo)  # force that plugin to re-clone on the next shell
 
 ## zsh-autosuggestions — ghost-text suggestions from history as you type
 
@@ -139,6 +143,7 @@ The hostname segment is `ssh_only = true`: it's invisible on the local machine a
 once you've SSH'd somewhere, which is the one time knowing which box you're on actually
 matters.
 
+    starship init zsh           # print the shell-integration code — what zshrc sources
     starship explain            # show which modules rendered and why, right now
     starship module git_status  # print a single module in isolation
     starship config             # open config/starship.toml in $EDITOR
@@ -146,6 +151,7 @@ matters.
     starship timings            # per-module render time — find what's making the prompt slow
     starship toggle time off    # flip a module off for this session only
     starship completions zsh    # regenerate the zsh completion script
+    starship bug-report         # open a pre-filled GitHub issue with your config attached
 
 ## atuin — shell history, sqlite-backed, config/atuin/config.toml
 
@@ -214,12 +220,14 @@ scripts from disk directly.
 default file list `fzf` itself searches when piped no input — already respects `.gitignore` and
 skips hidden/ignored churn the way `fd` does, instead of walking every file with `find`.
 
-    Ctrl+T            # fuzzy-pick file(s) under the cwd, insert the path(s) at the cursor
-    Alt+C             # fuzzy-pick a directory, cd into it
-    **<Tab>           # trigger fzf completion for the word before the cursor (vim **<Tab>)
-    Ctrl+R            # taken over by atuin in this setup — see the atuin section above
-    fzf               # run it standalone, piping any list on stdin through the fuzzy filter
-    git branch | fzf  # classic ad hoc use: pipe any command's output through fzf
+    Ctrl+T             # fuzzy-pick file(s) under the cwd, insert the path(s) at the cursor
+    Alt+C              # fuzzy-pick a directory, cd into it
+    **<Tab>            # trigger fzf completion for the word before the cursor (vim **<Tab>)
+    Ctrl+R             # taken over by atuin in this setup — see the atuin section above
+    fzf                # run it standalone, piping any list on stdin through the fuzzy filter
+    git branch | fzf   # classic ad hoc use: pipe any command's output through fzf
+    fzf -q 'query'     # start already filtered to a query instead of typing it interactively
+    ps aux | fzf -m    # multi-select mode — Shift+Tab marks several lines before accepting
 
 Gotcha: `Ctrl+R` is fzf's default history search everywhere fzf is documented, but atuin claims
 it here in both `viins` and `vicmd` (see zsh-vi-mode above) — don't go looking for fzf's
@@ -238,27 +246,30 @@ comma-separated list of other completion systems (`zsh`, `bash`, `fish`, `carapa
 in order once its own completers come up empty, so a tool with only a hand-written zsh
 `_function` still completes instead of falling back to bare filename completion.
 
-    source <(carapace _carapace)           # the zsh init line — generates and sources completions
-    carapace --list                        # list every command carapace ships a built-in completer for
-    export CARAPACE_BRIDGES=zsh,fish,bash  # fall back to these completion systems when unmatched
-    <cmd> <Tab>                            # completion renders through fzf-tab, same popup as everything else
-    carapace <cmd> zsh                     # print the raw zsh completion function carapace generates for <cmd>
+    source <(carapace _carapace)                    # the zsh init line — generates and sources completions
+    carapace --list                                 # list every command carapace ships a built-in completer for
+    export CARAPACE_BRIDGES=zsh,fish,bash,inshellisense  # what zshrc sets — fallback order once carapace has no spec
+    <cmd> <Tab>                                      # completion renders through fzf-tab, same popup as everything else
+    carapace <cmd> zsh                                # print the raw zsh completion function carapace generates for <cmd>
+    carapace --version                                # show carapace's own version
 
 ## eza — modern `ls`, aliased as ls/ll/tree
 
 A Rust rewrite of `ls` with icons, git-aware coloring, and a built-in tree view. `zshrc`
 aliases three names to it once it's on `PATH`: `ls` to `eza --icons --group-directories-first`,
-`ll` to the same plus `-l` for a long listing, and `tree` to `eza --tree --icons` — which means
-the real `tree` binary (also installed, see the CLI help file) is shadowed here rather than
-removed.
+`ll` to the same plus `-l` for a long listing, and `tree` to `eza --tree --icons`. The plain
+`tree` binary used to sit alongside this as a Brewfile install of its own; it was cut once
+nothing here (or in practice) ever reached past the alias for it — `-T`/`-L`/`-D`/`-I` cover
+everything `tree` did except JSON/XML output, which nothing here needs either.
 
     ls                    # -> eza --icons --group-directories-first
     ll                    # -> eza -l --icons --group-directories-first
-    tree                  # -> eza --tree --icons (shadows the real tree binary — see below)
+    tree                  # -> eza --tree --icons
     eza -la               # long listing including dotfiles, bypassing the ll alias's flags
     eza --tree --level=2  # tree view capped at 2 levels deep
     eza -l --git          # long listing with a per-file git status column
-    command tree          # reach the real tree binary instead of the eza-backed alias
+    eza -TD               # tree view, directories only
+    eza --git-ignore      # skip files eza would otherwise list but git ignores
 
 ## bat — modern `cat`, aliased as cat, with syntax highlighting
 
@@ -267,12 +278,13 @@ gutter. `zshrc` aliases `cat` to `bat` when it's on `PATH`, or to `batcat` as a 
 Debian/Ubuntu's package ships the binary as `batcat` because the name `bat` already belongs to
 an unrelated package there.
 
-    cat file.rs             # -> bat file.rs, syntax-highlighted with line numbers
-    bat -A file             # show non-printable characters (tabs, trailing whitespace, EOL)
-    bat -p file             # plain output, no decorations — closest thing to real cat
-    bat --diff file         # highlight only the lines changed against git's index
-    bat --list-languages    # show every syntax bat can detect and highlight
-    git diff | bat -l diff  # pipe arbitrary input through bat's highlighter
+    cat file.rs              # -> bat file.rs, syntax-highlighted with line numbers
+    bat -A file              # show non-printable characters (tabs, trailing whitespace, EOL)
+    bat -p file              # plain output, no decorations — closest thing to real cat
+    bat --diff file          # highlight only the lines changed against git's index
+    bat -H 40:50 file        # highlight a line range with a background color
+    bat --list-languages     # show every syntax bat can detect and highlight
+    git diff | bat -l diff   # pipe arbitrary input through bat's highlighter
 
 ## tmux — terminal multiplexer, tmux.conf, plugins via tpm
 
@@ -283,13 +295,17 @@ local clipboard via OSC 52, and an `SSH_AUTH_SOCK` refresh on every new pane so 
 doesn't leave old panes pointing at a dead forwarded agent socket. Prefix is tmux's default,
 `Ctrl+b`.
 
-    prefix r                # reload tmux.conf in place, no detach needed
-    prefix h/j/k/l          # select the pane left/down/up/right (repeatable — hold within 500ms)
-    prefix F                # tmux-fzf: fuzzy-pick a session/window/pane instead of the prefix+s tree
-    prefix I                # TPM: install every plugin listed in tmux.conf, first run
-    prefix Ctrl-s / Ctrl-r  # tmux-resurrect: save / restore the whole session layout
-    prefix Tab              # extrakto: fuzzy-grab a path/line/word/url out of the pane's scrollback
-    y (in copy-mode)        # tmux-yank: copy the selection to the system clipboard
+    tmux new -s name         # start a new named session
+    tmux ls                  # list existing sessions
+    tmux attach               # attach to the most recently used session
+    prefix d                  # detach from the current session
+    prefix r                  # reload tmux.conf in place, no detach needed
+    prefix h/j/k/l            # select the pane left/down/up/right (repeatable — hold within 500ms)
+    prefix F                  # tmux-fzf: fuzzy-pick a session/window/pane instead of the prefix+s tree
+    prefix I                  # TPM: install every plugin listed in tmux.conf, first run
+    prefix Ctrl-s / Ctrl-r    # tmux-resurrect: save / restore the whole session layout
+    prefix Tab                # extrakto: fuzzy-grab a path/line/word/url out of the pane's scrollback
+    y (in copy-mode)          # tmux-yank: copy the selection to the system clipboard
 
 Gotcha: continuum autosaves every 15 minutes and auto-restores the last save when the server
 starts, so a `kill -9`'d tmux server or a reboot comes back with your panes intact — but that
@@ -310,9 +326,11 @@ the focused app. macOS needs Accessibility permission granted once; Linux needs 
 environment implementing the XDG Global Shortcuts protocol (GNOME 48+, KDE 5.27+) and silently
 no-ops otherwise.
 
-    Ctrl+Enter                # global show/hide toggle — works unfocused, needs OS permission (see above)
-    ghostty +show-config      # print the fully resolved config, including inherited defaults
-    ghostty +list-themes      # browse/preview every built-in theme in a TUI
-    ghostty +list-fonts       # list every font Ghostty can see on this machine
-    ghostty +list-keybinds    # show every keybind currently in effect
-    ghostty +validate-config  # check config/ghostty/config for errors before reloading
+    Ctrl+Enter                             # global show/hide toggle — works unfocused, needs OS permission (see above)
+    ghostty +show-config                   # print the fully resolved config, including inherited defaults
+    ghostty +show-config --default --docs  # print every default option with its doc comment
+    ghostty +list-themes                   # browse/preview every built-in theme in a TUI
+    ghostty +list-fonts                    # list every font Ghostty can see on this machine
+    ghostty +list-keybinds                 # show every keybind currently in effect
+    ghostty +list-actions                  # list every action a keybind can trigger
+    ghostty +validate-config               # check config/ghostty/config for errors before reloading

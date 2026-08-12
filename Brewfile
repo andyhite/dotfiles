@@ -92,14 +92,31 @@ brew "jj"
 brew "gitleaks"
 
 # ── Shell/JSON tooling this repo's own scripts use ──────────────────────────
+# jq is the only one actually load-bearing: install.sh's Paseo step does the
+# `jq -s '.[0] * .[1]'` merge into ~/.paseo/config.json. shellcheck and shfmt
+# are Justfile/CI (`just shellcheck`) and config/nvim/lua/configs/conform.lua's
+# sh/bash formatter, respectively.
 brew "jq"
-brew "yq"
 brew "shellcheck"
 brew "shfmt"
+
+# ── General CLI utilities ────────────────────────────────────────────────────
+# None of these are dependencies of anything this repo runs — no script here
+# calls yq, a g-prefixed coreutils binary, a moreutils tool, or wget. They're
+# here because they're genuinely useful to have on PATH for ad-hoc work: yq is
+# jq's YAML-shaped counterpart, coreutils gives GNU flags BSD's tools lack (see
+# the coreutils help entry), moreutils' sponge/vipe/ts/etc plug real pipeline
+# gaps, and wget's `-c`/`--mirror` cover cases curl makes you hand-roll.
+#
+# `tree` used to live here too, aliased over by `zshrc`'s `eza --tree --icons`
+# and kept only for a `command tree` escape hatch nothing in this repo (or in
+# practice) ever reached for — eza's `-T`/`-L`/`-D`/`-I` already cover what
+# `tree` offers apart from JSON/XML output, so it was cut rather than kept for
+# a capability gap that was never actually used.
+brew "yq"
 brew "coreutils"
 brew "moreutils"
 brew "wget"
-brew "tree"
 
 # ── Shell completions ────────────────────────────────────────────────────────
 # install.sh hand-generates completions for tools that ship no generator at
@@ -141,6 +158,20 @@ brew "sd"
 brew "tealdeer"
 brew "cloc"
 brew "rsync"
+
+# herdr — the terminal multiplexer config/herdr/config.toml, herdr_plugins.txt
+# and this Brewfile's `andyhite/foreman` bits all assume is already on PATH.
+# A real Homebrew core formula (`brew info herdr`), same tier as lazygit/btop
+# above — not a tap, not a cargo build.
+#
+# The same shadow trap already fixed once for `uv` applies here: herdr's own
+# installer (`curl -fsSL https://herdr.dev/install.sh | sh`) also drops a
+# binary at ~/.local/bin/herdr, and `zshrc` puts `~/.local/bin` ahead of
+# Homebrew's bin on PATH — so a machine that ever ran that installer by hand
+# has a copy `brew upgrade` will never touch, silently shadowing this one.
+# `which -a herdr` shows both if that's happened; `rm ~/.local/bin/herdr`
+# lets the Homebrew copy win, same fix as uv's.
+brew "herdr"
 
 # ── Casks ─────────────────────────────────────────────────────────────────────
 cask "ghostty"

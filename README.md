@@ -4,32 +4,92 @@ Shell and terminal config, synced between my Mac (Ghostty) and remote dev VMs. O
 theme everywhere, zsh with antidote instead of oh-my-zsh, starship for the prompt,
 NvChad for editing.
 
+## Contents
+
+- [What's in here](#whats-in-here)
+- [Bootstrap a new machine](#bootstrap-a-new-machine)
+  - [Remote installs — `--host`](#remote-installs----host)
+  - [Completions](#completions)
+  - [The `*.local` templates](#the-local-templates)
+  - [mise](#mise)
+  - [`make` on macOS — `gmake`, not `gnumake`](#make-on-macos--gmake-not-gnumake)
+  - [Shells with no line editor — `TERM=dumb`, or no tty](#shells-with-no-line-editor--termdumb-or-no-tty)
+- [Notes by tool](#notes-by-tool)
+  - [Git — rebase-first, with delta, difftastic, absorb, and jj](#git--rebase-first-with-delta-difftastic-absorb-and-jj)
+  - [Shell — carapace, fd, uv, and Linux clipboards](#shell--carapace-fd-uv-and-linux-clipboards)
+  - [dotfiles-help — the `help/` corpus and `dh`](#dotfiles-help--the-help-corpus-and-dh)
+  - [gh extensions — manifest beside `herdr_plugins.txt`](#gh-extensions--manifest-beside-herdr_pluginstxt)
+  - [btop — One Dark theme, and the config-rewrite trap](#btop--one-dark-theme-and-the-config-rewrite-trap)
+  - [Misc dev CLIs — hyperfine, sd, tealdeer, and Docker Desktop](#misc-dev-clis--hyperfine-sd-tealdeer-and-docker-desktop)
+  - [Zed's `ssh_connections` is stripped by a clean filter](#zeds-ssh_connections-is-stripped-by-a-clean-filter)
+  - [omp — one tracked config, two machines, different accounts](#omp--one-tracked-config-two-machines-different-accounts)
+  - [Paseo](#paseo)
+  - [Atuin](#atuin)
+  - [herdr — Homebrew on macOS, curl installer on Linux](#herdr--homebrew-on-macos-curl-installer-on-linux)
+  - [Herdr plugins — the list is tracked, herdr's registry isn't](#herdr-plugins--the-list-is-tracked-herdrs-registry-isnt)
+  - [Herdr plugin keybindings — `[keys]` only knows herdr's own actions](#herdr-plugin-keybindings--keys-only-knows-herdrs-own-actions)
+  - [Agent skills — the list is tracked, the lockfile isn't](#agent-skills--the-list-is-tracked-the-lockfile-isnt)
+  - [`fleet` — dispatching agents herdr can reach, because omp can't](#fleet--dispatching-agents-herdr-can-reach-because-omp-cant)
+  - [The worktree rule was wrong in a way `fleet` made visible](#the-worktree-rule-was-wrong-in-a-way-fleet-made-visible)
+  - [The orchestrator is opt-in](#the-orchestrator-is-opt-in)
+  - [NvChad — diffview alongside telescope `git_status`](#nvchad--diffview-alongside-telescope-git_status)
+  - [NvChad's Mason/Treesitter setup — do this yourself, on purpose](#nvchads-masontreesitter-setup--do-this-yourself-on-purpose)
+  - [Ghostty over SSH — `TERM=xterm-ghostty` doesn't exist on most remotes](#ghostty-over-ssh--termxterm-ghostty-doesnt-exist-on-most-remotes)
+- [Making changes](#making-changes)
+  - [Justfile and CI](#justfile-and-ci)
+
 ## What's in here
+
+### Shell & prompt
 
 | Path | Links to | What it is |
 |---|---|---|
 | `zshrc` | `~/.zshrc` | zsh config: completion, antidote plugin load, history, aliases, tool init hooks |
 | `tool-versions` | `~/.tool-versions` | mise runtime pins (node, python, go, bun, pnpm) — mise walks up from the current directory to find this, so the symlink is the global default under `$HOME`; see [mise](#mise) below |
 | `zsh_plugins.txt` | `~/.zsh_plugins.txt` | antidote's plugin list (zsh-autosuggestions, zsh-syntax-highlighting, fzf-tab, zsh-vi-mode) |
-| `tmux.conf` | `~/.tmux.conf` | tmux config, plugins managed by TPM |
 | `config/starship.toml` | `~/.config/starship.toml` | prompt — One Dark Pro preset, hostname shown only over SSH |
+| `config/atuin/config.toml` | `~/.config/atuin/config.toml` | Atuin (shell history): overrides only — daemon, fuzzy search, full-style UI, vi keymap, tmux popup, `atuin ai`. Also the answers `atuin setup` would otherwise re-ask on every install |
+| `config/atuin/themes/one-dark.toml` | `~/.config/atuin/themes/one-dark.toml` | One Dark for Atuin; foreground colors only, background comes from Ghostty |
+| `zshrc.local.example` | (copy, not linked) | template for machine-local secrets — never committed |
+
+### Terminal & workspace
+
+| Path | Links to | What it is |
+|---|---|---|
+| `tmux.conf` | `~/.tmux.conf` | tmux config, plugins managed by TPM |
+| `config/ghostty/config` | `~/.config/ghostty/config` | Ghostty terminal: `One Dark Two` theme, shell integration — same path on macOS and Linux |
+| `config/btop` | `~/.config/btop` | btop resource monitor: One Dark theme, `save_config_on_exit = false` so btop's default full-config-rewrite-on-quit can't overwrite this file — see [btop](#btop--one-dark-theme-and-the-config-rewrite-trap) below |
 | `config/ghzinga/config.toml` | `~/.config/ghzinga/config.toml` | [ghzinga](https://github.com/osolmaz/ghzinga) — GitHub issue/PR viewer TUI that the herdr plugin shells out to |
 | `config/herdr/config.toml` | `~/.config/herdr/config.toml` | Herdr (agent terminal workspace manager), `one-dark` theme + accent/border overrides |
 | `config/herdr/palette` | `~/.config/herdr/palette` | the `prefix+p` command palette — an fzf script run by a `type = "popup"` keybinding, plus the MIT notice of the plugin it's derived from |
 | `herdr_plugins.txt` | (not linked — read by `install.sh`) | Herdr plugin list, one `owner/repo[@ref]` per line; `install.sh` installs/updates each one |
 | `config/herdr/plugins/config` | `~/.config/herdr/plugins/config` | per-plugin Herdr config, one directory per plugin id — the whole tree is linked, so new plugins land here on install |
-| `config/ghostty/config` | `~/.config/ghostty/config` | Ghostty terminal: `One Dark Two` theme, shell integration — same path on macOS and Linux |
-| `config/atuin/config.toml` | `~/.config/atuin/config.toml` | Atuin (shell history): overrides only — daemon, fuzzy search, full-style UI, vi keymap, tmux popup, `atuin ai`. Also the answers `atuin setup` would otherwise re-ask on every install |
-| `config/atuin/themes/one-dark.toml` | `~/.config/atuin/themes/one-dark.toml` | One Dark for Atuin; foreground colors only, background comes from Ghostty |
-| `config/lazygit/config.yml` | `~/Library/Application Support/lazygit/config.yml` (macOS), `~/.config/lazygit/config.yml` (Linux) | Lazygit: One Dark theme, Nerd Font v3 icons, fuzzy filtering, and nvim integration; `zshrc` exposes it as `lg`, while the OS-specific destinations are Lazygit's native defaults |
+
+### Editor
+
+| Path | Links to | What it is |
+|---|---|---|
 | `config/nvim` | `~/.config/nvim` | [NvChad](https://nvchad.com) starter — vendored once, `.git` stripped, fully mine to edit from here |
 | `config/zed/settings.json` | `~/.config/zed/settings.json` | Zed editor settings — `disable_ai: true` since agents run from the terminal via omp, not inside the editor, so the `agent`/`agent_servers` keys go undefined rather than tracked as dead config. `ssh_connections` never reaches the index: Zed rewrites it through this symlink on every remote connect, so a git clean filter strips it on the way in — see [below](#zeds-ssh_connections-is-stripped-by-a-clean-filter) |
+
+### Git
+
+| Path | Links to | What it is |
+|---|---|---|
 | `gitconfig` | `~/.gitconfig` | tracked git identity, LFS/xet filter wiring, rebase-first defaults, delta pager + difftastic difftool, and `git absorb`; anything that varies per machine layers in through `gitconfig.local.example` below |
 | `gitconfig.local.example` | (copy, not linked) | template for `~/.gitconfig.local` — work identity via `includeIf "gitdir:…"`, private-registry credentials. `gitconfig`'s trailing `[include]` applies last, so anything set here wins over every default in the tracked file |
 | `config/git/ignore` | `~/.config/git/ignore` | global gitignore — git's own default `core.excludesFile` location when that setting is unset, so machine-tool droppings (`.DS_Store`, `.idea/`) never have to live in a project's own `.gitignore` |
 | `config/gh/config.yml` | `~/.config/gh/config.yml` | gh CLI defaults and aliases; `git_protocol: https` is deliberate — `ssh/config` maps `github.com` to the work SSH key, so an ssh remote here would silently authenticate as the wrong account |
+| `gh_extensions.txt` | (not linked — read by `install.sh`) | gh CLI extension manifest, one `owner/repo` per line; `install.sh`'s `gh` step installs new extensions and upgrades ones already present — see [gh extensions](#gh-extensions--manifest-beside-herdr_pluginstxt) |
+| `config/jj/config.toml` | `~/.config/jj/config.toml` | jj config for colocated repos — identity, pager, diff formatter; linked because jj refuses to commit without `user.name`/`user.email` |
+| `config/lazygit/config.yml` | `~/Library/Application Support/lazygit/config.yml` (macOS), `~/.config/lazygit/config.yml` (Linux) | Lazygit: One Dark theme, Nerd Font v3 icons, fuzzy filtering, and nvim integration; `zshrc` exposes it as `lg`, while the OS-specific destinations are Lazygit's native defaults |
 | `ssh/config` | `~/.ssh/config` | portable ssh identity config — per-key `Host` blocks for github.com (`IdentitiesOnly yes` so the agent can't offer the wrong key first), github.com-personal, hf.co, runpod.io; machine-specific hosts live in `~/.ssh/config.local` instead |
 | `ssh/config.local.example` | (copy, not linked) | template for `~/.ssh/config.local` — dstack's generated `Include`, throwaway test hosts. `ssh/config`'s first real line is `Include ~/.ssh/config.local`, because ssh takes the first value it finds for any option and this is the only way the local file can override rather than be shadowed |
+
+### Agents & orchestration
+
+| Path | Links to | What it is |
+|---|---|---|
 | `omp/agent/config.yml` | `~/.omp/agent/config.yml` | [omp](https://omp.sh) coding agent settings — besides this file and `rules/output-style.md` below, the rest of `~/.omp/agent` is databases, sessions, and a secrets key |
 | `omp/agent/extensions/atuin.ts` | `~/.omp/agent/extensions/atuin.ts` | records omp's `bash` commands into Atuin history as `--author pi` (a `KNOWN_AGENTS` name, so `$all-user` hides them), with omp's intent string as `--intent`. Hand-maintained: `atuin hook install` has no omp target |
 | `omp/agent/rules/output-style.md` | `~/.omp/agent/rules/output-style.md` | `alwaysApply: true` rule that shapes every omp response for an ADHD reader — answer first, numbered steps, one next action, no preamble or recap |
@@ -37,17 +97,19 @@ NvChad for editing.
 | `config/paseo/orchestration-preferences.json` | `~/.paseo/orchestration-preferences.json` | which provider/model each delegated role gets (`impl`, `ui`, `research`, `planning`, `audit`). Read by Paseo's four orchestration skills, never by Paseo itself — which is what makes this one safe to link when its neighbour isn't |
 | `config/paseo/paseo.service` | (copied to `~/.config/systemd/user/`) | `systemd --user` unit that supervises the Paseo daemon on Linux. Paseo ships no unit of its own. Unused on macOS, where the desktop app supervises its own daemon |
 | `config/paseo/daemon.env.example` | (copy, not linked) | template for `~/.config/paseo/daemon.env`, the unit's `EnvironmentFile` — this box's `PASEO_LISTEN`, `PASEO_HOSTNAMES`, and the plaintext `PASEO_PASSWORD`. The per-machine half of Paseo's config, kept out of the tracked file above |
+| `agent_skills.txt` | (not linked — read by `install.sh`) | cross-agent skill manifest, one `<owner>/<repo> --skill <name>` per line; `install.sh` runs `npx skills add … -g -y` for each |
+
+### Repo scripts, checks & docs
+
+| Path | Links to | What it is |
+|---|---|---|
 | `Brewfile` | (not linked — read by `install.sh`) | macOS formulae + casks for every tool this config drives, applied with `brew bundle` — replaced the old hand-maintained `brew_ensure`/`brew_ensure_cask` loop |
 | `Justfile` | (not linked — invoked by `just` and CI) | single source of truth for every check — `.github/workflows/ci.yml` calls its recipes instead of duplicating them; see [Justfile and CI](#justfile-and-ci) |
-| `gh_extensions.txt` | (not linked — read by `install.sh`) | gh CLI extension manifest, one `owner/repo` per line; `install.sh`'s `gh` step installs new extensions and upgrades ones already present — see [gh extensions](#gh-extensions) |
 | `.pre-commit-config.yaml` | (not linked — read by `pre-commit`) | gitleaks plus the local `just leakguard` hook; `install.sh` runs `pre-commit install` during the configs step so a fresh clone gets both |
-| `config/jj/config.toml` | `~/.config/jj/config.toml` | jj config for colocated repos — identity, pager, diff formatter; linked because jj refuses to commit without `user.name`/`user.email` |
-| `bin/dotfiles-help` | `~/.local/bin/dotfiles-help` | renders the `help/` corpus — fzf picker, search, and per-tool sections; aliased as `dh` in `zshrc` — see [dotfiles-help](#dotfiles-help) |
+| `bin/dotfiles-help` | `~/.local/bin/dotfiles-help` | renders the `help/` corpus — fzf picker, search, and per-tool sections; aliased as `dh` in `zshrc` — see [dotfiles-help](#dotfiles-help--the-help-corpus-and-dh) |
 | `help/` | (not linked — read by `bin/dotfiles-help`) | curated command reference keyed to the Brewfile — one `## <name> — <tagline>` section per tool; `just help-coverage` fails if a formula has no matching section |
 | `bin/tailscale` | `~/.local/bin/tailscale` | PATH shim for the Mac App Store build of Tailscale — `exec`s the bundled CLI directly, since a plain symlink to it fails at runtime (see the file itself for why). Linked only on macOS, and only when the App Store app is actually installed |
-| `agent_skills.txt` | (not linked — read by `install.sh`) | cross-agent skill manifest, one `<owner>/<repo> --skill <name>` per line; `install.sh` runs `npx skills add … -g -y` for each |
-| `zshrc.local.example` | (copy, not linked) | template for machine-local secrets — never committed |
-| `install.sh` | — | installs/updates every tool below, then symlinks all the config above into place — locally, or on another machine with `--host` |
+| `install.sh` | — | installs/updates every tool above, then symlinks all of it into place — locally, or on another machine with `--host` |
 
 ## Bootstrap a new machine
 
@@ -82,8 +144,9 @@ reordering doesn't:
 1. **Installs/updates the tools this config drives**: starship, zoxide, atuin,
    fzf, eza, bat, direnv, tmux, lazygit, delta, difftastic, git-absorb, jj, fd,
    carapace, gitleaks, pre-commit, just, uv, antidote, TPM, the JetBrains Mono
-   Nerd Font, neovim, ripgrep, tree-sitter-cli, mise, omp, and NvChad — plus
-   Docker Desktop on macOS. macOS applies
+   Nerd Font, neovim, ripgrep, tree-sitter-cli, mise, omp, btop, herdr, gzg
+   (ghzinga), and NvChad —
+   plus Docker Desktop on macOS. macOS applies
    `Brewfile` with `brew bundle` (formulae + casks, including Ghostty and Paseo
    themselves); Linux goes through `apt` where a package exists, and falls back
    to each tool's official installer otherwise:
@@ -118,6 +181,17 @@ reordering doesn't:
    - omp: install-only, via the installer at [omp.sh](https://omp.sh) — the binary is
      ~120MB and ships its own `omp update`, so re-running this script skips it rather
      than re-downloading.
+   - herdr: a real Homebrew core formula on macOS (`brew "herdr"`, not a tap or a
+     cargo build) — Linux gets the official installer
+     (`curl -fsSL https://herdr.dev/install.sh | sh`), same `~/.local/bin` pattern as
+     starship/atuin/uv above, including the exact same shadow trap uv already taught
+     this repo: herdr's own installer also targets `~/.local/bin`, which `zshrc` puts
+     ahead of Homebrew's `bin` on `PATH`, so a machine that ever ran that installer by
+     hand keeps a copy `brew upgrade` will never touch. `which -a herdr` shows both if
+     that's happened.
+   - gzg (the `ghzinga` crate): no Homebrew formula on either platform, so both branches
+     fall back to `cargo install --locked ghzinga` via the same `cargo_ensure_latest`
+     helper the Linux-only fallback tools below use.
    - Linux-only: `fd-find` installs as `fdfind`, so `ensure_fd_shim_linux` symlinks
      `~/.local/bin/fd` — telescope and fzf shell out to the literal name `fd`, not a
      shell alias. delta, difftastic, git-absorb, sd, tealdeer, hyperfine, and jj fall
@@ -156,12 +230,14 @@ reordering doesn't:
    configs step because the unit reads `~/.config/paseo/daemon.env`, which that step
    creates from its template; after runtimes because the Linux CLI is an npm package.
    See [Paseo](#paseo) below.
-6. **Installs/updates every Herdr plugin** listed in `herdr_plugins.txt`. Skipped with
-   a note if `herdr` isn't on `PATH` — this repo configures Herdr but doesn't install it.
+6. **Installs/updates every Herdr plugin** listed in `herdr_plugins.txt`. The tools step
+   above installs herdr itself (Brewfile on macOS, the official installer on Linux — see
+   [herdr](#herdr--homebrew-on-macos-curl-installer-on-linux) below), and this step is
+   still guarded on `command -v herdr` in case that step was skipped or failed on this run.
 7. **Installs/updates omp plugins** from `omp_plugins.txt` — marketplace refresh plus
    install, same install-is-not-updater trap as gh extensions below.
 8. **Installs/upgrades gh extensions** from `gh_extensions.txt`. Skipped when `gh` is
-   missing or unauthenticated; see [gh extensions](#gh-extensions).
+   missing or unauthenticated; see [gh extensions](#gh-extensions--manifest-beside-herdr_pluginstxt).
 9. **Installs cross-agent skills**, from two sources. `agent_skills.txt` first — one
    `npx skills add <owner>/<repo> --skill <name> -g -y` per line — which needs the
    `runtimes` step above to have already put node on `PATH`, hence the ordering. Then
@@ -453,12 +529,33 @@ note rather than failing once per line. The one extension listed today is `seach
 worktree and branch per dispatched worker, so merged-branch churn is continuous rather
 than occasional.
 
-### Misc dev CLIs — btop, hyperfine, sd, tealdeer, and Docker Desktop
+### btop — One Dark theme, and the config-rewrite trap
 
-**btop** fills the host-process gap next to ncdu (disk) and ctop (containers).
+`config/btop` is linked whole to `~/.config/btop`: `btop.conf` sets `color_theme =
+"one-dark"` and `config/btop/themes/one-dark.theme` maps the same hex values as
+`config/starship.toml`'s `[palettes.one_dark]` and `config/atuin/themes/one-dark.toml`.
+`main_bg` in the theme is Ghostty's actual terminal background (`#21252b`, One Dark Two)
+rather than the theoretical One Dark background (`#282c34`) starship and atuin document —
+btop always paints its own background pixels, so matching the real terminal is what
+avoids a visible seam around the window, the same distinction `config/herdr/config.toml`'s
+contrast-repair block had to make.
+
+`btop.conf` also sets `save_config_on_exit = false`, and that one isn't taste. btop's own
+default is `true`, and on quit it rewrites its **entire** config file — every key, not
+just the ones this file sets — back to disk. Confirmed by launching btop against a
+one-line config and diffing before/after: it came back as a ~280-line dump of every
+built-in option. Left at the default, the first `btop` + `q` after `install.sh` runs
+would balloon this tracked file into that dump and turn it into a live, constantly-
+diffing file the moment two machines quit btop with different terminal sizes or GPU
+detection results — the same class of problem `config/paseo/config.json` solves with a
+merge, except btop offers no merge step to reach for. `save_config_on_exit = false` is
+what keeps this file exactly what's tracked, forever.
+
+### Misc dev CLIs — hyperfine, sd, tealdeer, and Docker Desktop
+
 **hyperfine** is the only deliberate benchmarking tool beside cloc/dive/ctop.
 **sd** is the sed-shaped find/replace with a literal mode; **tealdeer** (`tldr` on
-`PATH`) is example-first man pages. None of these drive tracked config beyond being on
+`PATH`) is example-first man pages. Neither drives tracked config beyond being on
 the Brewfile/apt path.
 
 **docker-desktop** was the missing runtime for **dive** and **ctop**, which were already
@@ -828,6 +925,29 @@ inside tmux when it shouldn't, that stale export is why:
 ```sh
 printenv ATUIN_TMUX_POPUP   # prints nothing when the popup is live
 ```
+
+### herdr — Homebrew on macOS, curl installer on Linux
+
+`herdr` is a real Homebrew core formula (`brew info herdr` shows
+`Homebrew/homebrew-core`, not a tap), so macOS gets it the same way as lazygit/btop
+above it in the Brewfile. Linux has no package this young, so it gets the same shape
+of official curl installer already used for starship/atuin/uv — `curl -fsSL
+https://herdr.dev/install.sh | sh`, landing in `~/.local/bin`.
+
+That `~/.local/bin` destination is exactly the trap [uv](#shell--carapace-fd-uv-and-linux-clipboards)
+already taught this repo: `zshrc` puts `~/.local/bin` ahead of Homebrew's `bin` on
+`PATH`, so a machine that ever ran herdr's curl installer by hand — before this
+Brewfile line existed, or by following herdr's own README — keeps a copy `brew
+upgrade` will never see or touch. `which -a herdr` shows both if that's happened;
+`rm ~/.local/bin/herdr` lets the Homebrew copy win, same fix as uv's.
+
+**gzg**, the `ghzinga` crate's binary, lives one level below this: it's what the
+`osolmaz/ghzinga/plugins/herdr` plugin (`herdr_plugins.txt`) shells out to on a
+ctrl-click, and `config/ghzinga/config.toml` is its config, not the plugin's. No
+Homebrew formula exists for it on either platform, so both branches of the tools
+step fall back to `cargo_ensure_latest ghzinga gzg` — the same crates.io-version-
+checked cargo install the Linux-only fallback tools use, just called unconditionally
+here since there's no brew alternative to prefer first.
 
 ### Herdr plugins — the list is tracked, herdr's registry isn't
 

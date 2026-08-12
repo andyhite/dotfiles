@@ -1,0 +1,109 @@
+# One Dark for btop — matches starship (One Dark Pro), atuin, herdr, nvim
+# (NvChad onedark) and Ghostty (One Dark Two). Hex values are the same
+# palette as config/starship.toml's [palettes.one_dark] and
+# config/atuin/themes/one-dark.toml, not an approximation to the nearest
+# built-in btop color.
+#
+# main_bg is Ghostty's actual terminal background (#21252b, One Dark Two),
+# not the theoretical One Dark background (#282c34) atuin and starship
+# document — btop always paints its own background rather than leaving
+# terminal cells transparent, so matching the real terminal is what makes
+# it look native instead of leaving a visible seam around the window. This
+# is the same distinction config/herdr/config.toml's contrast-repair block
+# had to make the hard way.
+
+# Main background
+theme[main_bg]="#21252b"
+
+# Main text color
+theme[main_fg]="#abb2bf"
+
+# Title color for boxes
+theme[title]="#61afef"
+
+# Highlight color for keyboard shortcuts
+theme[hi_fg]="#c678dd"
+
+# Background color of selected item in processes box
+theme[selected_bg]="#61afef"
+
+# Foreground color of selected item in processes box
+theme[selected_fg]="#21252b"
+
+# Color of inactive/disabled text
+theme[inactive_fg]="#5c6370"
+
+# Color of text appearing on top of graphs, i.e uptime and current network graph scaling
+theme[graph_text]="#abb2bf"
+
+# Background color of the percentage meters
+theme[meter_bg]="#3f4451"
+
+# Misc colors for processes box including mini cpu graphs, details memory graph and details status text
+theme[proc_misc]="#56b6c2"
+
+# Cpu box outline color
+theme[cpu_box]="#61afef"
+
+# Memory/disks box outline color
+theme[mem_box]="#98c379"
+
+# Net up/down box outline color
+theme[net_box]="#e06c75"
+
+# Processes box outline color
+theme[proc_box]="#c678dd"
+
+# Box divider line and small boxes line color
+theme[div_line]="#3f4451"
+
+# Temperature graph colors — green/yellow/red reads as cool/warm/hot
+# regardless of theme, so this keeps that convention instead of forcing it
+# into the palette's blue/purple axis.
+theme[temp_start]="#98c379"
+theme[temp_mid]="#e5c07b"
+theme[temp_end]="#e06c75"
+
+# CPU graph colors — same low/mid/high convention as temperature, since
+# "red at the top" is the one thing every btop user already expects.
+theme[cpu_start]="#98c379"
+theme[cpu_mid]="#e5c07b"
+theme[cpu_end]="#e06c75"
+
+# Mem/Disk free meter — blue-to-green: more free is the "good" direction
+theme[free_start]="#61afef"
+theme[free_mid]="#56b6c2"
+theme[free_end]="#98c379"
+
+# Mem/Disk cached meter
+theme[cached_start]="#56b6c2"
+theme[cached_mid]="#61afef"
+theme[cached_end]="#c678dd"
+
+# Mem/Disk available meter
+theme[available_start]="#98c379"
+theme[available_mid]="#56b6c2"
+theme[available_end]="#61afef"
+
+# Mem/Disk used meter — mirrors the cpu/temp convention: more used trends red
+theme[used_start]="#98c379"
+theme[used_mid]="#e5c07b"
+theme[used_end]="#e06c75"
+
+# Download graph colors — cool family, paired against upload's warm family
+# below so the two directions are visually distinct at a glance
+theme[download_start]="#61afef"
+theme[download_mid]="#56b6c2"
+theme[download_end]="#98c379"
+
+# Upload graph colors — warm family
+theme[upload_start]="#d19a66"
+theme[upload_mid]="#e5c07b"
+theme[upload_end]="#e06c75"
+
+# Process box color gradient for threads, mem and cpu usage — fades from
+# active green toward the same comment-grey inactive_fg uses, so a process
+# reads as idle the same way dimmed UI text does everywhere else in this repo
+theme[process_start]="#98c379"
+theme[process_mid]="#61afef"
+theme[process_end]="#5c6370"

@@ -514,6 +514,11 @@ install_tools_macos() {
   ensure_tree_sitter_cli
   ensure_nvchad
   ensure_omp
+  # No Homebrew formula exists for ghzinga (confirmed via `brew search`) on
+  # either platform, only crates.io — cargo_ensure_latest's own ensure_rustup
+  # call is a no-op here since the Brewfile's `rust` formula above already
+  # put cargo on PATH.
+  cargo_ensure_latest ghzinga gzg
 }
 
 # ── Linux: apt + native installers ──────────────────────────────────────────
@@ -839,7 +844,7 @@ install_tools_linux() {
     # glow: apt has it on recent Ubuntu; the release fallback below covers
     #      older releases. dotfiles-help renders the help/ corpus through it.
     for p in zsh git curl zoxide eza bat fzf direnv tmux unzip ripgrep \
-             git-lfs gh jq yq shellcheck shfmt tree wget moreutils rsync \
+             git-lfs gh jq yq shellcheck shfmt wget moreutils rsync \
              fontconfig ncurses-bin build-essential pkg-config \
              btop wl-clipboard xclip fd-find glow; do
       apt_ensure "$p" || true
@@ -924,6 +929,15 @@ install_tools_linux() {
   ensure_nerd_font_linux
   ensure_nvchad
   ensure_omp
+  # Official installer, run_quiet-wrapped like starship/atuin/uv above — no
+  # Homebrew tap, no apt package this young. Lands in ~/.local/bin, already
+  # on PATH; re-runs are the update path, same as the others in this group.
+  if run_quiet herdr sh -c "curl -fsSL https://herdr.dev/install.sh | sh"; then
+    ok "herdr" "installed/updated (installer always fetches latest)"
+  fi
+  # No Homebrew formula exists for ghzinga on either platform, only
+  # crates.io — see the macOS branch's identical call for why.
+  cargo_ensure_latest ghzinga gzg
   # Ghostty itself is a local GUI app — install it on the machine it actually
   # runs on (macOS, via the branch above). Nothing to install here on a
   # headless/remote Linux box; its config still gets symlinked below in case
@@ -952,9 +966,11 @@ link_configs() {
     "config/starship.toml:$HOME/.config/starship.toml"
     # The `osolmaz/ghzinga` herdr plugin is pure declarative wiring — it reads
     # nothing itself, just shells out to `gzg`. All behaviour and config belong
-    # to that separately-installed binary, which reads this path directly, so
-    # `dutifuldev.ghzinga`'s dir under plugins/config below is legitimately
-    # empty and this file has to be linked on its own rather than living there.
+    # to the `gzg` binary, which reads this path directly (`cargo_ensure_latest
+    # ghzinga gzg` in the tools step installs/updates it — no Homebrew formula
+    # exists), so `dutifuldev.ghzinga`'s dir under plugins/config below is
+    # legitimately empty and this file has to be linked on its own rather
+    # than living there.
     "config/ghzinga/config.toml:$HOME/.config/ghzinga/config.toml"
     "config/herdr/config.toml:$HOME/.config/herdr/config.toml"
     # The command palette bound to prefix+p in the config above. A directory
@@ -968,6 +984,12 @@ link_configs() {
     # Themes live in a subdirectory atuin resolves by name; linked per-file so a
     # theme installed by any other means still shows up alongside this one.
     "config/atuin/themes/one-dark.toml:$HOME/.config/atuin/themes/one-dark.toml"
+    # The whole directory, not per-file — btop.conf's save_config_on_exit =
+    # false (see the file itself) is what keeps this safe to link at all;
+    # without it btop would rewrite btop.conf on every quit. Directory link
+    # means a future theme drop-in lands in this repo automatically, same
+    # reasoning as config/nvim below.
+    "config/btop:$HOME/.config/btop"
     "config/nvim:$HOME/.config/nvim"
     # The whole per-plugin config tree, not individual plugins — herdr creates a
     # config dir per plugin at install time, so linking the parent means new
@@ -1043,6 +1065,25 @@ link_configs() {
     links+=("config/lazygit/config.yml:$HOME/Library/Application Support/lazygit/config.yml")
   else
     links+=("config/lazygit/config.yml:$HOME/.config/lazygit/config.yml")
+  fi
+
+  # Same OS-native-vs-XDG split as lazygit above — except the XDG half is the
+  # *data* dir (~/.local/share), not config: tealdeer's own docs put custom
+  # pages under $XDG_DATA_HOME/tealdeer/pages on Linux, distinct from
+  # $XDG_CONFIG_HOME/tealdeer holding config.toml. macOS makes no such
+  # distinction (both map to ~/Library/Application Support), confirmed by
+  # `tldr --show-paths` on this machine. No config.toml override exists in
+  # 1.8.1 (a freshly seeded config's `[directories]` table ships empty), so
+  # this OS branch is the only way to reach it. Directory link, not per-file:
+  # nothing but this repo's pages is expected to live there, and a future
+  # page drop-in should land automatically, same reasoning as config/nvim.
+  # Filenames matter too: tealdeer only recognizes `<command>.page.md` (full
+  # replacement) or `<command>.patch.md` (appended to an upstream page) —
+  # `<command>.md` is silently ignored.
+  if [ "$OS" = "Darwin" ]; then
+    links+=("config/tldr/pages:$HOME/Library/Application Support/tealdeer/pages")
+  else
+    links+=("config/tldr/pages:$HOME/.local/share/tealdeer/pages")
   fi
 
   # An unescaped `~` in the replacement half of ${var/#pat/rep} is tilde-expanded
@@ -1905,9 +1946,8 @@ fi
 # The order is load-bearing, which is why --only exists but reordering doesn't:
 #
 #   completions after tools    each generator must run against the version that
-#                              just landed. Tools this script doesn't install
-#                              (herdr) are picked up too — see the per-entry
-#                              command -v guard.
+#                              just landed, tools-installed or bring-your-own
+#                              alike — see the per-entry command -v guard.
 #   runtimes after configs     mise reads its pins from ~/.tool-versions, and
 #                              that symlink is created by the configs step.
 #   paseo after configs        the orchestration-preferences symlink is made by

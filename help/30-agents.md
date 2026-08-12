@@ -30,17 +30,41 @@ built-in provider ids there.
 
 ## herdr — the terminal multiplexer for coding agents
 
-Panes, tabs, and workspaces, with worktree-backed workspaces as a first-class
-concept.
+`install.sh`'s tools step installs it: a real Homebrew core formula on macOS
+(`brew "herdr"`), the official `curl -fsSL https://herdr.dev/install.sh | sh`
+installer on Linux — see the README's herdr section for the `~/.local/bin`
+shadow trap that installer shares with uv's.
 
-    herdr                           # launch or attach to the persistent session
+herdr is a terminal multiplexer purpose-built for running and supervising
+coding agents — not a general-purpose tmux/zellij replacement with agent
+support bolted on after the fact. Panes, tabs, and workspaces are the layout
+primitives, and a git worktree is a first-class *kind* of workspace
+(`herdr worktree create <branch>`) rather than something scripted on top of a
+plain shell pane. Every pane recognized as hosting a supported agent (omp,
+Claude Code, Codex, ...) is tracked through a small lifecycle state machine —
+`idle`, `working`, `blocked`, `done`, `unknown` — that `herdr agent list` and
+every plugin below reads from, so tooling can tell "waiting on you" apart
+from "finished while you weren't looking" without scraping terminal output.
+
+It's also the terminal layer the rest of this toolchain assumes it's running
+inside of. fleet has no terminal or worktree management of its own — its CLI
+half is itself a herdr plugin (`andyhite/foreman/herdr` below), and every
+worker `fleet spawn` creates is a herdr pane living in a herdr worktree
+workspace. The `herdr` agent skill that lets an agent drive its own session
+only arms itself when `HERDR_ENV=1` is set — i.e. only when that agent is
+actually running inside a herdr-managed pane, not just any terminal. And
+plugins like `persiyanov/herdr-reviewr` (a diff-review split) or
+`ogulcancelik/herdr-browser` (Chromium over CDP) exist as panes precisely
+because herdr is what's already multiplexing the terminal they share.
+
+    herdr                            # launch or attach to the persistent session
     herdr agent start                # start a supported interactive agent in an existing pane
     herdr agent list                 # list agents across panes
-    herdr worktree create <branch>  # create a git worktree and open it as a workspace
+    herdr worktree create <branch>   # create a git worktree and open it as a workspace
     herdr worktree list              # list worktree workspaces
     herdr plugin install <owner>/<repo>  # install (or update, re-run) a plugin from GitHub
     herdr plugin action list         # list every action every installed plugin exposes
-    herdr plugin action invoke <id>  # run one action directly, bypassing the palette
+    herdr plugin action invoke <id> --plugin <plugin_id>  # run one action directly, bypassing the palette
 
 The command palette is bound to `prefix+p` (`config/herdr/palette/palette.sh`)
 — fzf over every installed plugin's actions, enumerated live from
@@ -123,11 +147,13 @@ then symlinks each configured agent's own skills directory into that shared
 tree, which is how every agent — omp included — picks up the same skills
 without a separate install per tool.
 
-    npx skills add <owner>/<repo> --skill <name> -g -y   # install one skill globally, unattended
-    npx skills list                 # list installed skills
-    npx skills update               # update every installed skill to its latest content
-    npx skills update --skill <name>  # update just one installed skill
-    npx skills list -g              # list skills installed globally, not project-local
+    npx skills find <keyword>                            # search for skills interactively or by keyword
+    npx skills add <owner>/<repo> --skill <name> -g -y    # install one skill globally, unattended
+    npx skills list                                       # list installed skills
+    npx skills list -g                                    # list skills installed globally, not project-local
+    npx skills update                                     # update every installed skill to its latest content
+    npx skills update --skill <name>                      # update just one installed skill
+    npx skills remove <name>                              # remove an installed skill
 
 `-g` installs globally rather than into a single project; `-y` accepts
 prompts unattended, which is what lets `install.sh` run this with no tty.

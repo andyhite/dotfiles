@@ -113,23 +113,39 @@ Pinned at 1.26.5 in `tool-versions`. `zshrc` puts `$GOBIN` (or
     go install <pkg>@latest        # install a binary to $GOBIN/$GOPATH/bin
     go mod tidy                    # sync go.mod/go.sum with actual imports
 
-## rust — rustup toolchain
+## rust — rustc and cargo toolchain (Homebrew on macOS, rustup on Linux)
 
-Installed via the Brewfile's `rust` formula on macOS and via `rustup` on
-Linux (`ensure_rustup` in `install.sh`). Not mise-managed: cargo needs to
-exist before any cargo-installed tool can be built, so on Linux it's a build
-dependency of the bootstrap itself, not only a dev tool — `install.sh` falls
-back to `cargo install --locked` for any tool with no apt package (delta,
-difftastic, git-absorb, sd, tealdeer, hyperfine, fd, jj).
+Installed via the Brewfile's plain `rust` formula on macOS, which provides
+`rustc` and `cargo` but not the `rustup` toolchain manager, and via `rustup`
+on Linux (`ensure_rustup` in `install.sh`, which only runs when `cargo`
+isn't already on `PATH` — so it never fires on macOS, where Homebrew already
+put `cargo` there). Not mise-managed: cargo has to exist before any
+cargo-installed tool can be built, so on Linux it doubles as a bootstrap
+dependency, not just a dev tool — `install.sh` falls back to
+`cargo install --locked` for any tool with no apt package (delta,
+difftastic, git-absorb, sd, tealdeer, hyperfine, fd, jj; see `cargo` below
+for the commands that come with either install path).
 
-    rustup show                    # which toolchain is active and installed
-    rustup update                  # update the active toolchain
-    rustc --version                # confirm the compiler version
-    rustup component add rust-analyzer   # add a component the LSP or an editor needs
-    rustup toolchain list          # see every toolchain installed on this machine
-    rustup target add <target>     # add a cross-compilation target
+    rustc --version                      # confirm the compiler version — works on both platforms
+    cargo --version                      # confirm the cargo version — works on both platforms
+    rustup show                          # Linux only: which toolchain is active/installed
+    rustup update                        # Linux only: update the active toolchain
+    rustup component add rust-analyzer   # Linux only: add a component the LSP/editor needs
+    rustup target add <target>           # Linux only: add a cross-compilation target
+
+Gotcha: every `rustup ...` command above fails with "command not found" on
+macOS — the Brewfile's `rust` formula installs the compiler and Cargo, not
+rustup itself. Need rustup on a Mac (a second toolchain, a cross target)?
+Install it separately; it doesn't come along with `brew install rust`.
 
 ## cargo — rust's package manager and build tool
+
+Rust's package manager and build tool, bundled with whichever install path
+the `rust` entry above describes — the Brewfile's plain formula on macOS,
+`rustup` on Linux — so it's present anywhere `rustc` is, with no separate
+cargo install step of its own. It's also this bootstrap's fallback package
+manager: `cargo install --locked` is exactly what `install.sh` runs to
+build any tool that has no apt package on Linux.
 
     cargo build                    # compile the current package
     cargo run                      # build and run the current package's binary
@@ -150,7 +166,7 @@ on it directly.
     cmake -LAH                     # list every cached variable with its help text
     ccmake .                       # interactive curses config editor, if installed alongside
 
-## make — build automation
+## make — build automation, aliased to a modern `gmake` on macOS
 
 macOS ships GNU make 3.81 (2006) as both `make` and `gnumake` — the obvious
 `alias make=gnumake` is a no-op. Homebrew's make installs as `gmake` (4.x)
@@ -200,6 +216,11 @@ through one config and one invocation.
     golangci-lint fmt                # format go source files
 
 ## clang-format — C/C++/Objective-C formatter
+
+Sits in the Brewfile the same way `cmake` does: a general-purpose
+formatter for whatever C/C++/Objective-C project needs it, with nothing in
+this repo's own config wiring it into an editor or a lint step the way
+`shfmt`/`shellcheck` are wired for shell scripts.
 
     clang-format -i file.c           # rewrite a file in place
     clang-format --dry-run file.c    # print without writing, exit non-zero if it would change
