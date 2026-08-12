@@ -507,9 +507,54 @@ ensure_brewfile() {
   fi
 }
 
+# Homebrew-installed daemons that read a fixed /opt/homebrew/etc/<name>
+# config path regardless of who starts them (dnsmasq, Caddy) can't be
+# handled by link_configs above: that path sits outside every $HOME, so
+# `just smoke`'s throwaway-HOME sandbox would silently symlink over the real
+# machine's copy on every run instead of staying contained. Handled here
+# instead — the `tools` step, which `--only configs`/smoke never touches —
+# for whichever of these two tools this install actually has installed.
+#
+# $1 = repo-relative base config, symlinked like link_configs' own entries
+# (unconditionally overwritten, backing up anything unexpected first). $2 =
+# repo-relative *.example template, copied once with the same
+# never-overwrite contract as link_configs' template loop. $3 = the binary
+# that must be on PATH for either to apply.
+ensure_homebrew_etc_config() {
+  local base="$1" example="$2" bin="$3"
+  command -v "$bin" >/dev/null 2>&1 || return 0
+
+  local src="$DOTFILES_DIR/$base"
+  local dst="/opt/homebrew/etc/${base##*/}"
+  local backup
+  if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]; then
+    ok "$dst"
+  elif [ -e "$dst" ] || [ -L "$dst" ]; then
+    backup="$dst.bak.$(date +%s)"
+    mv "$dst" "$backup"
+    ln -s "$src" "$dst"
+    warned "$dst" "backed up to ${backup##*/}"
+  else
+    ln -s "$src" "$dst"
+    added "$dst" "-> $base"
+  fi
+
+  local target
+  target="/opt/homebrew/etc/$(basename "${example%.example}")"
+  if [ -f "$target" ]; then
+    ok "$target" "present"
+  else
+    cp "$DOTFILES_DIR/$example" "$target"
+    chmod 600 "$target"
+    added "$target" "created from ${example##*/} — fill in your values"
+  fi
+}
+
 install_tools_macos() {
   command -v brew >/dev/null 2>&1 || { failed "Homebrew" "not found — install from https://brew.sh first"; return 1; }
   ensure_brewfile
+  ensure_homebrew_etc_config dnsmasq/dnsmasq.conf dnsmasq/dnsmasq.local.conf.example dnsmasq
+  ensure_homebrew_etc_config caddy/Caddyfile caddy/Caddyfile.local.example caddy
   ensure_antidote
   ensure_tpm
   ensure_tree_sitter_cli
@@ -1157,19 +1202,23 @@ link_configs() {
   # Same $HOME -> ~ display transform as the loop above, rather than a literal
   # "~/..." string: that reads as an unexpanded path to both shellcheck and the
   # next person, and drifts if the location ever changes.
+  local examples=(
+    zshrc.local.example gitconfig.local.example ssh/config.local.example
+    config/paseo/daemon.env.example omp/agent/models.yml.example
+  )
+
   local example target
-  for example in zshrc.local.example gitconfig.local.example ssh/config.local.example \
-                 config/paseo/daemon.env.example omp/agent/models.yml.example; do
-    # ssh's and paseo's live in a subdirectory on both sides; the rest are
-    # dotfiles at $HOME. paseo's is the odd one out in that its target isn't a
-    # dotfile at all — config/paseo/paseo.service names it as an
-    # EnvironmentFile, and systemd resolves that path itself, so it has to land
-    # where the unit says rather than where this loop's default would put it.
-    # omp's lands beside the config.yml symlink, which is already where omp
-    # looks for it. It ships inert but deliberately not empty: the active line
-    # is a literal `providers: {}`, because omp validates the file's root as an
-    # object and a copy trimmed to pure comments parses as null and warns on
-    # every startup.
+  for example in "${examples[@]}"; do
+    # ssh's and paseo's each live in a subdirectory on both sides; the rest
+    # are dotfiles at $HOME. paseo's is the odd one out in that its target
+    # isn't a dotfile at all — config/paseo/paseo.service names it as an
+    # EnvironmentFile, and systemd resolves that path itself, so it has to
+    # land where the unit says rather than where this loop's default would
+    # put it. omp's lands beside the config.yml symlink, which is already
+    # where omp looks for it. It ships inert but deliberately not empty: the
+    # active line is a literal `providers: {}`, because omp validates the
+    # file's root as an object and a copy trimmed to pure comments parses as
+    # null and warns on every startup.
     case "$example" in
       ssh/*)          target="$HOME/.ssh/${example#ssh/}"; target="${target%.example}" ;;
       config/paseo/*) target="$HOME/.config/paseo/${example#config/paseo/}"; target="${target%.example}" ;;

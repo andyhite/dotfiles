@@ -21,6 +21,8 @@ NvChad for editing.
   - [gh extensions — manifest beside `herdr_plugins.txt`](#gh-extensions--manifest-beside-herdr_pluginstxt)
   - [btop — One Dark theme, and the config-rewrite trap](#btop--one-dark-theme-and-the-config-rewrite-trap)
   - [Misc dev CLIs — hyperfine, sd, tealdeer, and Docker Desktop](#misc-dev-clis--hyperfine-sd-tealdeer-and-docker-desktop)
+  - [Caddy — local HTTPS for internal-only dev hostnames](#caddy--local-https-for-internal-only-dev-hostnames)
+  - [dnsmasq — wildcard local DNS via macOS's per-domain resolver](#dnsmasq--wildcard-local-dns-via-macoss-per-domain-resolver)
   - [Zed's `ssh_connections` is stripped by a clean filter](#zeds-ssh_connections-is-stripped-by-a-clean-filter)
   - [omp — one tracked config, two machines, different accounts](#omp--one-tracked-config-two-machines-different-accounts)
   - [Paseo](#paseo)
@@ -64,6 +66,10 @@ NvChad for editing.
 | `config/herdr/palette` | `~/.config/herdr/palette` | the `prefix+p` command palette — an fzf script run by a `type = "popup"` keybinding, plus the MIT notice of the plugin it's derived from |
 | `herdr_plugins.txt` | (not linked — read by `install.sh`) | Herdr plugin list, one `owner/repo[@ref]` per line; `install.sh` installs/updates each one |
 | `config/herdr/plugins/config` | `~/.config/herdr/plugins/config` | per-plugin Herdr config, one directory per plugin id — the whole tree is linked, so new plugins land here on install |
+| `caddy/Caddyfile` | `/opt/homebrew/etc/Caddyfile` (macOS only) | base Caddyfile — `local_certs` only, imports the machine-local one below; symlinked by the `tools` step, not `configs` — see [Caddy](#caddy--local-https-for-internal-only-dev-hostnames) below |
+| `caddy/Caddyfile.local.example` | (copy, not linked) | template for `/opt/homebrew/etc/Caddyfile.local` — machine-local site blocks, never committed |
+| `dnsmasq/dnsmasq.conf` | `/opt/homebrew/etc/dnsmasq.conf` (macOS only) | base dnsmasq config — loopback-only, non-privileged port; symlinked by the `tools` step, not `configs` — see [dnsmasq](#dnsmasq--wildcard-local-dns-via-macoss-per-domain-resolver) below |
+| `dnsmasq/dnsmasq.local.conf.example` | (copy, not linked) | template for `/opt/homebrew/etc/dnsmasq.local.conf` — machine-local wildcard-domain records, never committed |
 
 ### Editor
 
@@ -567,6 +573,69 @@ load-bearing: `/Applications/Docker.app` already exists on the machine this repo
 and a plain `brew bundle` install aborts with "already an App" unless adopt takes over the
 existing install. No Linux counterpart in `install.sh` — Docker's apt repo is a host-level
 decision, not a dotfiles one.
+
+### Caddy — local HTTPS for internal-only dev hostnames
+
+`caddy/Caddyfile` is deliberately thin — `local_certs` and one `import` line — because a
+real site block always names a real internal hostname and a real IP, neither of which
+belongs in a public repo. `local_certs` is what makes that possible at all: it mints certs
+from Caddy's own built-in CA instead of asking Let's Encrypt, which could never issue for
+a hostname that isn't publicly resolvable. `caddy trust` installs that CA into your
+keychain once, and every site the imported file defines is trusted with no browser warning
+from then on.
+
+The imported file, `/opt/homebrew/etc/Caddyfile.local`, is created once from
+`caddy/Caddyfile.local.example` — inert until you uncomment a block and fill in a
+real hostname and IP, same contract as `ssh/config.local.example`. A single regex-matched
+wildcard block there can stand in for a whole family of hostnames — `<service>-<port>` —
+without a new site block per port; the template shows the pattern.
+
+`brew services start caddy` (not part of `install.sh` — a machine with nothing to proxy
+doesn't need it running) always sets `HOME=/opt/homebrew/var/lib` for the service, so
+Caddy's default cert-storage location under that `HOME` is the same on every start
+regardless of who launches it — no path to pin. After editing the local Caddyfile, apply
+it with `caddy reload --config /opt/homebrew/etc/Caddyfile` (no restart, no dropped
+connections) rather than `brew services restart caddy`.
+
+### dnsmasq — wildcard local DNS via macOS's per-domain resolver
+
+`/etc/hosts` has no wildcard syntax — every hostname needs its own literal line, which
+doesn't scale to a naming scheme like `<service>-<port>.example.internal` where new
+hostnames show up as often as new local services do. macOS's per-domain resolver
+(`/etc/resolver/<domain>`) fixes that: any lookup under that one domain gets sent to a
+resolver you name instead of the system default, and dnsmasq answers every hostname under
+it — including ones that don't exist yet — with a single `address=/.<domain>/127.0.0.1`
+line.
+
+`dnsmasq/dnsmasq.conf` binds `127.0.0.1` on port `5453`, not the standard `53`, so
+`brew services start dnsmasq` never needs root — macOS's own resolver keeps port 53
+regardless, since `/etc/resolver` only redirects the one domain named there, not the
+whole system. Its final line, `conf-file=/opt/homebrew/etc/dnsmasq.local.conf`, is the
+actual domain list, deliberately not this tracked file: real internal hostnames don't
+belong in a public repo.
+
+Both `dnsmasq.conf`'s symlink and `dnsmasq.local.conf`'s one-time copy — like Caddy's
+above — happen in `install.sh`'s `tools` step, not `configs`: `/opt/homebrew/etc` sits
+outside every `$HOME`, so `just smoke`'s throwaway-`HOME` sandbox would otherwise
+silently touch the real machine's copy on every run instead of staying contained.
+`ensure_homebrew_etc_config` is the one function both tools share, since they need the
+exact same symlink-plus-template-copy shape.
+
+Wiring a new domain in is two steps this repo can't do for you, since the domain name
+itself is the machine-local part:
+
+```
+# in /opt/homebrew/etc/dnsmasq.local.conf
+address=/.example.internal/127.0.0.1
+
+# /etc/resolver/example.internal
+nameserver 127.0.0.1
+port 5453
+```
+
+`brew services start dnsmasq` (not part of `install.sh` — a machine with no wildcard
+domain to resolve doesn't need it running) picks up edits to `dnsmasq.local.conf` on
+`brew services restart dnsmasq`, since dnsmasq doesn't watch the file for changes.
 
 ### Zed's `ssh_connections` is stripped by a clean filter
 

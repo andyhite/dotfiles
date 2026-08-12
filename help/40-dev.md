@@ -403,3 +403,38 @@ at the real bundle.
     tailscale ssh <host>             # SSH to a tailnet machine using Tailscale's own auth
     tailscale up                     # connect (and log in, if needed)
     tailscale netcheck               # diagnose local network conditions (NAT, DERP relay, etc.)
+
+## caddy — local HTTPS for internal-only dev hostnames
+
+Base Caddyfile `caddy/Caddyfile` is just `local_certs` plus an `import` of
+`/opt/homebrew/etc/Caddyfile.local` — machine-local, created once from
+`caddy/Caddyfile.local.example`, never tracked, since real site blocks
+name real internal hostnames and IPs. `local_certs` mints certs from Caddy's
+own built-in CA instead of Let's Encrypt, which could never issue for a
+non-public hostname. See the README's Caddy section for the full recipe,
+including a regex-matched wildcard block for `<service>-<port>` hostnames.
+
+    brew services start caddy                                # start it (not automatic — install.sh only lays down config)
+    caddy trust --config /opt/homebrew/etc/Caddyfile          # one-time: install the local CA into your keychain
+    caddy reload --config /opt/homebrew/etc/Caddyfile         # apply edits to Caddyfile.local, no dropped connections
+
+## dnsmasq — wildcard local DNS via macOS's per-domain resolver
+
+Base config `dnsmasq/dnsmasq.conf` binds loopback-only on port 5453 (not 53, so
+`brew services start dnsmasq` never needs root) and reads the actual domain
+records from `/opt/homebrew/etc/dnsmasq.local.conf` — machine-local, created
+once from `dnsmasq/dnsmasq.local.conf.example`, never tracked. Pair a domain
+there with a matching `/etc/resolver/<domain>` file so macOS sends only that
+domain's lookups to dnsmasq; every other query keeps using normal DNS. See
+the README's dnsmasq section for the full two-file recipe.
+
+    brew services start dnsmasq       # start it (not automatic — install.sh only lays down config)
+    brew services restart dnsmasq     # reload after editing dnsmasq.local.conf
+    dig @127.0.0.1 -p 5453 <host>     # check what dnsmasq itself resolves a name to
+    dscacheutil -q host -a name <host> # check what apps/browsers actually resolve it to
+
+Plain `dig <host>` (no `@server`) reads `/etc/resolv.conf` directly and skips
+macOS's `/etc/resolver/<domain>` split-DNS entirely, so it can go to whatever
+your default resolver is (Tailscale's, if that's active) and report
+`NXDOMAIN` even when everything is actually configured correctly.
+`dscacheutil` uses the same resolution path apps do — trust that one.

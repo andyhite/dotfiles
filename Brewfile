@@ -100,6 +100,29 @@ brew "jq"
 brew "shellcheck"
 brew "shfmt"
 
+# ── Local reverse proxy ─────────────────────────────────────────────────────
+# Terminates real, browser-trusted HTTPS for internal-only dev hostnames that
+# Let's Encrypt can never issue certs for — `local_certs` in the tracked
+# Caddyfile mints them from Caddy's own built-in CA instead (`caddy trust`
+# installs that CA into your keychain, once). Base config: caddy/Caddyfile;
+# the actual site blocks are machine-local, never tracked — see
+# caddy/Caddyfile.local.example. Not started automatically by
+# install.sh: run `brew services start caddy` yourself once you've filled in
+# a local Caddyfile.
+brew "caddy"
+
+# ── Local DNS ────────────────────────────────────────────────────────────────
+# Pairs with macOS's per-domain /etc/resolver/<domain> mechanism to resolve an
+# entire wildcard domain (and every subdomain under it) straight to
+# 127.0.0.1 — for local dev tooling like a Caddy reverse proxy terminating
+# TLS for a service normally only reachable over VPN/Tailscale, without
+# maintaining one /etc/hosts line per hostname. Base config: dnsmasq/
+# dnsmasq.conf; the actual domain(s) are machine-local, never tracked — see
+# dnsmasq/dnsmasq.local.conf.example. Not started automatically by
+# install.sh: run `brew services start dnsmasq` yourself once you've filled
+# in a local.conf.
+brew "dnsmasq"
+
 # ── General CLI utilities ────────────────────────────────────────────────────
 # None of these are dependencies of anything this repo runs — no script here
 # calls yq, a g-prefixed coreutils binary, a moreutils tool, or wget. They're
