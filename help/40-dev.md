@@ -313,7 +313,7 @@ Gotcha: `ssh_connections` is deliberately absent from the tracked file. Zed
 rewrites that key into `settings.json` on every remote connect, and this
 file is symlinked straight into a public repo — so without a filter, real
 hostnames and work project paths would land in git history. `.gitattributes`
-marks `config/zed/settings.json filter=zed-local`, and `install.sh` registers
+marks `config/zed/settings.json filter=zed-local`, and `install.sh`'s hooks step registers
 that filter (`git config filter.zed-local.clean 'awk -f bin/zed-settings-clean'`)
 so `ssh_connections` is stripped on the way into the index, not on disk —
 the live file on your machine keeps the key, only what git sees is cleaned.

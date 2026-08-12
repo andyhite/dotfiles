@@ -128,7 +128,7 @@ confirm() {
 
 # ── Steps ────────────────────────────────────────────────────────────────────
 
-STEPS=(tools completions configs runtimes paseo herdr omp gh skills nvim)
+STEPS=(tools completions configs hooks runtimes paseo herdr omp gh skills nvim)
 ASSUME_YES=0
 VERBOSE=0
 ONLY=""
@@ -160,6 +160,7 @@ ${C_BOLD}Steps${C_RESET}
   tools        Package installs/upgrades (Brewfile on macOS), fonts, editors, agents
   completions  Generate zsh completions into ~/.local/share/zsh/site-functions
   configs      Symlink this repo's config files into place
+  hooks        Register the zed-local git filter and install pre-commit hooks
   runtimes     Install the language versions pinned in tool-versions, with mise
   paseo        Merge config/paseo into ~/.paseo, ensure the CLI, supervise the daemon
   herdr        Install/update the Herdr plugins in herdr_plugins.txt
@@ -610,7 +611,7 @@ cargo_ensure_latest() {
     ok "$crate" "up to date ($current)"
     return
   fi
-  say "$crate: ${current:+updating $current -> }${current:-installing }$latest (compiling — takes a few minutes)"
+  say "$crate: ${current:+updating $current -> }${current:-installing }$latest"
   run_quiet "$crate" cargo install --locked "$crate" || return 0
   if [ -n "$current" ]; then
     updated "$crate" "$current -> $latest"
@@ -764,9 +765,24 @@ ensure_release_binary() {
     warned "$bin" "download failed — re-run to retry"
     return 0
   fi
-  tar -xzf "$tmp/asset.tar.gz" -C "$tmp" "$bin"
+  # Extract the whole archive, then locate the binary: goreleaser puts some
+  # assets (gitleaks, carapace) at the archive root and others (glow 3.x) under
+  # a <name>_<ver>_<os>_<arch>/ directory. Asking tar for a top-level `$bin`
+  # path is what produced "glow: Not found in archive" on a fresh Linux box.
+  if ! tar -xzf "$tmp/asset.tar.gz" -C "$tmp"; then
+    rm -rf "$tmp"
+    warned "$bin" "archive extract failed — re-run to retry"
+    return 0
+  fi
+  local found
+  found="$(find "$tmp" -type f -name "$bin" | head -1)"
+  if [ -z "$found" ]; then
+    rm -rf "$tmp"
+    warned "$bin" "archive downloaded but $bin wasn't in it — re-run to retry"
+    return 0
+  fi
   mkdir -p "$HOME/.local/bin"
-  install -m 755 "$tmp/$bin" "$HOME/.local/bin/$bin"
+  install -m 755 "$found" "$HOME/.local/bin/$bin"
   rm -rf "$tmp"
   if [ -n "$current" ]; then
     updated "$bin" "$current -> $latest"
@@ -1134,45 +1150,6 @@ link_configs() {
     fi
   fi
 
-  # .gitattributes points config/zed/settings.json at a clean filter, but a
-  # filter definition can't be committed: it names an absolute path, and this
-  # repo sits somewhere different on every machine. Register it here instead.
-  #
-  # Without it Zed writes ssh_connections — real internal hosts, real work
-  # project paths — through the symlink into a tracked file in a public repo,
-  # on every remote connect. Deleting the key by hand doesn't hold; the next
-  # connect restores it. git treats an unconfigured filter as a pass-through,
-  # so this is what actually turns the .gitattributes entry on.
-  #
-  # `git config` overwrites rather than appends, so re-running is a no-op.
-  if [ -d "$DOTFILES_DIR/.git" ]; then
-    # `awk -f <script>`, not the script as a program: it carries no shebang on
-    # purpose, because `#!/usr/bin/env awk -f` silently works on macOS and
-    # fails on Linux. The path is single-quoted for git's `sh -c`, so a repo
-    # checked out under a path with spaces still resolves.
-    git -C "$DOTFILES_DIR" config filter.zed-local.clean \
-      "awk -f '$DOTFILES_DIR/bin/zed-settings-clean'"
-    # No smudge: the working file is Zed's, and this filter only ever removes
-    # machine state on the way in. Reversing it on checkout would mean writing
-    # this machine's hosts into another machine's file.
-    git -C "$DOTFILES_DIR" config filter.zed-local.smudge cat
-    ok "git filter" "zed-local — strips ssh_connections from the index"
-
-    # .pre-commit-config.yaml is tracked, but a fresh clone has no hooks
-    # installed until something runs `pre-commit install` — and the whole
-    # point of the gitleaks hook is to fire before the commit a fresh clone
-    # is most likely to make. Guarded on the binary rather than failing the
-    # configs step: the tools step is what installs pre-commit, and it may
-    # not have run yet (or may have failed) on this machine.
-    if command -v pre-commit >/dev/null 2>&1; then
-      if run_quiet "pre-commit hooks" sh -c "cd '$DOTFILES_DIR' && pre-commit install"; then
-        ok "pre-commit hooks" "installed"
-      fi
-    else
-      skipped "pre-commit hooks" "pre-commit not on PATH — run the tools step, then re-run"
-    fi
-  fi
-
   # Templates are copied, not linked: each holds machine-local values, and most
   # of them hold credentials. Copied only when absent, so a re-run can never
   # overwrite an already filled-in file.
@@ -1209,6 +1186,58 @@ link_configs() {
     chmod 600 "$target"
     added "${target/#$HOME/\~}" "created from ${example##*/} — fill in your values"
   done
+}
+
+
+# ── Repo hooks ───────────────────────────────────────────────────────────────
+
+# Kept out of the configs step on purpose: that step's job is symlinks (and the
+# one-shot *.example copies). The zed-local filter and `pre-commit install` act
+# on this repo's `.git`, not on any home-directory link, so they live here.
+#
+# After tools: pre-commit is what the tools step installs (Brewfile / apt /
+# `uv tool install`). Guarded on the binary rather than failing the step when
+# tools was skipped or failed on this machine.
+ensure_hooks() {
+  if [ ! -d "$DOTFILES_DIR/.git" ]; then
+    skipped "hooks" "not a git checkout — filter and pre-commit need .git"
+    return 0
+  fi
+
+  # .gitattributes points config/zed/settings.json at a clean filter, but a
+  # filter definition can't be committed: it names an absolute path, and this
+  # repo sits somewhere different on every machine. Register it here instead.
+  #
+  # Without it Zed writes ssh_connections — real internal hosts, real work
+  # project paths — through the symlink into a tracked file in a public repo,
+  # on every remote connect. Deleting the key by hand doesn't hold; the next
+  # connect restores it. git treats an unconfigured filter as a pass-through,
+  # so this is what actually turns the .gitattributes entry on.
+  #
+  # `git config` overwrites rather than appends, so re-running is a no-op.
+  # `awk -f <script>`, not the script as a program: it carries no shebang on
+  # purpose, because `#!/usr/bin/env awk -f` silently works on macOS and
+  # fails on Linux. The path is single-quoted for git's `sh -c`, so a repo
+  # checked out under a path with spaces still resolves.
+  git -C "$DOTFILES_DIR" config filter.zed-local.clean \
+    "awk -f '$DOTFILES_DIR/bin/zed-settings-clean'"
+  # No smudge: the working file is Zed's, and this filter only ever removes
+  # machine state on the way in. Reversing it on checkout would mean writing
+  # this machine's hosts into another machine's file.
+  git -C "$DOTFILES_DIR" config filter.zed-local.smudge cat
+  ok "git filter" "zed-local — strips ssh_connections from the index"
+
+  # .pre-commit-config.yaml is tracked, but a fresh clone has no hooks
+  # installed until something runs `pre-commit install` — and the whole
+  # point of the gitleaks hook is to fire before the commit a fresh clone
+  # is most likely to make.
+  if command -v pre-commit >/dev/null 2>&1; then
+    if run_quiet "pre-commit hooks" sh -c "cd '$DOTFILES_DIR' && pre-commit install"; then
+      ok "pre-commit hooks" "installed"
+    fi
+  else
+    skipped "pre-commit hooks" "pre-commit not on PATH — run the tools step, then re-run"
+  fi
 }
 
 # ── Language runtimes ────────────────────────────────────────────────────────
@@ -1948,6 +1977,11 @@ fi
 #   completions after tools    each generator must run against the version that
 #                              just landed, tools-installed or bring-your-own
 #                              alike — see the per-entry command -v guard.
+#   hooks after tools          pre-commit install needs the binary the tools
+#                              step puts on PATH. Independent of configs: the
+#                              filter and the hooks both act on this repo's
+#                              .git, not on any symlink. Kept as its own step
+#                              so "symlink this repo into place" stays accurate.
 #   runtimes after configs     mise reads its pins from ~/.tool-versions, and
 #                              that symlink is created by the configs step.
 #   paseo after configs        the orchestration-preferences symlink is made by
@@ -1977,6 +2011,7 @@ fi
 run_step tools       "Tools"         "Brewfile/apt, fonts, editors, agents"             install_tools
 run_step completions "Completions"   "generated into ~/.local/share/zsh/site-functions" ensure_completions
 run_step configs     "Configs"       "symlink this repo into place"                     link_configs
+run_step hooks       "Hooks"         "zed-local git filter + pre-commit install"        ensure_hooks
 run_step runtimes    "Runtimes"      "language versions pinned in tool-versions"        ensure_runtimes
 run_step paseo       "Paseo"         "merge config/paseo, ensure the CLI and daemon"     setup_paseo
 run_step herdr       "Herdr plugins" "from herdr_plugins.txt"                           install_herdr_plugins

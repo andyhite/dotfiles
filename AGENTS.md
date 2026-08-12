@@ -101,7 +101,7 @@ wraps at 95 columns.
 ## Pre-commit hooks
 
 `.pre-commit-config.yaml` runs gitleaks plus the local `just leakguard` hook.
-`install.sh`'s tools step runs `pre-commit install`, so a fresh clone gets them. A commit
+`install.sh`'s hooks step runs `pre-commit install`, so a fresh clone gets them. A commit
 can be rejected by a hook — fix the finding, never pass `--no-verify`.
 
 ## Commits

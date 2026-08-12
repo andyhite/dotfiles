@@ -1,4 +1,4 @@
-# install.sh runs `pre-commit install` as part of the tools step, so a fresh
+# install.sh runs `pre-commit install` as part of the hooks step, so a fresh
 # clone gets these hooks the moment it's bootstrapped — nobody has to remember
 # to opt in by hand.
 #
