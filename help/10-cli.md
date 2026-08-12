@@ -218,7 +218,7 @@ the handful of commands worth knowing. `bin/dotfiles-help` is
 symlinked onto `PATH` by `install.sh`'s configs step and resolves its own real path back to the
 corpus, so it works from anywhere.
 
-    dotfiles-help                  # fzf picker over every tool, with the section as a preview
+    dotfiles-help                  # fzf picker A–Z by name, with the section as a preview
     dh                             # the zshrc alias for the same thing
     dotfiles-help fd               # print one tool's section; substring match if no exact hit
     dotfiles-help --list           # grouped by category (A–Z), tools A–Z within each

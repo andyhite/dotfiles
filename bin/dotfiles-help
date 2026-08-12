@@ -71,8 +71,8 @@ usage() {
 dotfiles-help — search and print the tool reference in help/*.md
 
 Usage
-  dotfiles-help                interactive fzf picker with a preview pane
-                                (falls back to --list without a tty or fzf)
+  dotfiles-help                interactive fzf picker (A–Z by name) with a
+                                preview pane
   dotfiles-help <name>         print one section (exact match, else a
                                 case-insensitive substring match on name
                                 and tagline)
@@ -323,6 +323,8 @@ do_picker() {
   # is the only thing --with-nth shows, same split palette.sh uses and for
   # the same reason — fzf matches against what's on screen, and the name is
   # already the first thing on screen in field 2, so nothing is unsearchable.
+  # Sort A–Z by name after building rows so the picker isn't stuck in the
+  # curated help/*.md file order (00-shell, 10-cli, …) that --all still uses.
   for ((i = 0; i < ${#NAMES[@]}; i++)); do
     row="$(printf '%s\t%-*s  \033[2m%s\033[22m' "${NAMES[i]}" "$width" "${NAMES[i]}" "${TAGLINES[i]}")"
     rows+="$row"$'\n'
@@ -337,6 +339,7 @@ do_picker() {
   local choice
   choice="$(
     printf '%s' "$rows" \
+      | sort -t $'\t' -k1,1f \
       | fzf --delimiter=$'\t' \
             --with-nth=2 \
             --ansi \
