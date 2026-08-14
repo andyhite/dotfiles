@@ -2,7 +2,7 @@
 onboarding = false
 
 [ui.toast]
-delivery = "system"
+delivery = "herdr"
 
 [theme]
 name = "one-dark"
