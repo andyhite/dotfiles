@@ -24,6 +24,11 @@ modelProviderOrder:
 disabledProviders: 
   - amazon-bedrock
   - bedrock-mantle
+  - codex
+  - claude
+  - claude-plugins
+  - cursor
+  - gemini
 symbolPreset: nerd
 theme: 
   dark: dark-one-tuned
@@ -158,6 +163,8 @@ features:
 compaction: 
   strategy: snapcompact
   handoffSaveToDisk: true
+  thresholdPercent: 70
+  idleEnabled: false
 ttsr: 
   contextMode: discard
   repeatMode: after-gap
@@ -203,3 +210,11 @@ commands:
   enableClaudeUser: true
 secrets: 
   enabled: true
+disabledExtensions: 
+  - slash-command:paseo-init
+  - skill:paseo-config-authoring
+  - skill:paseo-loop
+  - skill:paseo-handoff
+  - skill:paseo-committee
+  - skill:paseo-advisor
+  - skill:paseo
