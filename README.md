@@ -45,7 +45,7 @@ NvChad for editing.
 ### Shell & prompt
 
 | Path | Links to | What it is |
-|---|---|---|
+| --- | --- | --- |
 | `zshrc` | `~/.zshrc` | zsh config: completion, antidote plugin load, history, aliases, tool init hooks |
 | `tool-versions` | `~/.tool-versions` | mise runtime pins (node, python, go, bun, pnpm) — mise walks up from the current directory to find this, so the symlink is the global default under `$HOME`; see [mise](#mise) below |
 | `zsh_plugins.txt` | `~/.zsh_plugins.txt` | antidote's plugin list (zsh-autosuggestions, zsh-syntax-highlighting, fzf-tab, zsh-vi-mode) |
@@ -57,7 +57,7 @@ NvChad for editing.
 ### Terminal & workspace
 
 | Path | Links to | What it is |
-|---|---|---|
+| --- | --- | --- |
 | `tmux.conf` | `~/.tmux.conf` | tmux config, plugins managed by TPM |
 | `config/ghostty/config` | `~/.config/ghostty/config` | Ghostty terminal: `One Dark Two` theme, shell integration — same path on macOS and Linux |
 | `config/btop` | `~/.config/btop` | btop resource monitor: One Dark theme, `save_config_on_exit = false` so btop's default full-config-rewrite-on-quit can't overwrite this file — see [btop](#btop--one-dark-theme-and-the-config-rewrite-trap) below |
@@ -74,14 +74,14 @@ NvChad for editing.
 ### Editor
 
 | Path | Links to | What it is |
-|---|---|---|
+| --- | --- | --- |
 | `config/nvim` | `~/.config/nvim` | [NvChad](https://nvchad.com) starter — vendored once, `.git` stripped, fully mine to edit from here |
 | `config/zed/settings.json` | `~/.config/zed/settings.json` | Zed editor settings — `disable_ai: true` since agents run from the terminal via omp, not inside the editor, so the `agent`/`agent_servers` keys go undefined rather than tracked as dead config. `ssh_connections` never reaches the index: Zed rewrites it through this symlink on every remote connect, so a git clean filter strips it on the way in — see [below](#zeds-ssh_connections-is-stripped-by-a-clean-filter) |
 
 ### Git
 
 | Path | Links to | What it is |
-|---|---|---|
+| --- | --- | --- |
 | `gitconfig` | `~/.gitconfig` | tracked git identity, LFS/xet filter wiring, rebase-first defaults, delta pager + difftastic difftool, and `git absorb`; anything that varies per machine layers in through `gitconfig.local.example` below |
 | `gitconfig.local.example` | (copy, not linked) | template for `~/.gitconfig.local` — work identity via `includeIf "gitdir:…"`, private-registry credentials. `gitconfig`'s trailing `[include]` applies last, so anything set here wins over every default in the tracked file |
 | `config/git/ignore` | `~/.config/git/ignore` | global gitignore — git's own default `core.excludesFile` location when that setting is unset, so machine-tool droppings (`.DS_Store`, `.idea/`) never have to live in a project's own `.gitignore` |
@@ -95,7 +95,7 @@ NvChad for editing.
 ### Agents & orchestration
 
 | Path | Links to | What it is |
-|---|---|---|
+| --- | --- | --- |
 | `omp/agent/config.yml` | `~/.omp/agent/config.yml` | [omp](https://omp.sh) coding agent settings — besides this file and `rules/output-style.md` below, the rest of `~/.omp/agent` is databases, sessions, and a secrets key |
 | `omp/agent/extensions/atuin.ts` | `~/.omp/agent/extensions/atuin.ts` | records omp's `bash` commands into Atuin history as `--author pi` (a `KNOWN_AGENTS` name, so `$all-user` hides them), with omp's intent string as `--intent`. Hand-maintained: `atuin hook install` has no omp target |
 | `omp/agent/rules/output-style.md` | `~/.omp/agent/rules/output-style.md` | `alwaysApply: true` rule that shapes every omp response for an ADHD reader — answer first, numbered steps, one next action, no preamble or recap |
@@ -108,10 +108,11 @@ NvChad for editing.
 ### Repo scripts, checks & docs
 
 | Path | Links to | What it is |
-|---|---|---|
+| --- | --- | --- |
 | `Brewfile` | (not linked — read by `install.sh`) | macOS formulae + casks for every tool this config drives, applied with `brew bundle` — replaced the old hand-maintained `brew_ensure`/`brew_ensure_cask` loop |
 | `Justfile` | (not linked — invoked by `just` and CI) | single source of truth for every check — `.github/workflows/ci.yml` calls its recipes instead of duplicating them; see [Justfile and CI](#justfile-and-ci) |
 | `.pre-commit-config.yaml` | (not linked — read by `pre-commit`) | gitleaks plus the local `just leakguard` hook; `install.sh` runs `pre-commit install` during the hooks step so a fresh clone gets both |
+| `.markdownlint.yaml` | (not linked — read by `markdownlint-cli2` and nvim's `markdownlint` linter) | shared markdown lint rules: MD013 (line-length) and MD041 (require a top-level heading) off, since neither matches this repo's own conventions — `just fix-md` and the nvim linter both read this one file |
 | `bin/dotfiles-help` | `~/.local/bin/dotfiles-help` | renders the `help/` corpus — fzf picker, search, and per-tool sections; aliased as `dh` in `zshrc` — see [dotfiles-help](#dotfiles-help--the-help-corpus-and-dh) |
 | `help/` | (not linked — read by `bin/dotfiles-help`) | curated command reference keyed to the Brewfile — one `## <name> — <tagline>` section per tool; `just help-coverage` fails if a formula has no matching section |
 | `bin/tailscale` | `~/.local/bin/tailscale` | PATH shim for the Mac App Store build of Tailscale — `exec`s the bundled CLI directly, since a plain symlink to it fails at runtime (see the file itself for why). Linked only on macOS, and only when the App Store app is actually installed |
@@ -304,7 +305,7 @@ generated from the installed binary beats a distro's stale copy. `install.sh` wr
 per tool that has a generator:
 
 | Tool | Generator |
-|---|---|
+| --- | --- |
 | starship | `starship completions zsh` |
 | atuin | `atuin gen-completions --shell zsh` |
 | bat | `bat --completion zsh` |
@@ -514,7 +515,7 @@ Five modes, all parsing the same corpus:
 
 The parser is shape-sensitive: each tool is `## <name> — <tagline>` (em dash, not hyphen)
 with command examples indented four spaces. Retitle a heading out of that shape, or let
-another `## ` line appear in a body paragraph, and the tool silently drops from every
+another `##` line appear in a body paragraph, and the tool silently drops from every
 mode. `just help-coverage` is the other half — it fails when a Brewfile formula has no
 matching section (with an explicit alias map for the six names that differ, like
 `git-delta` → `delta`).
@@ -860,7 +861,7 @@ providers are enabled, MCP and browser-tool flags, relay off, CORS), and the res
 environment variables:
 
 | Where | Holds | Read by |
-|---|---|---|
+| --- | --- | --- |
 | `~/.config/paseo/daemon.env` (mode 600, from `config/paseo/daemon.env.example`) | `PASEO_LISTEN`, `PASEO_HOSTNAMES`, `PASEO_PASSWORD` | the Linux daemon, via the unit's `EnvironmentFile` |
 | `~/.zshrc.local` | `PASEO_HOST`, `PASEO_PASSWORD` | the Mac's `paseo` CLI, to drive the Linux daemon |
 
@@ -1331,7 +1332,7 @@ already on `PATH` and install nothing themselves; CI's setup step installs `just
 once before any recipe runs.
 
 | Recipe | What it catches |
-|---|---|
+| --- | --- |
 | `just parse` | `bash -n install.sh` — quoting/`set -e` bugs nobody hits until bootstrap |
 | `just shellcheck` | shellcheck on `install.sh` (three deliberate SC codes excluded) |
 | `just zsh-syntax` | `zsh -n` on `zshrc`, `zshenv`, and the local template |

@@ -224,6 +224,25 @@ text.
     glow github.com/owner/repo    # render a GitHub/GitLab README straight from its URL
     dh fd                         # dotfiles-help uses glow automatically when on PATH
 
+## markdownlint-cli2 — auto-fixes markdown lint issues, shares config with nvim's linter
+
+DavidAnson's config-driven successor to markdownlint-cli — the same rule engine
+`config/nvim/lua/configs/lint.lua`'s "markdownlint" linter runs on every buffer, just from the
+command line and with a `--fix` flag that rewrites what it safely can (table pipe spacing,
+trailing newlines, bare URLs) instead of only reporting it. `.markdownlint.yaml` at the repo
+root is the shared rule config — it turns off MD013 (line-length) and MD041 (require a
+top-level heading), the two rules that fight this repo's own conventions rather than catch a
+real problem; see the file itself for why. `just fix-md` runs it over the whole repo.
+
+    markdownlint-cli2 "**/*.md"         # lint every markdown file from the cwd down, report only
+    markdownlint-cli2 --fix "**/*.md"   # same, but rewrite whatever's safely auto-fixable
+    just fix-md                         # this repo's wrapper — same command, from anywhere in the tree
+    markdownlint-cli2 help/10-cli.md    # lint one file
+
+Gotcha: `--fix` only covers rules that emit fix information (MD060 table style, MD047 trailing
+newline, MD038 code-span spacing, MD034 bare URLs, ...). MD040 (fenced code blocks need a
+language) has no safe auto-fix — it still reports, and stays a manual call.
+
 ## dotfiles-help — this command; what every tool here is for
 
 The front door to this whole toolchain, and the thing you are reading right now. It renders the

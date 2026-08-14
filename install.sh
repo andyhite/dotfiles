@@ -989,6 +989,30 @@ install_tools_linux() {
   ensure_tpm
   ensure_nerd_font_linux
   ensure_nvchad
+  # markdownlint-cli2 ships no apt package and no release binary — npm is
+  # upstream's own distribution channel here, not a fallback of last resort
+  # (mise's own registry backs `markdownlint-cli2@latest` with the same
+  # npm:markdownlint-cli2 package). Same mise-first reasoning as
+  # install_agent_skills/ensure_paseo_cli: `command -v npm` also matches a
+  # dead shim from another version manager, so ask mise for the node
+  # tool-versions pins first. --prefix "$HOME/.local" keeps the install
+  # outside whichever node mise currently has active, same reasoning as
+  # ensure_paseo_cli.
+  local md_runner
+  if command -v mise >/dev/null 2>&1; then
+    md_runner="mise exec -- npm"
+  elif command -v npm >/dev/null 2>&1; then
+    md_runner="npm"
+  else
+    md_runner=""
+  fi
+  if [ -n "$md_runner" ]; then
+    if run_quiet markdownlint-cli2 sh -c "$md_runner install -g --prefix '$HOME/.local' markdownlint-cli2" </dev/null; then
+      ok "markdownlint-cli2" "$(mise exec -- "$HOME/.local/bin/markdownlint-cli2" --version 2>/dev/null || echo installed)"
+    fi
+  else
+    skipped "markdownlint-cli2" "no node — run the tools and runtimes steps first"
+  fi
   ensure_omp
   # Official installer, run_quiet-wrapped like starship/atuin/uv above — no
   # Homebrew tap, no apt package this young. Lands in ~/.local/bin, already

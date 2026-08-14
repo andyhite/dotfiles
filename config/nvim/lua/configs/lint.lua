@@ -8,7 +8,9 @@ local lint = require "lint"
 -- (`oxlint --lsp`), so it's enabled in configs/lspconfig.lua instead, which
 -- also gets us :LspOxlintFixAll and a persistent process.
 lint.linters_by_ft = {
-  -- rafters ships .github/.markdownlint.yaml.
+  -- rafters ships .github/.markdownlint.yaml; this repo's own root
+  -- .markdownlint.yaml covers everything else (MD013/MD041 off — see the
+  -- file itself for why).
   markdown = { "markdownlint" },
 
   -- the dotfiles installer plus scripts/ and entrypoint.sh across

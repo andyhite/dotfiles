@@ -100,6 +100,15 @@ brew "jq"
 brew "shellcheck"
 brew "shfmt"
 
+# ── Markdown linting ─────────────────────────────────────────────────────────
+# .markdownlint.yaml is the shared rule config: config/nvim/lua/configs/
+# lint.lua's "markdownlint" linter reads it too, so the editor and `just
+# fix-md` agree on the same rules. `--fix` covers the auto-fixable subset
+# (table pipe spacing, trailing newlines, bare URLs); MD013/MD041 are
+# disabled outright rather than fought, since neither matches this repo's
+# actual conventions — see the config file itself for why.
+brew "markdownlint-cli2"
+
 # ── Local reverse proxy ─────────────────────────────────────────────────────
 # Terminates real, browser-trusted HTTPS for internal-only dev hostnames that
 # Let's Encrypt can never issue certs for — `local_certs` in the tracked

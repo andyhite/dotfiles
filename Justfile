@@ -228,6 +228,13 @@ help-coverage:
 
     print(f"ok  {len(names)} Brewfile entries all have help/*.md sections")
 
+# Not part of `check`: it rewrites files, and `check` only ever reports.
+# `.markdownlint.yaml` at the repo root is the shared rule config with
+# nvim's own "markdownlint" linter — MD013/MD041 off, everything else on.
+[doc("Auto-fix markdown lint issues across the repo")]
+fix-md:
+    markdownlint-cli2 --fix "**/*.md"
+
 # Runs the whole tree link end to end, twice, so it must never touch the
 # calling shell's real HOME: an explicit subshell reassigns HOME for the two
 # installs and nothing outside it. The second run must report every link as
