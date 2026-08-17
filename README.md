@@ -877,6 +877,19 @@ is a usage error.) To remove one, delete the line and run
 `herdr plugin uninstall <plugin-id>` — nothing prunes plugins automatically, since
 removing a plugin also throws away whatever config it had.
 
+A plugin you're developing on this machine is the one case where re-running `install.sh`
+would do damage. `herdr plugin link <path>` and `omp plugin link <path>` point the manager
+at a working checkout, and installing the published copy over one of those replaces the
+link — the checkout keeps existing but stops being what runs. Both plugin steps detect it
+and report `local link: <path>` instead of installing. Neither CLI has an "install unless
+linked" mode, so the check reads the state each one keeps: herdr records a
+`{"kind":"local"}` source in `~/.config/herdr/plugins.json`, and omp's `plugin list --json`
+reports a link as a symlinked install directory (git and npm installs are real
+directories, and marketplace installs live in a separate array — so a leftover marketplace
+install can't be mistaken for a link and skipped forever). herdr's registry records only a
+path for a linked plugin, never an `owner/repo`, so the manifest line is matched to it by
+the checkout's git origin, falling back to the path tail for a checkout with no origin.
+
 Four plugins used to be listed here and aren't any more. `ribbons-digital/pi-herd`
 hardcoded `--name` and `--session-id` into every harness launch, and omp — the agent
 this setup drives — hard-errors on `unknown flags: --name, --session-id`; it also

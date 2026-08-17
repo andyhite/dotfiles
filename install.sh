@@ -1344,6 +1344,124 @@ ensure_runtimes() {
   done < <(cd "$HOME" && mise ls --current --quiet 2>/dev/null)
 }
 
+# ── Locally linked plugins ───────────────────────────────────────────────────
+
+# Both managers can install a plugin from a working checkout instead of from
+# GitHub — `herdr plugin link <path>`, `omp plugin link <path>` — which is how a
+# plugin developed on this machine gets used. Installing the published copy over
+# one of those replaces the link, so the checkout silently stops being what
+# runs; the two steps below detect that and leave the link alone. Neither CLI
+# has an "install unless linked" mode, so the detection has to live here.
+
+# The owner/repo a checkout's origin points at, empty when the path isn't a
+# checkout or has no origin. Both URL shapes git uses end in those same two
+# path segments, so taking the last two covers https and ssh alike — including
+# the `git@github.com-personal:owner/repo.git` Host aliases this repo's own
+# ssh/config defines, which is what foreman's origin actually looks like.
+git_origin_slug() {
+  local url owner repo
+  url="$(git -C "$1" remote get-url origin 2>/dev/null)" || return 0
+  url="${url%.git}"
+  url="${url%/}"
+  repo="${url##*/}"
+  url="${url%/*}"
+  owner="${url##*[:/]}"
+  [ -n "$owner" ] && [ -n "$repo" ] && printf '%s/%s\n' "$owner" "$repo"
+  return 0
+}
+
+# herdr's registry is generated state this repo deliberately doesn't track (see
+# README), but it is the only place an installed plugin's *source* is recorded:
+# {"kind":"local"} with just a path for a linked checkout, {"kind":"github"}
+# with owner/repo for a published install. `herdr plugin list` draws the same
+# distinction only as prose meant for a human to read.
+HERDR_REGISTRY="$HOME/.config/herdr/plugins.json"
+
+# One reader for both queries below, so the registry path and the two guards
+# live in a single place. A machine that has never installed a herdr plugin has
+# no registry at all, and jq arrives in the tools step — which the plugin steps
+# run after, but which can be skipped with --only.
+herdr_registry_query() {
+  [ -f "$HERDR_REGISTRY" ] || return 0
+  command -v jq >/dev/null 2>&1 || return 0
+  jq -r "$1" "$HERDR_REGISTRY" 2>/dev/null || true
+}
+
+# Where herdr loads each installed plugin from, as
+# "<plugin_id>\t<plugin_root>\t<clone_root>" — plugin_root is a content-hashed
+# managed directory for a github install and the checkout itself for a linked
+# one. clone_root is only set for a github install of a repo subdirectory, where
+# it's the managed clone above that subdirectory: a repo can ship agent skills at
+# its root while the herdr plugin is one directory down (osolmaz/ghzinga does
+# exactly that), and those skills are outside plugin_root entirely.
+#
+# It stays empty for a linked plugin on purpose. The checkout's own root is a
+# guess rather than recorded state, and walking up into it is actively wrong when
+# that repo is also an omp plugin: foreman keeps the herdr plugin in herdr/ and
+# ships skills/fleet at the root, which omp already discovers from the installed
+# plugin. Linking those too would shadow the copy omp resolves with one pinned to
+# whatever the checkout happens to be at.
+herdr_plugin_roots() {
+  herdr_registry_query '.[]? | select(.plugin_root) | [
+      .plugin_id,
+      .plugin_root,
+      (if (.source.subdir // "") != "" then (.source.managed_path // "") else "" end)
+    ] | @tsv'
+}
+
+# The checkout of every plugin herdr currently has link-installed, one per line.
+herdr_linked_roots() {
+  herdr_registry_query '.[]? | select(.source.kind == "local") | .plugin_root // empty'
+}
+
+# The checkout a linked herdr plugin lives in when that plugin is the one this
+# manifest spec names, empty otherwise. A linked entry records only its path,
+# never an owner/repo, so spec and link are matched two ways: the checkout's git
+# origin, which is exact and independent of where the checkout sits, then the
+# path tail, which still catches a checkout whose origin is missing — a plain
+# `git init`, or a copy. Neither can match anything but a plugin being developed
+# locally, which is the case being protected.
+herdr_link_path() {
+  local spec=$1 rest slug tail root
+  rest="${spec#*/}"
+  slug="${spec%%/*}/${rest%%/*}"
+  tail="$rest"
+
+  while IFS= read -r root; do
+    [ -n "$root" ] || continue
+    if [ "$(git_origin_slug "$root")" = "$slug" ]; then
+      printf '%s\n' "$root"
+      return 0
+    fi
+    case "$root" in
+      */"$tail")
+        printf '%s\n' "$root"
+        return 0
+        ;;
+    esac
+  done < <(herdr_linked_roots)
+  return 0
+}
+
+# The checkout an omp plugin is linked to, empty when it isn't link-installed.
+# `plugin list --json` reports npm, git and link installs together in .npm and
+# keeps marketplace installs in a separate .marketplace array, so inside .npm a
+# symlinked install directory means `plugin link` — npm and git installs are
+# real directories. That distinction is what keeps a leftover marketplace
+# install of the same plugin from reading as a dev link and never being
+# migrated. Using the path omp reports, rather than composing one, also stays
+# correct where the plugins root moves out of ~/.omp (XDG).
+omp_link_path() {
+  local path
+  command -v jq >/dev/null 2>&1 || return 0
+  path="$(omp plugin list --json 2>/dev/null \
+    | jq -r --arg n "$1" '.npm[]? | select(.name == $n) | .path // empty')" || return 0
+  [ -n "$path" ] || return 0
+  [ -L "$path" ] || return 0
+  readlink "$path" 2>/dev/null || true
+  return 0
+}
+
 # ── Herdr plugins ────────────────────────────────────────────────────────────
 
 # Runs after the symlinks so each plugin's config dir is created inside this
@@ -1361,7 +1479,7 @@ install_herdr_plugins() {
     return 0
   fi
 
-  local line plugin_spec plugin_ref
+  local line plugin_spec plugin_ref link_path
   while IFS= read -r line || [ -n "$line" ]; do
     line="${line%%#*}"
     line="${line#"${line%%[![:space:]]*}"}"
@@ -1371,6 +1489,14 @@ install_herdr_plugins() {
     plugin_spec="${line%%@*}"
     plugin_ref=""
     [ "$line" != "$plugin_spec" ] && plugin_ref="${line#*@}"
+
+    # A plugin developed on this machine is link-installed, and installing the
+    # published copy would replace that link — so report it and move on.
+    link_path="$(herdr_link_path "$plugin_spec")"
+    if [ -n "$link_path" ]; then
+      skipped "$plugin_spec" "local link: $link_path"
+      continue
+    fi
 
     # Flags must follow the positional argument — herdr's plugin parser
     # rejects `herdr plugin install --yes <spec>` with a usage error.
