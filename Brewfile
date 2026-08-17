@@ -214,6 +214,8 @@ cask "font-monaspace"
 # ghostty and nvim both render Nerd Font glyphs (icons in eza/telescope
 # output, powerline separators in the prompt); this is the one font both need.
 cask "font-jetbrains-mono-nerd-font"
+# Ships a signed .pkg, so installing or upgrading it runs sudo mid-bundle —
+# the entry behind the password prompt install.sh's tools step warns about.
 cask "1password-cli"
 
 # dive and ctop were already in this file and are both useless without a

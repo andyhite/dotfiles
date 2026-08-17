@@ -469,7 +469,7 @@ ensure_tree_sitter_cli() {
 # uninstalls anything (that's `brew bundle cleanup`), so pruning the file is
 # safe, and anything installed by hand outside it is left alone.
 ensure_brewfile() {
-  local file="$DOTFILES_DIR/Brewfile" missing
+  local file="$DOTFILES_DIR/Brewfile" report missing rc=0
   if [ ! -f "$file" ]; then
     skipped "Brewfile" "not present"
     return 0
@@ -486,23 +486,48 @@ ensure_brewfile() {
   # --verbose turns that one-line failure into a list of what's outstanding,
   # which is worth naming before a long install starts. It writes that list to
   # stderr, not stdout, so 2>&1 is load-bearing — without it the pipeline reads
-  # an empty stream. The sed keeps just the name out of each
-  # "→ Formula jq needs to be installed or updated." line.
+  # an empty stream.
   # The trailing `|| true` is required, not defensive: `check` exits non-zero
-  # precisely *because* something is missing, and pipefail would propagate that
-  # through the pipeline into the assignment, aborting the script under set -e
-  # right before the install that fixes it.
-  missing="$(brew bundle check --file "$file" --verbose 2>&1 \
-    | sed -n 's/^→ [A-Za-z]* \(.*\) needs to be installed or updated\./\1/p' \
-    | paste -sd' ' - || true)"
+  # precisely *because* something is missing, and set -e would otherwise abort
+  # the script right before the install that fixes it.
+  report="$(brew bundle check --file "$file" --verbose 2>&1 || true)"
+  # The sed keeps just the name out of each
+  # "→ Formula jq needs to be installed or updated." line.
+  missing="$(sed -n 's/^→ [A-Za-z]* \(.*\) needs to be installed or updated\./\1/p' \
+    <<<"$report" | paste -sd' ' - || true)"
   # An `if`, not `[ -n … ] && say …`, so the test's exit status can't leak out as
   # this function's own return value if it ever ends up last.
   if [ -n "$missing" ]; then
     say "installing/upgrading: $missing"
   fi
+  # Only casks can escalate — Homebrew never runs sudo for a formula — so the
+  # heads-up is printed only when one is in the outstanding set, keyed on the
+  # type word the sed above throws away.
+  case "$report" in *"→ Cask "*)
+    say "a 'Password:' prompt below is sudo, for the cask named on the line above it" ;;
+  esac
 
-  if run_quiet Brewfile brew bundle install --file "$file"; then
+  # Streamed, not run_quiet: a fresh bootstrap's bundle run is multi-minute,
+  # and swallowing its output leaves the terminal dead — indistinguishable
+  # from a hang. Worse, a cask that ships a macOS installer package
+  # (1password-cli) escalates through sudo, whose bare `Password:` prompt
+  # goes straight to the tty; with the "Installing 1password-cli" line hidden
+  # in run_quiet's log, nothing says who is asking or why. --quiet keeps the
+  # noise run_quiet existed to hide (the "Using x" line per already-satisfied
+  # entry, fetch chatter, the completion banner) while still printing one
+  # line per entry that does real work — bundle's "Installing x"/"Upgrading y"
+  # lines are unconditional. Not piped through an indenting sed either: brew
+  # only syncs stdout under CI, so a pipe would batch the progress lines into
+  # buffered bursts and bring the dead terminal back.
+  if [ "$VERBOSE" = 1 ]; then
+    brew bundle install --file "$file" --verbose || rc=$?
+  else
+    brew bundle install --file "$file" --quiet || rc=$?
+  fi
+  if [ "$rc" -eq 0 ]; then
     added "Brewfile" "${missing:-entries installed}"
+  else
+    failed "Brewfile" "exit $rc"
   fi
 }
 
