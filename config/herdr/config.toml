@@ -120,6 +120,15 @@ rows = [
   ["branch", "git_status"],
 ]
 
+# ── Experimental ─────────────────────────────────────────────────────────────
+
+[experimental]
+## Renders images (agent-attached screenshots, etc.) inline in the pane via the
+## Kitty graphics protocol instead of herdr's fallback. Ghostty implements the
+## Kitty graphics protocol natively, so the "Kitty graphics-compatible outer
+## terminal" requirement (`herdr --default-config`) is already met here.
+kitty_graphics = true
+
 # ── Keybindings ──────────────────────────────────────────────────────────────
 
 # These mirror this repo's nvim setup (config/nvim + NvChad defaults) with
