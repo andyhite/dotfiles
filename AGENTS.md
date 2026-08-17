@@ -43,7 +43,7 @@ Three edits:
 2. An entry in the `links` array inside `link_configs` (`install.sh`), with a comment
    saying *why that granularity*. Link a directory when new content should land in this
    repo automatically; link per-file when the target directory also holds secrets,
-   databases, or state another tool writes (`~/.ssh`, `~/.omp/agent`, `~/.paseo`).
+   databases, or state another tool writes (`~/.ssh`, `~/.omp/agent`).
 3. A row in README's inventory table.
 
 A file the installer *reads* rather than links (`Brewfile`, `herdr_plugins.txt`,
@@ -120,11 +120,11 @@ Conventional Commits, one line, all lowercase, imperative mood, no trailing peri
 
 - Types in use: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `ci`, `chore`,
   `revert`.
-- Scope is the tool or config area (`omp`, `herdr`, `nvim`, `zsh`, `paseo`, `fleet`,
+- Scope is the tool or config area (`omp`, `herdr`, `nvim`, `zsh`, `fleet`,
   `ssh`, `ghostty`, `starship`, `atuin`, `brewfile`, `ci`, `setup`); omit it for
   repo-wide changes.
 - Add a body only when the reasoning is worth recording.
 
 Changes normally land as a direct push to `main`; CI runs on every push either way. When
 a change does warrant a branch, name it with a short kebab-case slug led by a verb, no
-type prefix and no issue number: `add-nvchad`, `fix-paseo-host-allowlist`.
+type prefix and no issue number: `add-nvchad`, `fix-ssh-host-allowlist`.

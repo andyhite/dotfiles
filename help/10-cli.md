@@ -64,18 +64,15 @@ regex-special characters you don't want interpreted.
 
 A filter language for JSON: slice, map, and reshape a document from the command line instead of
 round-tripping through a script. Unlike most of this file's ad-hoc tools, `jq` is a genuine
-dependency: `install.sh`'s Paseo step deep-merges `config/paseo/config.json` into the live
-`~/.paseo/config.json` with `jq -s '.[0] * .[1]'` (see `merge_paseo_config` in the script), and
-`config/herdr/palette/palette.sh` shells out to `jq -r` to build fzf's rows and unpack herdr's
-JSON-RPC responses. If `jq` isn't on PATH, that Paseo config link step just skips itself with a
-warning rather than failing the whole install.
+dependency: `config/herdr/palette/palette.sh` shells out to `jq -r` to build fzf's rows and
+unpack herdr's JSON-RPC responses.
 
     jq '.' file.json                    # pretty-print and validate
     jq -r '.field' file.json            # raw string output, no surrounding quotes
     jq '.[] | select(.x > 1)'           # filter an array by a field condition
     jq -c '.'                           # compact, one-object-per-line output
     jq 'keys'                           # list an object's top-level keys
-    jq -s '.[0] * .[1]' a.json b.json   # deep-merge two files, right side wins — what install.sh's Paseo step does
+    jq -s '.[0] * .[1]' a.json b.json   # deep-merge two files, right side wins
     jq -n '{a: 1, b: 2}'                # build JSON from scratch, no input needed
     curl ... | jq '.data[].id'          # classic pipeline: pull ids out of an API response
 
@@ -152,7 +149,7 @@ back to a one-time `cargo install` alongside `sd`, `fd`, `tldr`, `delta`, and a 
 reference. `tealdeer` is the Rust client (binary `tldr`, formula `tealdeer` — the name mismatch
 is called out in the Brewfile itself). This repo goes further than just installing the client:
 `config/tldr/pages/` carries hand-written pages this repo authored for tools with no upstream
-tldr coverage yet (`fleet`, `herdr`, `omp`, `paseo`, `antidote`, `carapace`, `gh-poi`,
+tldr coverage yet (`fleet`, `herdr`, `omp`, `antidote`, `carapace`, `gh-poi`,
 `git-absorb`, `gzg`, `tree-sitter`), and `install.sh` symlinks that whole directory into
 tealdeer's real custom-pages path — `~/Library/Application Support/tealdeer/pages` on macOS,
 `~/.local/share/tealdeer/pages` on Linux, confirmed to diverge by `tldr --show-paths` — so

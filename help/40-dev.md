@@ -367,19 +367,13 @@ scrolling view instead of `docker stats`'s fixed columns.
 
 Installed via the Brewfile's `1password-cli` cask, but not currently wired
 into any tracked config — no tracked file shells out to it today. It's
-documented here for the two real integration points this repo's own
+documented here for the one real integration point this repo's own
 comments already call out:
 
 `omp/agent/models.yml.example` shows the pattern for a provider header that
 needs a secret without ever writing the secret to disk:
 `x-api-key: "!op read op://vault/item/field"` — the leading `!` tells omp to
 run the command and use its output as the header value.
-
-`config/paseo/daemon.env.example` explicitly warns the same trick does NOT
-work there: it's a systemd `EnvironmentFile`, not a shell script — no
-`export`, no command substitution — so `$(op read ...)` in that file is
-taken as a literal string, not run. Use `op run` (below) to inject secrets
-into that daemon's environment instead, or set them by hand.
 
     op signin                        # authenticate this shell against your account
     op read op://vault/item/field    # print one secret value, for use in a command substitution

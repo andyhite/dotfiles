@@ -6,9 +6,9 @@
 
 # ── Secrets ──────────────────────────────────────────────────────────────────
 # Model-provider keys are the exception to this file. Put ANTHROPIC_API_KEY and
-# OPENAI_API_KEY in ~/.omp/agent/.env instead: this file only reaches processes
-# started from a login shell, and on the Linux box the Paseo daemon runs under
-# systemd — agents it launches would get no credentials at all.
+# OPENAI_API_KEY in ~/.omp/agent/.env instead: omp loads that dotenv file
+# itself, so the keys are present no matter how omp is launched, while this
+# file only reaches processes started from a login shell.
 #
 # Setting the variable is also not sufficient on its own. A stored OAuth session
 # outranks every environment variable in omp's credential order, so on a machine
@@ -30,25 +30,6 @@
 # ── Work context ─────────────────────────────────────────────────────────────
 # export AWS_PROFILE='...'
 # export AWS_REGION='us-east-2'
-
-# ── Paseo: which daemon the CLI talks to ─────────────────────────────────────
-# `paseo` defaults to localhost:6767, so this is needed on any box where the
-# daemon isn't reachable there. That's the obvious case — the Mac, pointing at
-# the Linux box — but it's also true *on the daemon box itself* once its
-# ~/.config/paseo/daemon.env sets PASEO_LISTEN to a Tailscale address:
-# `listen` takes one address, not a list, so binding the tailnet address takes
-# the daemon off loopback and its own CLI stops finding it. Same value on both
-# machines, then.
-#
-# CLI only. The desktop app keeps its own list of hosts in app storage, added
-# under Settings -> Add host, and nothing here affects it.
-#
-# PASEO_PASSWORD is the same plaintext value as in the daemon box's
-# ~/.config/paseo/daemon.env. Keep it out of PASEO_HOST's query string
-# (`?password=...`) — the URI form wins over this variable, but it also lands in
-# `ps` output and shell history.
-# export PASEO_HOST='linux-box.your-tailnet.ts.net:6767'
-# export PASEO_PASSWORD='...'
 
 # ── Machine-specific build flags ─────────────────────────────────────────────
 # Each `brew --prefix` is a subprocess on every shell start — only add the

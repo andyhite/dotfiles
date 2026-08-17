@@ -210,11 +210,3 @@ commands:
   enableClaudeUser: true
 secrets: 
   enabled: true
-disabledExtensions: 
-  - slash-command:paseo-init
-  - skill:paseo-config-authoring
-  - skill:paseo-loop
-  - skill:paseo-handoff
-  - skill:paseo-committee
-  - skill:paseo-advisor
-  - skill:paseo

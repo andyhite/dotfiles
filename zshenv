@@ -25,7 +25,7 @@
 typeset -U path PATH
 
 path=(
-  # omp, herdr, paseo, tree-sitter, uv
+  # omp, herdr, tree-sitter, uv
   "$HOME/.local/bin"
   # rustup's own shell hook, ~/.cargo/env, does exactly this one prepend and is
   # what this file replaced on machines where rustup wrote its own ~/.zshenv.

@@ -112,8 +112,8 @@ providers: {}
 # were never reachable to begin with, so there's no live failed request behind
 # the fallback, just an id the catalog can't resolve.
 #
-# The secrets go in ~/.omp/agent/.env, not ~/.zshrc.local: the Paseo daemon
-# runs under systemd and sources no login shell, so agents it starts would
-# otherwise get no credentials. Cursor is unaffected either way — it's the one
-# tier both machines are meant to share, so its subscription login is set up
-# on both.
+# The secrets go in ~/.omp/agent/.env, not ~/.zshrc.local: omp loads that
+# dotenv file itself, so the keys are present no matter how omp is launched,
+# while ~/.zshrc.local only reaches login shells. Cursor is unaffected either
+# way — it's the one tier both machines are meant to share, so its
+# subscription login is set up on both.

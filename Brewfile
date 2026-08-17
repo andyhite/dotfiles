@@ -92,10 +92,10 @@ brew "jj"
 brew "gitleaks"
 
 # ── Shell/JSON tooling this repo's own scripts use ──────────────────────────
-# jq is the only one actually load-bearing: install.sh's Paseo step does the
-# `jq -s '.[0] * .[1]'` merge into ~/.paseo/config.json. shellcheck and shfmt
-# are Justfile/CI (`just shellcheck`) and config/nvim/lua/configs/conform.lua's
-# sh/bash formatter, respectively.
+# jq is the only one actually load-bearing: config/herdr/palette/palette.sh
+# shells out to `jq -r` to build fzf's rows and unpack herdr's JSON-RPC
+# responses. shellcheck and shfmt are Justfile/CI (`just shellcheck`) and
+# config/nvim/lua/configs/conform.lua's sh/bash formatter, respectively.
 brew "jq"
 brew "shellcheck"
 brew "shfmt"
@@ -215,20 +215,6 @@ cask "font-monaspace"
 # output, powerline separators in the prompt); this is the one font both need.
 cask "font-jetbrains-mono-nerd-font"
 cask "1password-cli"
-# Paseo — daemon that supervises coding agents (Claude, Codex, omp) and exposes
-# them to desktop/mobile/CLI clients. Configured by config/paseo/config.json and
-# config/paseo/orchestration-preferences.json.
-#
-# The cask is the desktop app, which bundles the daemon and the `paseo` CLI at
-# Paseo.app/Contents/Resources/bin/paseo. Installing the cask does not launch
-# it, and the CLI symlink into ~/.local/bin is created by the app's first-run
-# hook — so install.sh's `ensure_paseo_cli` creates that link itself rather than
-# requiring a GUI launch to put `paseo` on PATH.
-#
-# No Linux counterpart in install.sh's apt branch: on a headless box the
-# desktop app is the wrong artifact, so that branch installs the standalone
-# `@getpaseo/cli` npm package (same 0.3.0 daemon, no Electron) instead.
-cask "paseo"
 
 # dive and ctop were already in this file and are both useless without a
 # container runtime, which was the actual gap they left open.

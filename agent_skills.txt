@@ -14,25 +14,3 @@
 herdrdev/herdr --skill herdr
 vercel-labs/skills --skill find-skills
 ayghri/i-have-adhd --skill i-have-adhd
-
-# Paseo's four orchestration skills, from the same repo the daemon is built
-# from. The macOS desktop app also copies these into ~/.agents/skills on its
-# first GUI launch, but that hook is useless here twice over: it never fires on
-# the Linux box (no desktop app at all), and on the Mac it only fires once
-# someone opens the app, which `brew bundle` never does. Going through the
-# manifest instead means both machines get them from `install.sh` alone, and
-# they update with everything else rather than whenever the app is next
-# launched.
-#
-# `paseo` is the one the others depend on: it documents the tool surface and the
-# ~/.paseo/orchestration-preferences.json contract that decides which provider
-# each delegated role gets.
-getpaseo/paseo --skill paseo
-getpaseo/paseo --skill paseo-advisor
-getpaseo/paseo --skill paseo-committee
-getpaseo/paseo --skill paseo-handoff
-
-# No paseo-loop line: getpaseo/paseo#3053 ("Remove chat rooms and agent loops
-# before storage migration") deleted the skill along with the agent-loop
-# feature it drove. `skills add` exits 1 on a name the repo no longer ships, so
-# leaving it here failed the whole step rather than skipping one skill.

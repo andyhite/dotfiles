@@ -113,32 +113,6 @@ for the skill they delegate to; a dispatched worker's brief opens by telling
 it to run `fleet skill <that name>`, which is how it reaches a skill marked
 disable-model-invocation that it couldn't otherwise trigger on its own.
 
-## paseo — the agent supervision daemon
-
-Supervises coding agents as a background daemon and exposes them to
-desktop/mobile/CLI clients. This setup splits the role across machines: the
-Mac runs the GUI desktop client, the Linux box runs the daemon itself.
-
-    paseo onboard                   # first-time setup: start daemon, print pairing instructions
-    paseo ls                        # list agents (excludes archived by default)
-    paseo run "<prompt>"            # create and start an agent with a task
-    paseo attach <id>               # stream a running agent's output
-    paseo send <id> "<prompt>"      # send a follow-up message/task to an existing agent
-    paseo logs <id>                 # view an agent's activity/timeline
-    paseo status                    # local daemon status
-    paseo stop <id>                 # interrupt a running agent
-
-`config/paseo/orchestration-preferences.json` decides which provider/model a
-delegated role gets (`impl`, `ui`, `research`, `planning`, `audit`) — Opus
-for anything artistic or judgment-driven (copy, naming, UX, planning), Codex
-for mechanical work against an already-settled design. Its own `preferences`
-array also says to prefer asynchronous delegation over polling agent status.
-The four orchestration skills installed from `agent_skills.txt`
-(`paseo`, `paseo-advisor`, `paseo-committee`, `paseo-handoff`) all come from
-the same `getpaseo/paseo` repo the daemon itself is built from, and `paseo`
-is the one the other three depend on — it documents the tool surface and the
-orchestration-preferences.json contract the rest assume.
-
 ## skills — the cross-agent skill CLI
 
 Canonical skill copies live in `~/.agents/skills`, installed from
