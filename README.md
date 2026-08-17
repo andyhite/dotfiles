@@ -98,6 +98,7 @@ NvChad for editing.
 | `omp/agent/config.yml` | `~/.omp/agent/config.yml` | [omp](https://omp.sh) coding agent settings — besides this file and `rules/output-style.md` below, the rest of `~/.omp/agent` is databases, sessions, and a secrets key |
 | `omp/agent/extensions/atuin.ts` | `~/.omp/agent/extensions/atuin.ts` | records omp's `bash` commands into Atuin history as `--author pi` (a `KNOWN_AGENTS` name, so `$all-user` hides them), with omp's intent string as `--intent`. Hand-maintained: `atuin hook install` has no omp target |
 | `omp/agent/rules/output-style.md` | `~/.omp/agent/rules/output-style.md` | `alwaysApply: true` rule that shapes every omp response for an ADHD reader — answer first, numbered steps, one next action, no preamble or recap |
+| `omp_plugins.txt` | (not linked — read by `install.sh`) | omp plugin manifest, one `<install-source> <plugin-name>` per line; `install.sh` runs `omp plugin install <source>` for each, and skips one that's link-installed for local development |
 | `agent_skills.txt` | (not linked — read by `install.sh`) | cross-agent skill manifest, one `<owner>/<repo> --skill <name>` per line; `install.sh` runs `npx skills add … -g -y` for each |
 
 ### Repo scripts, checks & docs
@@ -232,8 +233,9 @@ reordering doesn't:
    above installs herdr itself (Brewfile on macOS, the official installer on Linux — see
    [herdr](#herdr--homebrew-on-macos-curl-installer-on-linux) below), and this step is
    still guarded on `command -v herdr` in case that step was skipped or failed on this run.
-7. **Installs/updates omp plugins** from `omp_plugins.txt` — marketplace refresh plus
-   install, same install-is-not-updater trap as gh extensions below.
+7. **Installs/updates omp plugins** from `omp_plugins.txt` — one direct git install per
+   line, no marketplace. Re-running the install is what updates a git-sourced plugin, the
+   opposite of the gh extensions trap below.
 8. **Installs/upgrades gh extensions** from `gh_extensions.txt`. Skipped when `gh` is
    missing or unauthenticated; see [gh extensions](#gh-extensions--manifest-beside-herdr_pluginstxt).
 9. **Installs cross-agent skills**, from two sources. `agent_skills.txt` first — one
@@ -516,8 +518,8 @@ shape as `herdr_plugins.txt` and `agent_skills.txt`, read rather than linked. Th
 of **configs** (extensions are per-user, not symlinked files).
 
 Install is not update: `gh extension install` fails on an already-installed extension,
-and `gh extension upgrade` is the only command that moves an existing one forward — the
-same trap already documented for omp's marketplace in `omp_plugins.txt`. The step checks
+and `gh extension upgrade` is the only command that moves an existing one forward. omp's
+plugin installs work the other way round — see `omp_plugins.txt`. The step checks
 `gh auth status` once up front; an unauthenticated box skips the whole manifest with a
 note rather than failing once per line. The one extension listed today is `seachicken/gh-poi`
 — squash-merged branches never look merged to `git branch --merged`, but fleet creates a
@@ -1028,14 +1030,16 @@ separate `omp` in its own pane, worktree, and branch, rather than an in-process 
 subagent. It moved to [andyhite/foreman](https://github.com/andyhite/foreman), which
 keeps the transport, lifecycle, and workspace-ownership rationale with the implementation.
 
-Two names there, and they are not interchangeable: **Foreman** is the marketplace, named
-for the repository; **Fleet** is what it publishes, as two plugins. The CLI arrives
-through Fleet's herdr plugin, listed in `herdr_plugins.txt`; its startup hook puts
-`fleet` on `PATH`. The orchestrator procedure (`skill://fleet` and `/fleet:*`) is Fleet's
-omp plugin, installed through omp's marketplace as `fleet@foreman` — see
-`omp_plugins.txt`, which also records the one-time cleanup for machines that installed
-it under the old `fleet@omp-fleet` id. This checkout retains only the general worktree
-rule below.
+Two names there, and they are not interchangeable: **Fleet** is what's published, as two
+plugins; **Foreman** is only the repository they live in. It published them through a
+marketplace named `foreman` until that was dropped — marketplace plugins load through
+omp's claude-plugins provider, so a `disabledProviders` entry aimed at real `~/.claude`
+content also silently excluded Fleet's own commands and skills. The CLI arrives through
+Fleet's herdr plugin, listed in `herdr_plugins.txt`; its startup hook puts `fleet` on
+`PATH`. The orchestrator procedure (`skill://fleet` and `/fleet:*`) plus the `fleet_*`
+custom tools are Fleet's omp plugin, now a direct git install of the repo root — see
+`omp_plugins.txt`, which also records the one-time cleanup for machines that still carry
+either marketplace. This checkout retains only the general worktree rule below.
 
 ### The worktree rule was wrong in a way `fleet` made visible
 
@@ -1066,8 +1070,8 @@ Dropping `alwaysApply` was also what kept `fleet` from becoming ambient. An alwa
 about worktrees is one short step from every session deciding to dispatch a fleet at its
 own discretion. The rule is now a rulebook entry — it keeps its `description`, and the
 model reads it through `rule://herdr-worktrees` when it is actually about to touch a
-worktree. Orchestration is a separate, deliberate opt-in: `/fleet:boss <objective>`, a
-command from Foreman's omp plugin, which adopts the role and points at `skill://fleet`
+worktree. Orchestration is a separate, deliberate opt-in: `/fleet:foreman <objective>`, a
+command from Fleet's omp plugin, which adopts the role and points at `skill://fleet`
 for the procedure. Nothing loads that skill on its own; a session that never asks for a
 fleet never hears about one.
 

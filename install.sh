@@ -1517,24 +1517,27 @@ install_herdr_plugins() {
 
 # ── omp plugins ──────────────────────────────────────────────────────────────
 
-# The source a marketplace name is currently registered to, empty when the name
-# is not registered at all. `marketplace list` prints "  <name>  <source>" rows
-# under a heading; comparing the whole first field keeps one name that is a
-# prefix of another from matching, and the heading line cannot collide because
-# its first word is capitalised while marketplace names are lowercase.
-omp_marketplace_source() {
-  omp plugin marketplace list 2>/dev/null | awk -v n="$1" '$1 == n { print $2; exit }'
-}
-
-# The omp counterpart to install_herdr_plugins, and shaped differently because
-# omp splits the job in two: a marketplace is registered once, then plugins are
-# installed from it by `<plugin>@<marketplace>` id.
+# The omp counterpart to install_herdr_plugins. It used to register a
+# marketplace and install `<plugin>@<marketplace>` out of it; foreman dropped
+# its marketplace.json when it collapsed the plugin to the repo root, because
+# marketplace-installed plugins are discovered through omp's claude-plugins
+# provider and a disabledProviders entry aimed at real ~/.claude content also
+# silently excluded fleet's commands and skills. A direct git install has no
+# subdirectory syntax, which is why the plugin had to move to the root — and
+# why this step now installs from the source alone.
 #
-# The refresh is the part worth knowing. herdr updates a plugin by installing it
-# again; omp does not. `omp plugin install --force` reinstalls from the
-# marketplace clone already on disk, so a re-run without `marketplace update`
-# first silently reinstalls the version you already had and reports success.
-# Both commands run every time, which is what makes this step an updater.
+# Both fields on a manifest line are load-bearing. A git source doesn't encode
+# the package name (omp resolves it by diffing plugins/package.json across the
+# install, and `foreman` publishes `fleet`), while the name is the only handle
+# on an existing install, since omp's lockfile records a version but never a
+# source.
+#
+# Re-running install is the update path here: for a git source omp follows its
+# `bun install` with a `bun update`, which is what moves the dependency forward.
+# That's the opposite of the marketplace scheme this replaced, where install
+# reused the clone already on disk and a separate `marketplace update` was the
+# only thing that fetched — and the opposite of gh extensions below, where
+# install refuses outright once a thing is present.
 install_omp_plugins() {
   if [ ! -f "$DOTFILES_DIR/omp_plugins.txt" ]; then
     skipped "omp_plugins.txt" "not present"
@@ -1545,57 +1548,35 @@ install_omp_plugins() {
     return 0
   fi
 
-  # Plain strings rather than arrays: bash 3.2 (what macOS ships) treats
-  # ${arr[*]} on an empty array as an unbound variable under `set -u`, and
-  # marketplace names cannot contain whitespace. `ready` is the marketplaces
-  # already prepared this run, `broken` the ones that failed — a second plugin
-  # from a bad marketplace must not fall through to install.
-  local line source plugin_id marketplace registered ready="" broken=""
+  local line source plugin_name link_path
   while IFS= read -r line || [ -n "$line" ]; do
     line="${line%%#*}"
     line="${line#"${line%%[![:space:]]*}"}"
     line="${line%"${line##*[![:space:]]}"}"
     [ -n "$line" ] || continue
 
+    # Two whitespace-separated fields, and no tighter check than that: a source
+    # can be a namespaced shorthand, a full git URL, or an npm spec, so `@`, `:`
+    # and `/` are all legitimate in it.
     case "$line" in
-      *[[:space:]]*@*) ;;
-      *) warned "$line" "expected '<source> <plugin>@<marketplace>'"; continue ;;
+      *[[:space:]]*) ;;
+      *) warned "$line" "expected '<source> <plugin-name>'"; continue ;;
     esac
     source="${line%%[[:space:]]*}"
-    plugin_id="${line##*[[:space:]]}"
-    marketplace="${plugin_id#*@}"
+    plugin_name="${line##*[[:space:]]}"
 
-    case " $broken " in *" $marketplace "*) continue ;; esac
-
-    # One marketplace can serve several plugins, so prepare it only on its first
-    # line. The name is what `<plugin>@<marketplace>` resolves through, and it is
-    # claimed by whoever registered it first — so a name already pointing at a
-    # different source is refused rather than installed from. Swallowing the
-    # duplicate-add error instead would quietly install a different plugin that
-    # happens to share the id.
-    case " $ready " in
-      *" $marketplace "*) ;;
-      *)
-        registered=$(omp_marketplace_source "$marketplace")
-        if [ -z "$registered" ]; then
-          if ! run_quiet "$marketplace" omp plugin marketplace add "$source" </dev/null; then
-            broken="$broken $marketplace"; continue
-          fi
-        elif [ "$registered" != "$source" ]; then
-          warned "$marketplace" "registered to $registered, not $source"
-          broken="$broken $marketplace"; continue
-        fi
-        if ! run_quiet "$marketplace" omp plugin marketplace update "$marketplace" </dev/null; then
-          broken="$broken $marketplace"; continue
-        fi
-        ready="$ready $marketplace"
-        ;;
-    esac
+    # A plugin developed on this machine is link-installed, and a git install
+    # would replace that symlink with a fetched copy — so report and move on.
+    link_path="$(omp_link_path "$plugin_name")"
+    if [ -n "$link_path" ]; then
+      skipped "$plugin_name" "local link: $link_path"
+      continue
+    fi
 
     # </dev/null for the same reason as the loops above: this loop's stdin is
     # the manifest, and a prompt-reading child would eat the rest of it.
-    if run_quiet "$plugin_id" omp plugin install --force "$plugin_id" </dev/null; then
-      updated "$plugin_id" "from $source"
+    if run_quiet "$plugin_name" omp plugin install "$source" </dev/null; then
+      updated "$plugin_name" "from $source"
     fi
   done < "$DOTFILES_DIR/omp_plugins.txt"
 }

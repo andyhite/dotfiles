@@ -1,14 +1,24 @@
-# omp plugins, one per line: <marketplace-source> <plugin>@<marketplace>
+# omp plugins, one per line: <install-source> <plugin-name>
 #
-# install.sh registers the marketplace, refreshes its catalog, then installs the
-# plugin. All three names on a line are usually different: the source is a repo
-# (or local path), the marketplace name comes from that repo's
-# .omp-plugin/marketplace.json, and the plugin name is its entry in that catalog.
+# install.sh hands the source straight to `omp plugin install`. A source can be
+# a namespaced git shorthand (github:owner/repo, optionally #ref — also gitlab:,
+# bitbucket:, codeberg:, sourcehut:), a full git URL, or an npm spec.
 #
-# Both halves of the refresh matter. Unlike herdr, omp's updater is not its
-# installer: `omp plugin install --force` reinstalls from the marketplace clone
-# already on disk, so without `marketplace update` first a re-run reinstalls the
-# version you already had and reports success. install.sh always does both.
+# The name is the second field because omp can't be asked for it: a git source
+# doesn't encode a package name (omp resolves it by diffing its own
+# plugins/package.json across the install), and the repo is frequently not what
+# the package is called — foreman publishes fleet. install.sh needs the name to
+# recognise an existing install, because omp's lockfile records a version but
+# never a source.
+#
+# Re-running install is how a git-sourced plugin updates: omp follows its
+# `bun install` with a `bun update`, which moves the dependency forward. There
+# is no separate update command to pair it with.
+#
+# A plugin that is link-installed (`omp plugin install ./path`, for developing
+# it on this machine) is left alone with a note rather than overwritten — the
+# git install would replace the symlink with a fetched copy and the checkout
+# would quietly stop being what runs.
 #
 # Everything here installs at user scope rather than into a project. Fleet
 # workers are separate omp processes in separate worktrees, and a project-scoped
@@ -17,24 +27,28 @@
 # Skills are not plugins — cross-agent skills live in agent_skills.txt and are
 # installed with the `skills` CLI into ~/.agents/skills instead.
 
-# The orchestrator half of fleet. `/fleet:boss` turns a session into a project
-# manager: it interviews you, slices the objective, and dispatches each slice to
-# a worker rather than writing code itself. The five dispatch commands are named
-# for the skill each one delegates to — /fleet:implement, /fleet:diagnosing-bugs,
-# /fleet:research, /fleet:prototype, /fleet:code-review — and a worker's brief
-# opens by telling it to run `fleet skill <that name>`, which is what reaches a
-# skill marked disable-model-invocation. Also ships skill://fleet (the CLI
-# contract) and skill://fleet-dispatch (how to write a brief).
+# The orchestrator half of fleet. `/fleet:foreman` turns a session into a
+# project manager: it interviews you, slices the objective, and dispatches each
+# slice to a worker rather than writing code itself. The five dispatch commands
+# are named for the skill each one delegates to — /fleet:implement,
+# /fleet:diagnosing-bugs, /fleet:research, /fleet:prototype, /fleet:code-review
+# — and a worker's brief opens by telling it to run `fleet skill <that name>`,
+# which is what reaches a skill marked disable-model-invocation. Also ships
+# skill://fleet (the CLI contract) and skill://fleet-dispatch (how to write a
+# brief), plus the fleet_* custom tools its extension registers.
 #
 # The CLI half is the herdr plugin andyhite/foreman/herdr in herdr_plugins.txt;
 # neither half is much use without the other, and the mattpocock skills the
 # commands delegate to come from agent_skills.txt.
 #
-# Foreman is the marketplace, fleet is the plugin inside it, so the id is
-# fleet@foreman. It was fleet@omp-fleet until the marketplace was renamed after
-# the repository that publishes it. This step only ever adds: a machine that
-# installed the old id keeps both marketplaces and both copies of /fleet:*, so
-# clear it once by hand with
-#   omp plugin uninstall fleet@omp-fleet
-#   omp plugin marketplace remove omp-fleet
-andyhite/foreman  fleet@foreman
+# This was `andyhite/foreman  fleet@foreman` until foreman dropped its
+# marketplace: marketplace plugins load through omp's claude-plugins provider,
+# so a disabledProviders entry meant to exclude real ~/.claude content also
+# excluded fleet's own commands and skills. Direct git installs have no
+# subdirectory syntax, so the plugin moved to the repo root to be installable
+# this way. A machine that installed either marketplace id still has the
+# marketplace registered and its own copy of /fleet:*; this step only ever adds,
+# so clear the old state once by hand:
+#   omp plugin uninstall fleet@foreman     # or fleet@omp-fleet, if older still
+#   omp plugin marketplace remove foreman  # likewise omp-fleet
+github:andyhite/foreman  fleet
