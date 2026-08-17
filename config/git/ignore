@@ -13,6 +13,7 @@
 *.swp
 .idea/
 .vscode/
+.zed/
 
 # mise version pins. Which runtime manager a machine uses is a property of the
 # machine, not the project, so these are ignored globally rather than added to
