@@ -166,7 +166,7 @@ ${C_BOLD}Steps${C_RESET}
   omp          Install/update the omp plugins in omp_plugins.txt
   gh           Install/update the gh extensions in gh_extensions.txt
   skills       Install agent skills from agent_skills.txt, link Herdr-shipped ones
-  nvim         Headless NvChad plugin sync
+  nvim         Headless NvChad plugin restore, to the commits in lazy-lock.json
 
 ${C_BOLD}Remote${C_RESET}
   With --host this machine installs nothing. It ssh's to each host in turn,
@@ -1775,24 +1775,40 @@ setup_skills() {
 
 # ── NvChad ───────────────────────────────────────────────────────────────────
 
-sync_nvchad() {
+# `restore`, not `sync`. config/nvim/lazy-lock.json is tracked, so it is the
+# pinned set every machine is supposed to converge on — and `Lazy! sync` does
+# the opposite: it updates every plugin to its latest commit and rewrites that
+# lockfile. On a remote host, where ~/.config/nvim is symlinked into the
+# checkout, the rewrite lands as an uncommitted change in the repo itself, and
+# the next `--host` run then finds a dirty worktree, refuses to fast-forward
+# (correctly — see remote_bootstrap) and installs a stale copy instead. Every
+# re-run needed a manual reset on the far side first.
+#
+# `restore` converges on the lockfile rather than away from it: lazy's own
+# startup auto-install already clones anything missing with `lockfile = true`,
+# meaning at the pinned commit, and `restore` then puts any plugin that drifted
+# back on its pinned commit too. lazy rewrites the lockfile either way, but with
+# every plugin at the commit already recorded there the bytes come out identical
+# and git sees no change.
+#
+# Updating plugins is therefore a deliberate act, not a side effect of a machine
+# install: run `:Lazy sync` in a real session and commit the lockfile bump.
+#
+# The `!` is what makes it block — lazy reads a bang as `wait = true` — so it is
+# safe before +qa. NvChad's quickstart also says to run :MasonInstallAll and
+# :TSInstallAll. Both are real commands, defined in the NvChad/ui plugin
+# (lua/nvchad/au.lua) rather than in mason.nvim or nvim-treesitter, which is why
+# they're absent from those plugins' own docs. Neither can run from here though:
+# NvChad gates plugin loading on UIEnter, and --headless has no UI, so
+# nvim-lspconfig never loads and MasonInstallAll would see an empty server list.
+# They have to be run from a real nvim session.
+restore_nvchad() {
   if ! command -v nvim >/dev/null 2>&1; then
     skipped "nvim" "not installed"
     return 0
   fi
-  # lazy.nvim documents this exact incantation as its headless/CI sync
-  # pattern and blocks on it, so it's safe before +qa — verified this
-  # actually downloads every configured plugin, not just a partial set.
-  #
-  # NvChad's quickstart also says to run :MasonInstallAll and :TSInstallAll.
-  # Both are real commands — NvChad defines them in the NvChad/ui plugin
-  # (lua/nvchad/au.lua), not in mason.nvim or nvim-treesitter, which is why
-  # they're absent from those plugins' own docs. Neither can run from here
-  # though: NvChad gates plugin loading on UIEnter, and --headless has no
-  # UI, so nvim-lspconfig never loads and MasonInstallAll would see an
-  # empty server list. They have to be run from a real nvim session.
-  run_quiet nvim nvim --headless "+Lazy! sync" +qa || true
-  ok "NvChad plugins" "synced"
+  run_quiet nvim nvim --headless "+Lazy! restore" +qa || true
+  ok "NvChad plugins" "at the commits in lazy-lock.json"
 }
 
 # ── Remote hosts ─────────────────────────────────────────────────────────────
@@ -1871,9 +1887,14 @@ if [ -d "$dir/.git" ]; then
   git -C "$dir" fetch --quiet origin
   # A dirty worktree is left exactly as it is and installed from anyway: this
   # is how you try a change on the remote before committing it, and silently
-  # resetting someone's edits to match origin would be unforgivable.
-  if [ -n "$(git -C "$dir" status --porcelain)" ]; then
+  # resetting someone's edits to match origin would be unforgivable. The paths
+  # are listed rather than just counted, because this branch is also where a
+  # host that ran the old `Lazy! sync` nvim step lands — seeing
+  # config/nvim/lazy-lock.json here is that leftover, and safe to check out.
+  dirty="$(git -C "$dir" status --porcelain)"
+  if [ -n "$dirty" ]; then
     echo "! $dir has uncommitted changes — installing it as-is, without updating" >&2
+    printf '%s\n' "$dirty" | sed 's/^/    /' >&2
   else
     git -C "$dir" checkout --quiet "$branch"
     git -C "$dir" merge --ff-only --quiet "origin/$branch"
@@ -2001,7 +2022,7 @@ run_step herdr       "Herdr plugins" "from herdr_plugins.txt"                   
 run_step omp         "omp plugins"   "from omp_plugins.txt"                             install_omp_plugins
 run_step gh          "gh extensions" "from gh_extensions.txt"                            install_gh_extensions
 run_step skills      "Skills"        "agent_skills.txt, plus Herdr-shipped omp skills"  setup_skills
-run_step nvim        "NvChad"        "headless plugin sync"                             sync_nvchad
+run_step nvim        "NvChad"        "restore plugins pinned in lazy-lock.json"         restore_nvchad
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 
@@ -2017,6 +2038,7 @@ printf '  %s%d ok%s   %s%d added%s   %s%d updated%s   %s%d skipped%s   %s%d warn
 note "zsh"   "plugins install on next shell start (antidote) on a fresh machine"
 note "tmux"  "open it and press prefix+I so TPM installs its plugins"
 note "nvim"  "run :MasonInstallAll — it installs every LSP server in config/nvim/lua/configs/lspconfig.lua"
+note "nvim"  "this step only restores the pinned commits; to move them, run :Lazy sync and commit lazy-lock.json"
 printf '\n'
 
 [ "$N_ERR" -eq 0 ] || exit 1

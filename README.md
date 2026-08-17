@@ -34,6 +34,7 @@ NvChad for editing.
   - [The worktree rule was wrong in a way `fleet` made visible](#the-worktree-rule-was-wrong-in-a-way-fleet-made-visible)
   - [The orchestrator is opt-in](#the-orchestrator-is-opt-in)
   - [NvChad — diffview alongside telescope `git_status`](#nvchad--diffview-alongside-telescope-git_status)
+  - [NvChad's lockfile — install restores it, `:Lazy sync` moves it](#nvchads-lockfile--install-restores-it-lazy-sync-moves-it)
   - [NvChad's Mason/Treesitter setup — do this yourself, on purpose](#nvchads-masontreesitter-setup--do-this-yourself-on-purpose)
   - [Ghostty over SSH — `TERM=xterm-ghostty` doesn't exist on most remotes](#ghostty-over-ssh--termxterm-ghostty-doesnt-exist-on-most-remotes)
 - [Making changes](#making-changes)
@@ -74,7 +75,7 @@ NvChad for editing.
 
 | Path | Links to | What it is |
 | --- | --- | --- |
-| `config/nvim` | `~/.config/nvim` | [NvChad](https://nvchad.com) starter — vendored once, `.git` stripped, fully mine to edit from here |
+| `config/nvim` | `~/.config/nvim` | [NvChad](https://nvchad.com) starter — vendored once, `.git` stripped, fully mine to edit from here. Includes `lazy-lock.json`: tracked on purpose, so it's the pinned plugin set every machine restores to rather than per-machine generated state — see [the lockfile section](#nvchads-lockfile--install-restores-it-lazy-sync-moves-it) |
 | `config/zed/settings.json` | `~/.config/zed/settings.json` | Zed editor settings — `disable_ai: true` since agents run from the terminal via omp, not inside the editor, so the `agent`/`agent_servers` keys go undefined rather than tracked as dead config. `ssh_connections` never reaches the index: Zed rewrites it through this symlink on every remote connect, so a git clean filter strips it on the way in — see [below](#zeds-ssh_connections-is-stripped-by-a-clean-filter) |
 
 ### Git
@@ -245,8 +246,9 @@ reordering doesn't:
    into `~/.omp/agent/skills` — unchanged from before, and run after Herdr because a
    link made before a plugin's first install would point at a path that doesn't exist
    yet.
-10. **Headlessly syncs NvChad's plugins** (`nvim --headless "+Lazy! sync" +qa`) once
-    neovim and the config are both in place.
+10. **Headlessly restores NvChad's plugins** (`nvim --headless "+Lazy! restore" +qa`) once
+    neovim and the config are both in place — to the commits in `config/nvim/lazy-lock.json`,
+    never past them. See [the lockfile section](#nvchads-lockfile--install-restores-it-lazy-sync-moves-it).
 
 ### Remote installs — `--host`
 
@@ -1098,6 +1100,32 @@ Four mappings in `lua/mappings.lua`: `<leader>gd` (`DiffviewOpen`), `<leader>gc`
 (`DiffviewClose`), `<leader>gh` (`DiffviewFileHistory %`), `<leader>gH`
 (`DiffviewFileHistory`). The plugin is command-gated (`cmd = { … }`) so normal edits do
 not pay to load it.
+
+### NvChad's lockfile — install restores it, `:Lazy sync` moves it
+
+`config/nvim/lazy-lock.json` is tracked, which makes it the pinned plugin set every
+machine converges on. That only works if machine installs read it rather than write it,
+so the **nvim** step runs `Lazy! restore` and not `Lazy! sync`.
+
+`sync` is the wrong verb for a shared lockfile: it updates every plugin to its latest
+commit and rewrites the file. `~/.config/nvim` is a symlink into this repo, so that
+rewrite lands as an uncommitted change *in the checkout* — harmless locally, and a real
+problem on a remote. `--host` refuses to fast-forward a dirty worktree (deliberately: an
+edit you made on the far side is not something an installer should discard), so a host
+that had run the step once would install a stale copy on every run after it, until
+someone ssh'd in and reset the file by hand. The dirty-worktree warning now lists the
+paths for exactly this reason — `config/nvim/lazy-lock.json` on that list is the old
+behaviour's leftover, and safe to `git checkout --`.
+
+`restore` converges the other way. lazy's startup auto-install already clones anything
+missing with `lockfile = true`, i.e. at the pinned commit, and `restore` puts any plugin
+that drifted back on its pinned commit. lazy rewrites the lockfile either way, but with
+every plugin sitting at the commit already recorded there the bytes come out identical
+and git sees nothing.
+
+Moving the pins is therefore deliberate, and belongs on one machine: run `:Lazy sync` in
+a real session, then commit the bump (`chore(nvim): bump … lockfile`). Every other
+machine picks it up on its next install.
 
 ### NvChad's Mason/Treesitter setup — do this yourself, on purpose
 
