@@ -194,11 +194,16 @@ previous_tab = "prefix+shift+tab"
 ## Every action below is unbound by default, so nothing is displaced.
 ##
 ## Bracket pairs follow vim's "next/previous thing of a kind" convention (]q,
-## ]c, ]d …); shift widens the same motion from agents to workspaces.
+## ]c, ]d …). Agents keep that prefix+[/] pair. Workspaces go on bare
+## cmd+[/] instead of prefix+shift+[/] — same chord as a browser's tab/back-
+## forward switcher, so cycling herdr workspaces doesn't need the prefix at
+## all. That only reaches herdr because config/ghostty/config unbinds its own
+## default super+[ / super+] (goto_split:previous/next) — see the comment
+## there; without it Ghostty eats the chord before herdr ever sees it.
 next_agent = "prefix+]"
 previous_agent = "prefix+["
-next_workspace = "prefix+shift+]"
-previous_workspace = "prefix+shift+["
+next_workspace = "cmd+]"
+previous_workspace = "cmd+["
 
 ## Indexed actions: these take a 1..9 range rather than a single key, the same
 ## shape as the built-in switch_tab = "prefix+1..9". Modifiers keep the three

@@ -13,3 +13,12 @@ window-padding-y = 10
 # Accessibility permission; Linux needs a DE implementing the XDG Global
 # Shortcuts protocol (GNOME 48+, KDE 5.27+) and silently skips it otherwise.
 keybind = global:ctrl+enter=toggle_visibility
+
+# Ghostty's own defaults bind plain Cmd+[ / Cmd+] to goto_split:previous/next.
+# `unbind` removes that (rather than rebinding it to something else) so the
+# raw chord passes through to whatever's running in the pane — herdr's
+# next_workspace/previous_workspace (config/herdr/config.toml) claims it from
+# there. Cmd+Shift+[ / Cmd+Shift+] still switch Ghostty's own native tabs;
+# only the un-shifted chord moves.
+keybind = super+[=unbind
+keybind = super+]=unbind
