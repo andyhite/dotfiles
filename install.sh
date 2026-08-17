@@ -1638,43 +1638,73 @@ install_gh_extensions() {
 
 # ── omp skills from herdr plugins ───────────────────────────────────────────
 
-# Some herdr plugins ship an omp skill describing how to drive them (the
-# browser plugin's herdr-browser skill, for one). Link rather than copy so the
-# skill tracks the plugin, and run after the installs above because herdr
-# stores each plugin under a content-hashed directory — a link made before an
-# update points at a path that no longer exists.
+# Some herdr plugins ship an omp skill describing how to drive them (the browser
+# plugin's herdr-browser skill, for one). Nothing in omp discovers those on its
+# own: its plugin skill provider scans installed *omp* plugins under
+# ~/.omp/plugins/node_modules, and no provider looks anywhere near
+# ~/.config/herdr/plugins — so without this step `skill://herdr-browser` doesn't
+# resolve at all. Link rather than copy so the skill tracks the plugin, and run
+# after the installs above because herdr stores a github-installed plugin under a
+# content-hashed directory — a link made before an update points at a path that
+# no longer exists.
+#
+# The roots come from herdr's registry rather than a glob over its managed
+# install tree, because a link-installed plugin is loaded from its own checkout
+# and never appears under that tree at all — a glob silently skips whatever
+# skills it ships. Asking the registry also drops the herdr-plugin.toml probe
+# the glob needed to avoid matching the per-plugin config tree symlinked in
+# beside the installs.
+#
+# Two layouts, because plugins use both: `skills/` (herdr-browser) and
+# `.agents/skills/`, omp's canonical native location, which the `agents` provider
+# only ever scans at a user or project root and so never finds inside a plugin
+# (osolmaz/ghzinga ships its skill there, at its repo root).
 link_omp_skills() {
   local omp_skills="$HOME/.omp/agent/skills"
-  local plugin_root skill_src skill_dst backup found=0
+  local plugin_id plugin_root clone_root root skills_dir
+  local skill_src skill_name skill_dst backup found=0 seen=""
 
-  for plugin_root in "$HOME"/.config/herdr/plugins/*/*/; do
-    # The manifest is what makes a directory a plugin root; without this check
-    # the glob also matches the per-plugin config tree symlinked in above.
-    [ -f "$plugin_root/herdr-plugin.toml" ] || continue
+  while IFS=$'\t' read -r plugin_id plugin_root clone_root; do
+    [ -n "$plugin_root" ] || continue
 
-    for skill_src in "$plugin_root"skills/*/; do
-      [ -f "$skill_src/SKILL.md" ] || continue
-      skill_src="${skill_src%/}"
-      skill_dst="$omp_skills/$(basename "$skill_src")"
-      mkdir -p "$omp_skills"
-      found=1
+    for root in "$plugin_root" "$clone_root"; do
+      [ -n "$root" ] || continue
+      for skills_dir in "$root/skills" "$root/.agents/skills"; do
+        [ -d "$skills_dir" ] || continue
 
-      if [ -L "$skill_dst" ]; then
-        if [ "$(readlink "$skill_dst")" = "$skill_src" ]; then
-          ok "$(basename "$skill_src")" "linked"
-          continue
-        fi
-        rm "$skill_dst"
-      elif [ -e "$skill_dst" ]; then
-        backup="$skill_dst.bak.$(date +%s)"
-        mv "$skill_dst" "$backup"
-        warned "$(basename "$skill_src")" "existing dir backed up to ${backup##*/}"
-      fi
+        for skill_src in "$skills_dir"/*/; do
+          [ -f "$skill_src/SKILL.md" ] || continue
+          skill_src="${skill_src%/}"
+          skill_name="$(basename "$skill_src")"
 
-      ln -s "$skill_src" "$skill_dst"
-      added "$(basename "$skill_src")" "from ${plugin_root#"$HOME"/.config/herdr/plugins/}"
+          # A skill name is a single global namespace in omp, and this step now
+          # reads up to four directories per plugin — so first source wins
+          # rather than each run relinking the destination to a different one.
+          case " $seen " in *" $skill_name "*) continue ;; esac
+          seen="$seen $skill_name"
+
+          skill_dst="$omp_skills/$skill_name"
+          mkdir -p "$omp_skills"
+          found=1
+
+          if [ -L "$skill_dst" ]; then
+            if [ "$(readlink "$skill_dst")" = "$skill_src" ]; then
+              ok "$skill_name" "linked"
+              continue
+            fi
+            rm "$skill_dst"
+          elif [ -e "$skill_dst" ]; then
+            backup="$skill_dst.bak.$(date +%s)"
+            mv "$skill_dst" "$backup"
+            warned "$skill_name" "existing dir backed up to ${backup##*/}"
+          fi
+
+          ln -s "$skill_src" "$skill_dst"
+          added "$skill_name" "from $plugin_id"
+        done
+      done
     done
-  done
+  done < <(herdr_plugin_roots)
 
   [ "$found" = 0 ] && skipped "omp skills" "no installed Herdr plugin ships one"
   return 0
