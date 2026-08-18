@@ -1,6 +1,7 @@
 .DS_Store
 *.local
 *.bak.*
+**/*.log
 
 # Herdr plugins write runtime logs into their own config dirs — whatever a
 # plugin decides to drop beside its config. The config in that tree is worth
