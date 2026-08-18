@@ -13,20 +13,26 @@ same role names.
     omp update                      # download and install the latest omp release
     omp update --check              # check for an update without installing
     omp plugin list                 # list installed plugins
-    omp plugin marketplace update   # refresh a marketplace's catalog before reinstalling from it
-    omp plugin install <name>@<mkt> # install a plugin from an already-refreshed marketplace
+    omp plugin install <src>        # install a plugin at user scope (npm spec or git shorthand)
+    omp plugin install --dry-run <src>  # show what an install would do, changing nothing
 
-Gotcha: `omp plugin install --force` reinstalls from whatever marketplace
-clone is already on disk — it does NOT refresh the catalog first. Re-running
-it without `marketplace update` first just reinstalls the version you
-already have and reports success, silently skipping any upstream update.
-`omp_plugins.txt` documents this trap and install.sh always does both steps
-in order. `omp update` is deliberately the only upgrade path — install.sh
-never re-downloads omp itself, so `omp update` (or `--check` first) is how
-you actually get a new release. Machine-local model providers (API keys,
-custom endpoints) go in `~/.omp/agent/models.yml`, never in the tracked
-`omp/agent/config.yml` — CI greps the tracked config and only allows
-built-in provider ids there.
+Installed omp plugins (`omp_plugins.txt`), one line each on what they add:
+
+- `fleet` — the orchestrator half: `/fleet:*` commands, `skill://fleet`, the `fleet_*` tools
+- `billion-context-omp` — model-driven context compression; `compress`/`decompress`/`search_context` and the `/acp` report
+
+Gotcha: for omp plugins, install IS the update path — the opposite of the gh
+extensions trap. Re-running `omp plugin install` on a git or npm source lets
+omp follow its `bun install` with a `bun update`, which moves the dependency
+forward; there is no separate update command to pair it with. It's also why
+billion-context-omp's own `autoUpdate` is switched off in `omp/acp-omp.json`:
+left on, the extension reinstalls itself from npm behind the manifest's back.
+`omp update` is deliberately the only upgrade path for omp itself — install.sh
+never re-downloads it, so `omp update` (or `--check` first) is how you
+actually get a new release. Machine-local model providers (API keys, custom
+endpoints) go in `~/.omp/agent/models.yml`, never in the tracked
+`omp/agent/config.yml` — CI greps the tracked config and only allows built-in
+provider ids there.
 
 ## herdr — the terminal multiplexer for coding agents
 
@@ -90,9 +96,10 @@ Installed plugins (`herdr_plugins.txt`), one line each on what they add:
 
 Two halves, both required. The herdr plugin `andyhite/foreman/herdr`
 (`herdr_plugins.txt`) is the CLI — its startup hook symlinks the `fleet`
-binary onto PATH. The omp plugin `fleet@foreman` (`omp_plugins.txt`) is the
-agent-facing half: `/fleet:*` commands and the `skill://fleet` /
-`skill://fleet-dispatch` skills. A worker dispatched by fleet is a separate
+binary onto PATH. The omp plugin `fleet` (`omp_plugins.txt`, a direct git
+install of `andyhite/foreman` — no marketplace) is the agent-facing half:
+`/fleet:*` commands and the `skill://fleet` / `skill://fleet-dispatch`
+skills. A worker dispatched by fleet is a separate
 `omp` process in its own pane, worktree, and branch — never an in-process
 `task` subagent sharing the boss's own process.
 

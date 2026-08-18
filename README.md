@@ -25,6 +25,7 @@ NvChad for editing.
   - [dnsmasq — wildcard local DNS via macOS's per-domain resolver](#dnsmasq--wildcard-local-dns-via-macoss-per-domain-resolver)
   - [Zed's `ssh_connections` is stripped by a clean filter](#zeds-ssh_connections-is-stripped-by-a-clean-filter)
   - [omp — one tracked config, two machines, different accounts](#omp--one-tracked-config-two-machines-different-accounts)
+  - [billion-context — the model decides what leaves the context](#billion-context--the-model-decides-what-leaves-the-context)
   - [Atuin](#atuin)
   - [herdr — Homebrew on macOS, curl installer on Linux](#herdr--homebrew-on-macos-curl-installer-on-linux)
   - [Herdr plugins — the list is tracked, herdr's registry isn't](#herdr-plugins--the-list-is-tracked-herdrs-registry-isnt)
@@ -99,6 +100,7 @@ NvChad for editing.
 | `omp/agent/config.yml` | `~/.omp/agent/config.yml` | [omp](https://omp.sh) coding agent settings — besides this file and `rules/output-style.md` below, the rest of `~/.omp/agent` is databases, sessions, and a secrets key |
 | `omp/agent/extensions/atuin.ts` | `~/.omp/agent/extensions/atuin.ts` | records omp's `bash` commands into Atuin history as `--author pi` (a `KNOWN_AGENTS` name, so `$all-user` hides them), with omp's intent string as `--intent`. Hand-maintained: `atuin hook install` has no omp target |
 | `omp/agent/rules/output-style.md` | `~/.omp/agent/rules/output-style.md` | `alwaysApply: true` rule that shapes every omp response for an ADHD reader — answer first, numbered steps, one next action, no preamble or recap |
+| `omp/acp-omp.json` | `~/.omp/acp-omp.json` | `billion-context-omp` settings — the compression thresholds, and the two upstream tool guardrails turned off in favour of omp's own. Ordered against `compaction.thresholdPercent` in `config.yml`; see [billion-context](#billion-context--the-model-decides-what-leaves-the-context) |
 | `omp_plugins.txt` | (not linked — read by `install.sh`) | omp plugin manifest, one `<install-source> <plugin-name>` per line; `install.sh` runs `omp plugin install <source>` for each, and skips one that's link-installed for local development |
 | `agent_skills.txt` | (not linked — read by `install.sh`) | cross-agent skill manifest, one `<owner>/<repo> --skill <name>` per line; `install.sh` runs `npx skills add … -g -y` for each |
 
@@ -772,6 +774,77 @@ prints a validation warning on every startup.
 That leaves nothing per-machine in `config.yml` at all, which is the point: one tracked
 file, every machine, and the only difference is which providers each one has bothered to
 authenticate.
+
+### billion-context — the model decides what leaves the context
+
+`billion-context-omp` (`omp_plugins.txt`) takes over from omp's auto-compaction as the
+*primary* context authority. omp's own compaction is threshold-driven and destructive:
+cross the line and the history becomes one summary. This extension hands the model a
+`compress` tool instead and lets it choose which message ranges to fold, so a folded range
+stays a labelled block — `decompress` restores it, `search_context` searches inside it
+without restoring, and `/acp` reports what's currently folded.
+
+Its settings live in `omp/acp-omp.json`, linked to `~/.omp/acp-omp.json`. They can't live
+in `config.yml`: that file belongs to omp, which rewrites it, so a comment explaining a
+number there wouldn't survive one session. JSON can't carry comments either — which is why
+every value in that file is justified here instead.
+
+**The threshold ladder is the load-bearing part.** Four mechanisms can drop content, and
+they only compose as an escalation if their thresholds stay ordered. Percentages are of the
+model's context window:
+
+| At | What fires | Where it's set |
+| --- | --- | --- |
+| +22.5k growth, 50k foldable | soft nudge — the model is asked to compress | `compress.nudgeGrowthTokens` |
+| 75% | forced nudge — the ask stops being optional | `compress.maxContextLimit` |
+| 85% | the extension truncates old tool output itself | `compress.emergencyThresholdPercent` |
+| 90% | omp's snapcompact, as a genuine last resort | `compaction.thresholdPercent` |
+
+`compaction.thresholdPercent` was 70, which put omp's destructive step *below* the
+extension's first forced nudge and left the whole 75% tier unreachable — the plugin would
+be installed and snapcompact would still be doing all the work. Raising it to 90 is what
+makes the extension primary while keeping omp as a backstop for the case where the model
+ignores every nudge. Upstream's default `emergencyThresholdPercent` of 95% has the same
+inversion against a 90% backstop, which is why it's 85% here. **Those four numbers are one
+setting spread across two files** — move one and check the rest.
+
+Auto-compaction stays *enabled* rather than switched off, so omp's overflow recovery — the
+path taken when a request actually comes back with a context-length error — is still there.
+Manual `/compact` works either way.
+
+**Two guardrails are turned off because omp's own are better.** `toolOutputMaxBytes: 0` and
+`toolBashDefaultTimeout: 0`. The extension head-truncates an oversized tool result and, for
+anything but `bash`, keeps no copy of the rest — the tail is simply gone. omp already caps
+tool output *and* spills the full text to an `artifact://` id the model can page through,
+so its version costs the same and loses nothing. The 60-second `bash` default is likewise
+narrower than omp's own deadline handling, and it would kill exactly the long, legitimate
+commands this repo runs: `just smoke`, `brew bundle`.
+
+**`autoUpdate: false`** because upstream defaults to polling npm after every LLM call and
+`npm install`ing a newer release in place. For the code that rewrites every request, on a
+package that shipped 17 versions in its first three days, that's the machine changing with
+no commit here. `./install.sh --only omp` is the update path, same as everything else in
+the manifest.
+
+**Three keys are deliberately left unset.** `transformMode` resolves *per API* when unset —
+the extension rewrites the provider wire payload for Anthropic and ollama, and rewrites the
+context event everywhere else, because three of omp's other providers discard a payload
+replacement outright. Pinning either value would break one of the two families, and the
+routing in `config.yml` reaches both. `modelContextLimit` is unset for the same reason:
+roles route to models with different windows, and one fixed number would mis-tune every
+model but one. `prompts` is unset because those four strings *are* the compression rules;
+overriding them is the one change here that trades summary quality directly, which is why
+upstream gates it behind a separate `acknowledgePromptsRisk` flag.
+
+**`nudgeGrowthTokens` stays at upstream's 50000**, even though fewer and larger folds is the
+cheaper direction. The extension's fixed cost — roughly 5k tokens of system prompt and tool
+schemas on every turn — sits in the cached prefix and is nearly free to re-read. What
+actually costs money is the fold itself: a fold rewrites messages near the *start* of the
+prefix, and editing a message invalidates the cache from that point forward, so an early
+edit forfeits nearly all of it and the next turn pays full price. Raising the number buys
+fewer forfeits at the price of coarser summaries, and that trade wants a measurement rather
+than a guess. It's pinned rather than left implicit only so an upstream default change can't
+move it silently.
 
 ### Atuin
 

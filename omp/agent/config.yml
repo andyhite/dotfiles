@@ -163,7 +163,7 @@ features:
 compaction: 
   strategy: snapcompact
   handoffSaveToDisk: true
-  thresholdPercent: 70
+  thresholdPercent: 90
   idleEnabled: false
 ttsr: 
   contextMode: discard

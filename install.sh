@@ -1109,6 +1109,14 @@ link_configs() {
     # secrets key, none of which belong in a repo. omp writes through the
     # symlink, so changes made in-app show up as diffs here.
     "omp/agent/config.yml:$HOME/.omp/agent/config.yml"
+    # ~/.omp root, not ~/.omp/agent — billion-context-omp reads this exact path.
+    # Per-file for the same reason as the entry above: the parent is omp's whole
+    # state directory (stats.db, sessions, the plugin registry, downloaded
+    # natives). It's also the only place this plugin's thresholds can live with a
+    # record of why — config.yml above is rewritten by omp itself, so comments
+    # there don't survive, and JSON can't carry them at all. The reasoning sits
+    # in README's billion-context section.
+    "omp/acp-omp.json:$HOME/.omp/acp-omp.json"
     # Individual extension files, not the directory: ~/.omp/agent/extensions also
     # receives extensions written by other tools (herdr drops one in), and linking
     # the parent would hide them. `atuin hook install` has no omp target, so this
