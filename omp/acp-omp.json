@@ -3,8 +3,8 @@
   "toolBashDefaultTimeout": 0,
   "toolOutputMaxBytes": 0,
   "compress": {
-    "maxContextLimit": "75%",
-    "emergencyThresholdPercent": "85%",
+    "maxContextLimit": "30%",
+    "emergencyThresholdPercent": "35%",
     "nudgeGrowthTokens": 50000
   }
 }

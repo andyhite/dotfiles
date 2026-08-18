@@ -796,17 +796,33 @@ model's context window:
 | At | What fires | Where it's set |
 | --- | --- | --- |
 | +22.5k growth, 50k foldable | soft nudge — the model is asked to compress | `compress.nudgeGrowthTokens` |
-| 75% | forced nudge — the ask stops being optional | `compress.maxContextLimit` |
-| 85% | the extension truncates old tool output itself | `compress.emergencyThresholdPercent` |
-| 90% | omp's snapcompact, as a genuine last resort | `compaction.thresholdPercent` |
+| 30% | forced nudge — the ask stops being optional | `compress.maxContextLimit` |
+| 35% | the extension truncates old tool output itself | `compress.emergencyThresholdPercent` |
+| 40% | omp's snapcompact, as a genuine last resort | `compaction.thresholdPercent` |
 
-`compaction.thresholdPercent` was 70, which put omp's destructive step *below* the
-extension's first forced nudge and left the whole 75% tier unreachable — the plugin would
-be installed and snapcompact would still be doing all the work. Raising it to 90 is what
-makes the extension primary while keeping omp as a backstop for the case where the model
-ignores every nudge. Upstream's default `emergencyThresholdPercent` of 95% has the same
-inversion against a 90% backstop, which is why it's 85% here. **Those four numbers are one
-setting spread across two files** — move one and check the rest.
+The *ordering* is what makes the extension primary. `compaction.thresholdPercent` was once
+70, below the extension's forced nudge, which left that whole tier unreachable — the plugin
+would be installed and snapcompact would still do all the work. Upstream's default
+`emergencyThresholdPercent` of 95% inverts the same way against an omp backstop, which is
+why it sits below it here. **Those four numbers are one setting spread across two files** —
+move one and check the rest.
+
+The tier *values* came down from 75/85/90 after measuring what they cost. Percentages are of
+the window and every routed Anthropic model carries a 1M one, so a 75% forced nudge meant no
+fold until three-quarters of a million tokens; the largest prefix actually observed was 767k.
+Cache reads are 63.5% of this repo's Anthropic spend and scale linearly with prefix size —
+there is no long-context premium to duck, a 900k request bills at the same per-token rate as
+a 9k one — so that headroom was being re-read on every request of every long session. 30%
+caps the routed models near 300k while staying above the observed 173k average, so typical
+sessions fold no more often than before and only the expensive tail is cut.
+
+`compaction.idleEnabled` is on for the same reason, and it is the cheapest tier to spend. It
+fires only above `compaction.idleThresholdTokens` (200k) and only after
+`compaction.idleTimeoutSeconds` (300s) of idle, so it targets precisely the sessions whose
+oversized prefix is about to be re-read many more times, and it spends the fold when no turn
+is waiting on it. The guard is what keeps it honest: a fold's real cost is the cache it
+invalidates plus the summarizer call, and below 200k there is not enough prefix to earn that
+back.
 
 Auto-compaction stays *enabled* rather than switched off, so omp's overflow recovery — the
 path taken when a request actually comes back with a context-length error — is still there.

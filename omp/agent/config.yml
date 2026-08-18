@@ -8,7 +8,7 @@ modelRoles:
   default: anthropic/claude-sonnet-5:medium
   plan: anthropic/claude-opus-5:high
   slow: anthropic/claude-opus-5:max
-  task: anthropic/claude-sonnet-5:medium
+  task: anthropic/claude-sonnet-5:low
   smol: anthropic/claude-haiku-4-5:low
   commit: anthropic/claude-haiku-4-5:low
   tiny: anthropic/claude-haiku-4-5:low
@@ -85,7 +85,7 @@ display:
 task: 
   showResolvedModelBadge: true
   eager: preferred
-personality: pragmatic
+personality: none
 retry: 
   usageAwareFallback: true
   modelFallback: true
@@ -163,8 +163,8 @@ features:
 compaction: 
   strategy: snapcompact
   handoffSaveToDisk: true
-  thresholdPercent: 90
-  idleEnabled: false
+  thresholdPercent: 40
+  idleEnabled: true
 ttsr: 
   contextMode: discard
   repeatMode: after-gap
@@ -176,6 +176,7 @@ mnemopi:
   proactiveLinking: true
   enhancedRecall: true
   polyphonicRecall: true
+  injectionTokenLimit: 2000
 edit: 
   mode: hashline
 readLineNumbers: true
@@ -194,6 +195,8 @@ astGrep:
   enabled: true
 computer: 
   enabled: true
+debug: 
+  enabled: false
 checkpoint: 
   enabled: true
 github: 
