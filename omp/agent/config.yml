@@ -5,16 +5,16 @@ providers:
   maxInFlightRequests: 
     openai-codex: 8
 modelRoles: 
-  default: anthropic/claude-sonnet-5
+  default: anthropic/claude-sonnet-5:medium
   plan: anthropic/claude-opus-5:high
   slow: anthropic/claude-opus-5:max
-  task: anthropic/claude-sonnet-5
-  smol: anthropic/claude-haiku-4-5
-  commit: anthropic/claude-haiku-4-5
-  tiny: anthropic/claude-haiku-4-5
-  vision: anthropic/claude-sonnet-5
+  task: anthropic/claude-sonnet-5:medium
+  smol: anthropic/claude-haiku-4-5:low
+  commit: anthropic/claude-haiku-4-5:low
+  tiny: anthropic/claude-haiku-4-5:low
+  vision: anthropic/claude-sonnet-5:medium
   designer: anthropic/claude-opus-5:high
-  advisor: anthropic/claude-sonnet-5
+  advisor: anthropic/claude-sonnet-5:medium
 modelProviderOrder: 
   - anthropic
   - openai-codex
