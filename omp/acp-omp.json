@@ -6,5 +6,10 @@
     "maxContextLimit": "30%",
     "emergencyThresholdPercent": "35%",
     "nudgeGrowthTokens": 50000
+  },
+  "coreOverrides": {
+    "nudge": {
+      "minContextLimitPct": 0.2
+    }
   }
 }
