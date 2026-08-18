@@ -5,11 +5,6 @@
 # chmod 600 ~/.ssh/config.local — ssh silently ignores config files that are
 # group/world-readable/writable.
 
-# dstack (github.com/dstackai/dstack) regenerates this file per machine as it
-# provisions/tears down runpod instances — it is not portable and would just
-# be stale noise if tracked.
-# Include ~/.dstack/ssh/config
-
 # A remote dev box reached by short name. The tracked ssh/config carries no
 # hostnames of its own, so every machine-specific alias belongs here.
 # Host devbox

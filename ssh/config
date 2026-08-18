@@ -1,7 +1,13 @@
+# dstack injects this Include at the top of ~/.ssh/config on every provision.
+# That file is a symlink into this repo, so leaving the line untracked meant a
+# perpetually dirty working tree after any `dstack apply`. Tracked, it's inert
+# where dstack has never run — a missing Include target is not an ssh error.
+Include ~/.dstack/ssh/config
+
 # Portable identity config — safe on every machine, no per-machine paths or
-# throwaway hosts. Anything machine-specific (dstack's generated Include, work
-# box shortcuts, disposable test hosts) lives in ~/.ssh/config.local instead;
-# see ssh/config.local.example for the template.
+# throwaway hosts. Anything machine-specific (work box shortcuts, disposable
+# test hosts) lives in ~/.ssh/config.local instead; see
+# ssh/config.local.example for the template.
 
 # ssh takes the FIRST value it finds for any given option, so this Include has
 # to come before every Host block below — it's the only way config.local can
