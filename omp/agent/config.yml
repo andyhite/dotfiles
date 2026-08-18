@@ -6,10 +6,10 @@ providers:
     openai-codex: 8
 modelRoles: 
   default: anthropic/claude-sonnet-5
-  plan: anthropic/claude-fable-5:high
+  plan: anthropic/claude-opus-5:high
   slow: anthropic/claude-opus-5:max
   task: anthropic/claude-sonnet-5
-  smol: cursor/composer-2.5
+  smol: anthropic/claude-haiku-4-5
   commit: anthropic/claude-haiku-4-5
   tiny: anthropic/claude-haiku-4-5
   vision: anthropic/claude-sonnet-5
@@ -98,7 +98,7 @@ retry:
       - cursor/composer-2.5
     plan: 
       - openai-codex/gpt-5.6-sol:high
-      - anthropic-api/claude-fable-5:high
+      - anthropic-api/claude-opus-5:high
       - openai/gpt-5.6:high
       - cursor/composer-2.5
     slow: 
@@ -112,10 +112,10 @@ retry:
       - openai/gpt-5.6-terra:medium
       - cursor/composer-2.5
     smol: 
-      - anthropic/claude-haiku-4-5
       - openai-codex/gpt-5.6-luna:low
       - anthropic-api/claude-haiku-4-5
       - openai/gpt-5.6-luna:low
+      - cursor/composer-2.5
     commit: 
       - openai-codex/gpt-5.4-mini:low
       - anthropic-api/claude-haiku-4-5
