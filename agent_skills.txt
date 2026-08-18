@@ -12,5 +12,36 @@
 # hashes, install/update timestamps), exactly like herdr's own plugins.json
 # next to herdr_plugins.txt.
 herdrdev/herdr --skill herdr
-vercel-labs/skills --skill find-skills
 ayghri/i-have-adhd --skill i-have-adhd
+
+# The mattpocock/skills bundle — 25 skills installed as a group on 2026-08-10
+# but never added here, so a fresh `install.sh` only reproduced herdr and
+# i-have-adhd. Tracked now to close that gap.
+mattpocock/skills --skill ask-matt
+mattpocock/skills --skill code-review
+mattpocock/skills --skill codebase-design
+mattpocock/skills --skill diagnosing-bugs
+mattpocock/skills --skill domain-modeling
+mattpocock/skills --skill grill-me
+mattpocock/skills --skill grill-with-docs
+mattpocock/skills --skill grilling
+mattpocock/skills --skill handoff
+mattpocock/skills --skill implement
+mattpocock/skills --skill improve-codebase-architecture
+mattpocock/skills --skill prototype
+mattpocock/skills --skill research
+mattpocock/skills --skill resolving-merge-conflicts
+mattpocock/skills --skill setup-matt-pocock-skills
+mattpocock/skills --skill tdd
+mattpocock/skills --skill teach
+mattpocock/skills --skill to-questionnaire
+mattpocock/skills --skill to-spec
+mattpocock/skills --skill to-tickets
+mattpocock/skills --skill triage
+mattpocock/skills --skill wait-what
+mattpocock/skills --skill wayfinder
+mattpocock/skills --skill wizard
+mattpocock/skills --skill writing-for-agents
+
+# Apple HIG-based UI review, used for macOS/Tauri design work.
+dickwu/apple-design-skill --skill apple-design
