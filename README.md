@@ -104,6 +104,7 @@ NvChad for editing.
 | `omp_plugins.txt` | (not linked — read by `install.sh`) | omp plugin manifest, one `<install-source> <plugin-name>` per line; `install.sh` runs `omp plugin install <source>` for each, and skips one that's link-installed for local development |
 | `agent_skills.txt` | (not linked — read by `install.sh`) | cross-agent skill manifest, one `<owner>/<repo> --skill <name>` per line; `install.sh` runs `npx skills add … -g -y` for each |
 | `config/claude/settings.json` | `~/.claude/settings.json` | [Claude Code](https://claude.com/product/claude-code) CLI global settings — ships with only `$schema` for editor validation; the rest of `~/.claude` is sessions, an oauth/telemetry cache, a machine ID, backups, and the `skills/` symlinks `agent_skills.txt` already manages |
+| `config/claude/CLAUDE.md` | `~/.claude/CLAUDE.md` | Claude Code's global user memory, loaded into every session — the same ADHD-shaped output-style instructions as `omp/agent/rules/output-style.md` above, ported since it's a personal preference, not an omp-specific one |
 
 ### Repo scripts, checks & docs
 

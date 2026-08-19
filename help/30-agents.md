@@ -42,8 +42,10 @@ provider ids there.
 omp/herdr need). run_quiet-wrapped, like herdr/atuin/starship — it always
 re-runs, and its own install/update chatter is suppressed unless something
 fails, same as those. Global config is tracked too: `config/claude/settings.json`
-links to `~/.claude/settings.json` — everything else under `~/.claude` is
-sessions, cache, and machine state, none of it meant for a repo.
+links to `~/.claude/settings.json`, and `config/claude/CLAUDE.md` links to
+`~/.claude/CLAUDE.md` (global user memory — same ADHD output-style rule as
+omp's) — everything else under `~/.claude` is sessions, cache, and machine
+state, none of it meant for a repo.
 
     claude                          # launch or resume the interactive session
     claude --continue               # resume the most recent conversation
