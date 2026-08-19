@@ -1174,6 +1174,10 @@ link_configs() {
     # there, so linking the script alone is enough — no separate link for
     # help/ itself.
     "bin/dotfiles-help:$HOME/.local/bin/dotfiles-help"
+    # settings.json only: ~/.claude also holds sessions, an oauth/telemetry
+    # cache, a machine ID, backups, and the skills/ symlinks the agent_skills.txt
+    # step already manages — same reasoning as the omp/zed entries above.
+    "config/claude/settings.json:$HOME/.claude/settings.json"
   )
 
   # Lazygit follows the native config directory on macOS rather than XDG's

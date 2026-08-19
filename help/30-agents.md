@@ -41,7 +41,9 @@ provider ids there.
 (it auto-detects the platform itself, so there's no per-OS branch the way
 omp/herdr need). run_quiet-wrapped, like herdr/atuin/starship — it always
 re-runs, and its own install/update chatter is suppressed unless something
-fails, same as those.
+fails, same as those. Global config is tracked too: `config/claude/settings.json`
+links to `~/.claude/settings.json` — everything else under `~/.claude` is
+sessions, cache, and machine state, none of it meant for a repo.
 
     claude                          # launch or resume the interactive session
     claude --continue               # resume the most recent conversation

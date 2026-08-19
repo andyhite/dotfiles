@@ -103,6 +103,7 @@ NvChad for editing.
 | `omp/acp-omp.json` | `~/.omp/acp-omp.json` | `billion-context-omp` settings — the compression thresholds, and the two upstream tool guardrails turned off in favour of omp's own. Ordered against `compaction.thresholdPercent` in `config.yml`; see [billion-context](#billion-context--the-model-decides-what-leaves-the-context) |
 | `omp_plugins.txt` | (not linked — read by `install.sh`) | omp plugin manifest, one `<install-source> <plugin-name>` per line; `install.sh` runs `omp plugin install <source>` for each, and skips one that's link-installed for local development |
 | `agent_skills.txt` | (not linked — read by `install.sh`) | cross-agent skill manifest, one `<owner>/<repo> --skill <name>` per line; `install.sh` runs `npx skills add … -g -y` for each |
+| `config/claude/settings.json` | `~/.claude/settings.json` | [Claude Code](https://claude.com/product/claude-code) CLI global settings — ships with only `$schema` for editor validation; the rest of `~/.claude` is sessions, an oauth/telemetry cache, a machine ID, backups, and the `skills/` symlinks `agent_skills.txt` already manages |
 
 ### Repo scripts, checks & docs
 
