@@ -97,14 +97,15 @@ NvChad for editing.
 
 | Path | Links to | What it is |
 | --- | --- | --- |
-| `omp/agent/config.yml` | `~/.omp/agent/config.yml` | [omp](https://omp.sh) coding agent settings — besides this file and `rules/output-style.md` below, the rest of `~/.omp/agent` is databases, sessions, and a secrets key |
+| `omp/agent/config.yml` | `~/.omp/agent/config.yml` | [omp](https://omp.sh) coding agent settings — besides this file, `AGENTS.md`, and `rules/output-style.md` below, the rest of `~/.omp/agent` is databases, sessions, and a secrets key |
 | `omp/agent/extensions/atuin.ts` | `~/.omp/agent/extensions/atuin.ts` | records omp's `bash` commands into Atuin history as `--author pi` (a `KNOWN_AGENTS` name, so `$all-user` hides them), with omp's intent string as `--intent`. Hand-maintained: `atuin hook install` has no omp target |
 | `omp/agent/rules/output-style.md` | `~/.omp/agent/rules/output-style.md` | `alwaysApply: true` rule that shapes every omp response for an ADHD reader — answer first, numbered steps, one next action, no preamble or recap |
+| `omp/agent/AGENTS.md` | `~/.omp/agent/AGENTS.md` | omp's native global context file (highest-priority discovery provider — shadows every other tool's user-level context). Holds the same ADHD output-style guidance as `rules/output-style.md` above, since it's a personal preference rather than an omp-specific one; `config/claude/CLAUDE.md` below symlinks straight to this file, so it's the one source of truth |
 | `omp/acp-omp.json` | `~/.omp/acp-omp.json` | `billion-context-omp` settings — the compression thresholds, and the two upstream tool guardrails turned off in favour of omp's own. Ordered against `compaction.thresholdPercent` in `config.yml`; see [billion-context](#billion-context--the-model-decides-what-leaves-the-context) |
 | `omp_plugins.txt` | (not linked — read by `install.sh`) | omp plugin manifest, one `<install-source> <plugin-name>` per line; `install.sh` runs `omp plugin install <source>` for each, and skips one that's link-installed for local development |
 | `agent_skills.txt` | (not linked — read by `install.sh`) | cross-agent skill manifest, one `<owner>/<repo> --skill <name>` per line; `install.sh` runs `npx skills add … -g -y` for each |
 | `config/claude/settings.json` | `~/.claude/settings.json` | [Claude Code](https://claude.com/product/claude-code) CLI global settings — ships with only `$schema` for editor validation; the rest of `~/.claude` is sessions, an oauth/telemetry cache, a machine ID, backups, and the `skills/` symlinks `agent_skills.txt` already manages |
-| `config/claude/CLAUDE.md` | `~/.claude/CLAUDE.md` | Claude Code's global user memory, loaded into every session — the same ADHD-shaped output-style instructions as `omp/agent/rules/output-style.md` above, ported since it's a personal preference, not an omp-specific one |
+| `config/claude/CLAUDE.md` | `~/.claude/CLAUDE.md` | a symlink (tracked as one in git) to `omp/agent/AGENTS.md` above — Claude Code's global user memory reuses the exact same content rather than carrying a second copy. The `claude` discovery provider is disabled in `omp/agent/config.yml`, so omp itself reads `AGENTS.md` directly and never this path |
 
 ### Repo scripts, checks & docs
 

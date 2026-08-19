@@ -1126,6 +1126,12 @@ link_configs() {
     # secrets key, none of which belong in a repo. omp writes through the
     # symlink, so changes made in-app show up as diffs here.
     "omp/agent/config.yml:$HOME/.omp/agent/config.yml"
+    # Native global context file (highest-priority discovery provider — see
+    # omp's context-files.md). Its content is shared with `~/.claude/CLAUDE.md`
+    # below, which is a symlink to this same repo file rather than a separate
+    # copy — the `claude` discovery provider is disabled in config.yml above,
+    # so omp only ever reads this one.
+    "omp/agent/AGENTS.md:$HOME/.omp/agent/AGENTS.md"
     # ~/.omp root, not ~/.omp/agent — billion-context-omp reads this exact path.
     # Per-file for the same reason as the entry above: the parent is omp's whole
     # state directory (stats.db, sessions, the plugin registry, downloaded
@@ -1174,11 +1180,12 @@ link_configs() {
     # there, so linking the script alone is enough — no separate link for
     # help/ itself.
     "bin/dotfiles-help:$HOME/.local/bin/dotfiles-help"
-    # settings.json and CLAUDE.md only: ~/.claude also holds sessions, an
-    # oauth/telemetry cache, a machine ID, backups, and the skills/ symlinks
-    # the agent_skills.txt step already manages — same reasoning as the
-    # omp/zed entries above. CLAUDE.md is user memory, loaded into every
-    # session the same way omp/agent/rules/output-style.md above is.
+    # settings.json only — ~/.claude also holds sessions, an oauth/telemetry
+    # cache, a machine ID, backups, and the skills/ symlinks the
+    # agent_skills.txt step already manages, same reasoning as the omp/zed
+    # entries above. CLAUDE.md itself is `config/claude/CLAUDE.md`, tracked as
+    # a symlink to `omp/agent/AGENTS.md` (see that entry) rather than linked
+    # here, so it rides along automatically.
     "config/claude/settings.json:$HOME/.claude/settings.json"
     "config/claude/CLAUDE.md:$HOME/.claude/CLAUDE.md"
   )
