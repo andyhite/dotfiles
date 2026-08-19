@@ -150,8 +150,8 @@ reordering doesn't:
 1. **Installs/updates the tools this config drives**: starship, zoxide, atuin,
    fzf, eza, bat, direnv, tmux, lazygit, delta, difftastic, git-absorb, jj, fd,
    carapace, gitleaks, pre-commit, just, uv, antidote, TPM, the JetBrains Mono
-   Nerd Font, neovim, ripgrep, tree-sitter-cli, mise, omp, btop, herdr, gzg
-   (ghzinga), and NvChad —
+   Nerd Font, neovim, ripgrep, tree-sitter-cli, mise, omp, claude, btop, herdr,
+   gzg (ghzinga), and NvChad —
    plus Docker Desktop on macOS. macOS applies
    `Brewfile` with `brew bundle` (formulae + casks, including Ghostty itself);
    Linux goes through `apt` where a package exists, and falls back
@@ -187,6 +187,12 @@ reordering doesn't:
    - omp: install-only, via the installer at [omp.sh](https://omp.sh) — the binary is
      ~120MB and ships its own `omp update`, so re-running this script skips it rather
      than re-downloading.
+   - claude: the native installer at
+     [claude.ai/install.sh](https://claude.ai/install.sh) auto-detects the platform, so
+     one curl call covers both branches — run_quiet-wrapped like herdr/atuin/starship
+     below, not install-only like omp above, since Anthropic's installer is fast and
+     idempotent rather than a 120MB one-time download; re-running it is how `claude`
+     stays current.
    - herdr: a real Homebrew core formula on macOS (`brew "herdr"`, not a tap or a
      cargo build) — Linux gets the official installer
      (`curl -fsSL https://herdr.dev/install.sh | sh`), same `~/.local/bin` pattern as

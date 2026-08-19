@@ -305,6 +305,21 @@ ensure_omp() {
   fi
 }
 
+ensure_claude_code() {
+  # https://claude.com/product/claude-code — Anthropic's own coding agent CLI.
+  # The native installer at claude.ai/install.sh auto-detects the platform, so
+  # one call covers both OSes. run_quiet-wrapped like herdr/atuin/starship
+  # above — its own install/update chatter would otherwise bury the
+  # structured ✓/+/↑ output this script prints around it.
+  #
+  # Not install-once like ensure_omp: Anthropic's docs say the installer
+  # keeps itself updated in the background, so re-running it here is a fast
+  # no-op once current rather than a large re-download.
+  if run_quiet claude sh -c "curl -fsSL https://claude.ai/install.sh | bash"; then
+    ok "claude" "installed/updated (installer always fetches latest)"
+  fi
+}
+
 # ── Shell completions ───────────────────────────────────────────────────────
 
 # zsh autoloads completions from files named `_<cmd>` anywhere on fpath.
@@ -584,6 +599,7 @@ install_tools_macos() {
   ensure_tree_sitter_cli
   ensure_nvchad
   ensure_omp
+  ensure_claude_code
   # No Homebrew formula exists for ghzinga (confirmed via `brew search`) on
   # either platform, only crates.io — cargo_ensure_latest's own ensure_rustup
   # call is a no-op here since the Brewfile's `rust` formula above already
@@ -1037,6 +1053,7 @@ install_tools_linux() {
     skipped "markdownlint-cli2" "no node — run the tools and runtimes steps first"
   fi
   ensure_omp
+  ensure_claude_code
   # Official installer, run_quiet-wrapped like starship/atuin/uv above — no
   # Homebrew tap, no apt package this young. Lands in ~/.local/bin, already
   # on PATH; re-runs are the update path, same as the others in this group.

@@ -34,6 +34,21 @@ endpoints) go in `~/.omp/agent/models.yml`, never in the tracked
 `omp/agent/config.yml` — CI greps the tracked config and only allows built-in
 provider ids there.
 
+## claude — Claude Code
+
+`install.sh`'s tools step installs it: the native installer at
+[claude.ai/install.sh](https://claude.ai/install.sh) on both macOS and Linux
+(it auto-detects the platform itself, so there's no per-OS branch the way
+omp/herdr need). run_quiet-wrapped, like herdr/atuin/starship — it always
+re-runs, and its own install/update chatter is suppressed unless something
+fails, same as those.
+
+    claude                          # launch or resume the interactive session
+    claude --continue               # resume the most recent conversation
+    claude --resume                 # resume a session by picker
+    claude update                   # check for and install an update now
+    claude mcp list                 # list configured MCP servers
+
 ## herdr — the terminal multiplexer for coding agents
 
 `install.sh`'s tools step installs it: a real Homebrew core formula on macOS
