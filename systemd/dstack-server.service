@@ -1,0 +1,21 @@
+# %h is systemd's own home-directory specifier — no $HOME templating needed,
+# unlike the launchd plist beside this file, which lacks any variable
+# expansion at all and works around it with a login-shell trick instead.
+[Unit]
+Description=dstack server — GPU-cloud task/dev-environment orchestrator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# `-n` is required, not optional: with no TTY attached, `dstack server`'s
+# "Update the main project in ~/.dstack/config.yml?" confirmation prompt
+# hits EOFError on input() and crashes on every launch — `-n` answers it
+# non-interactively (declining the update, the prompt's own default),
+# which is what keeps Restart=on-failure from crash-looping it forever.
+ExecStart=%h/.local/bin/dstack server -n
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

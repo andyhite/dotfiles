@@ -1,0 +1,33 @@
+# Copied by install.sh to ~/.dstack/server/config.yml the first time it runs,
+# then left alone — everything else under ~/.dstack (the sqlite db, server
+# logs, per-run job/runner logs, a generated ssh keypair) is state dstack
+# itself writes, but this file holds real cloud-provider credentials, so it's
+# templated instead of tracked, same as ssh/config.local.example and
+# gitconfig.local.example. `dstack server` only reads it on startup — restart
+# the server after editing it directly.
+#
+# Ships with the main project defined but no backend configured, same
+# "must parse, but not populated" shape as omp/agent/models.yml.example:
+# dstack's docs say the default project has to exist even with zero backends
+# (SSH fleets need none at all — see README).
+
+projects:
+  - name: main
+    backends: []
+
+# ── RunPod ─────────────────────────────────────────────────────────────────
+# Uncomment and fill in a real key from
+# https://www.runpod.io/console/user/settings (API Keys), then delete the
+# `backends: []` project above — dstack's own config schema rejects two
+# `name: main` entries. community_cloud: false restricts provisioning to
+# RunPod's Secure Cloud only; flip to true to also allow Community Cloud
+# pods, which run on hosts RunPod doesn't operate itself.
+#
+# projects:
+#   - name: main
+#     backends:
+#       - type: runpod
+#         creds:
+#           type: api_key
+#           api_key: rpa_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+#         community_cloud: false

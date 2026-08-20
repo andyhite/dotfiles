@@ -363,6 +363,33 @@ scrolling view instead of `docker stats`'s fixed columns.
     ctop -r                          # reverse the current sort order
     ctop -i                          # invert colors, for a light terminal theme
 
+## dstack — GPU-cloud task/dev-environment orchestrator
+
+Installed via `uv tool install dstack` on both OSes (no Homebrew formula, no
+apt package). Backend credentials (RunPod, here) live in
+`~/.dstack/server/config.yml`, templated from `dstack/server/config.yml.example`
+— see README's `*.local` templates section — because that file holds a real
+API key. The client config `~/.dstack/config.yml` (project token + server
+URL) is left untracked: `dstack server` regenerates it, so there's nothing
+meaningful to template.
+
+    dstack server                    # start the local control-plane server
+    dstack apply -f .dstack.yml      # provision a run from a task/dev-environment spec
+    dstack ps                        # list current runs and their status
+    dstack stop <run-name>           # stop a run
+    dstack fleet list                # list configured fleets (backends, SSH)
+
+`install.sh`'s `services` step enables `dstack server` to start at login and
+run in the background — a launchd `LaunchAgent` on macOS
+(`~/Library/LaunchAgents/ai.dstack.server.plist`), a systemd `--user` unit on
+Linux (`~/.config/systemd/user/dstack-server.service`). Re-run it directly
+with `./install.sh --only services`. Manual equivalents:
+
+    launchctl load -w ~/Library/LaunchAgents/ai.dstack.server.plist   # macOS: start now + at login
+    launchctl unload -w ~/Library/LaunchAgents/ai.dstack.server.plist # macOS: stop + disable
+    systemctl --user enable --now dstack-server                      # Linux: start now + at login
+    systemctl --user disable --now dstack-server                     # Linux: stop + disable
+
 ## op — 1Password CLI
 
 Installed via the Brewfile's `1password-cli` cask, but not currently wired

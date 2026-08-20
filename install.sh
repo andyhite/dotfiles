@@ -128,7 +128,7 @@ confirm() {
 
 # ── Steps ────────────────────────────────────────────────────────────────────
 
-STEPS=(tools completions configs hooks runtimes herdr omp gh skills nvim)
+STEPS=(tools completions configs services hooks runtimes herdr omp gh skills nvim)
 ASSUME_YES=0
 VERBOSE=0
 ONLY=""
@@ -160,6 +160,7 @@ ${C_BOLD}Steps${C_RESET}
   tools        Package installs/upgrades (Brewfile on macOS), fonts, editors, agents
   completions  Generate zsh completions into ~/.local/share/zsh/site-functions
   configs      Symlink this repo's config files into place
+  services     Enable dstack server to run at login (launchd/systemd --user)
   hooks        Register the zed-local git filter and install pre-commit hooks
   runtimes     Install the language versions pinned in tool-versions, with mise
   herdr        Install/update the Herdr plugins in herdr_plugins.txt
@@ -318,6 +319,68 @@ ensure_claude_code() {
   if run_quiet claude sh -c "curl -fsSL https://claude.ai/install.sh | bash"; then
     ok "claude" "installed/updated (installer always fetches latest)"
   fi
+}
+
+ensure_dstack() {
+  # https://dstack.ai — GPU-cloud task/dev-environment orchestrator; backends
+  # (runpod, here) live in ~/.dstack/server/config.yml, templated from
+  # dstack/server/config.yml.example above (see README's *.local templates
+  # section). No Homebrew formula and no apt package on either OS, so
+  # `uv tool install` is the one path that works on both — same reasoning as
+  # pre-commit's fallback in install_tools_linux. Callers must ensure uv is
+  # already on PATH first: the Brewfile on macOS, the installer just above
+  # on Linux.
+  if run_quiet dstack uv tool install dstack; then
+    ok "dstack" "$(dstack --version 2>/dev/null || echo installed)"
+  fi
+}
+
+# ── Services (launchd / systemd --user) ─────────────────────────────────────
+
+# Turns on the LaunchAgent the configs step just symlinked. Separate from
+# that step on purpose: `launchctl`/`systemctl` act on the real OS-level
+# service namespace, not anything scoped to $HOME, so calling either from
+# link_configs would make `just smoke`'s throwaway-HOME sandbox mutate the
+# actual machine's running services on every test run. A dedicated step
+# means --skip services (or declining the prompt) leaves it untouched, and
+# smoke — which only ever runs --only configs — never reaches this code at
+# all.
+#
+# `launchctl list <label>` is the idempotency check: present means some copy
+# is already loaded, so re-loading is skipped rather than erroring on
+# "already loaded" the way a bare `load` would on a second run.
+ensure_dstack_service_macos() {
+  command -v dstack >/dev/null 2>&1 || { skipped "dstack server" "dstack CLI not installed — run the tools step first"; return 0; }
+  local plist="$HOME/Library/LaunchAgents/ai.dstack.server.plist"
+  [ -e "$plist" ] || { skipped "dstack server" "LaunchAgent not linked — run the configs step first"; return 0; }
+  if launchctl list ai.dstack.server >/dev/null 2>&1; then
+    ok "dstack server" "already enabled at login (launchd)"
+    return 0
+  fi
+  if run_quiet "dstack server" launchctl load -w "$plist"; then
+    added "dstack server" "enabled at login via launchd — logs: /tmp/dstack-server.launchd.log, ~/.dstack/server.log"
+  fi
+}
+
+# `enable --now` is already idempotent (a no-op on a unit that's enabled and
+# running), unlike launchd's load/unload pair above, so this needs no
+# separate presence check.
+ensure_dstack_service_linux() {
+  command -v dstack >/dev/null 2>&1 || { skipped "dstack server" "dstack CLI not installed — run the tools step first"; return 0; }
+  command -v systemctl >/dev/null 2>&1 || { skipped "dstack server" "no systemd user manager on this host — enable manually"; return 0; }
+  local unit="$HOME/.config/systemd/user/dstack-server.service"
+  [ -e "$unit" ] || { skipped "dstack server" "systemd unit not linked — run the configs step first"; return 0; }
+  run_quiet "dstack server" systemctl --user daemon-reload || return 0
+  if run_quiet "dstack server" systemctl --user enable --now dstack-server; then
+    ok "dstack server" "enabled at login via systemd --user"
+  fi
+}
+
+install_services() {
+  case "$OS" in
+    Darwin) ensure_dstack_service_macos ;;
+    *)      ensure_dstack_service_linux ;;
+  esac
 }
 
 # ── Shell completions ───────────────────────────────────────────────────────
@@ -600,6 +663,7 @@ install_tools_macos() {
   ensure_nvchad
   ensure_omp
   ensure_claude_code
+  ensure_dstack
   # No Homebrew formula exists for ghzinga (confirmed via `brew search`) on
   # either platform, only crates.io — cargo_ensure_latest's own ensure_rustup
   # call is a no-op here since the Brewfile's `rust` formula above already
@@ -1022,6 +1086,8 @@ install_tools_linux() {
     fi
   fi
 
+  ensure_dstack
+
   ensure_mise_linux
   ensure_tree_sitter_cli
   ensure_neovim_linux
@@ -1207,6 +1273,18 @@ link_configs() {
     links+=("config/lazygit/config.yml:$HOME/.config/lazygit/config.yml")
   fi
 
+  # The service definition itself differs per OS (launchd plist vs systemd
+  # unit), but both point at the same underlying binary — see the "services"
+  # step (ensure_dstack_service_macos/_linux) for what actually turns it on.
+  # Placing the file here is smoke-safe (a plain symlink); enabling it is not
+  # (it touches the real launchd/systemd namespace, not anything scoped to
+  # $HOME), which is why that's a separate step instead of living in this one.
+  if [ "$OS" = "Darwin" ]; then
+    links+=("launchd/ai.dstack.server.plist:$HOME/Library/LaunchAgents/ai.dstack.server.plist")
+  else
+    links+=("systemd/dstack-server.service:$HOME/.config/systemd/user/dstack-server.service")
+  fi
+
   # Same OS-native-vs-XDG split as lazygit above — except the XDG half is the
   # *data* dir (~/.local/share), not config: tealdeer's own docs put custom
   # pages under $XDG_DATA_HOME/tealdeer/pages on Linux, distinct from
@@ -1283,7 +1361,7 @@ link_configs() {
   # next person, and drifts if the location ever changes.
   local examples=(
     zshrc.local.example gitconfig.local.example ssh/config.local.example
-    omp/agent/models.yml.example
+    omp/agent/models.yml.example dstack/server/config.yml.example
   )
 
   local example target
@@ -1297,6 +1375,7 @@ link_configs() {
     case "$example" in
       ssh/*)          target="$HOME/.ssh/${example#ssh/}"; target="${target%.example}" ;;
       omp/agent/*)    target="$HOME/.omp/agent/${example#omp/agent/}"; target="${target%.example}" ;;
+      dstack/*)       target="$HOME/.dstack/${example#dstack/}"; target="${target%.example}" ;;
       *)              target="$HOME/.${example%.example}" ;;
     esac
 
@@ -2037,6 +2116,9 @@ fi
 #   completions after tools    each generator must run against the version that
 #                              just landed, tools-installed or bring-your-own
 #                              alike — see the per-entry command -v guard.
+#   services after configs     needs the LaunchAgent/systemd unit the configs
+#                              step just symlinked, and after tools — needs the
+#                              dstack binary the tools step installs.
 #   hooks after tools          pre-commit install needs the binary the tools
 #                              step puts on PATH. Independent of configs: the
 #                              filter and the hooks both act on this repo's
@@ -2062,6 +2144,7 @@ fi
 run_step tools       "Tools"         "Brewfile/apt, fonts, editors, agents"             install_tools
 run_step completions "Completions"   "generated into ~/.local/share/zsh/site-functions" ensure_completions
 run_step configs     "Configs"       "symlink this repo into place"                     link_configs
+run_step services    "Services"      "enable dstack server at login (launchd/systemd)"  install_services
 run_step hooks       "Hooks"         "zed-local git filter + pre-commit install"        ensure_hooks
 run_step runtimes    "Runtimes"      "language versions pinned in tool-versions"        ensure_runtimes
 run_step herdr       "Herdr plugins" "from herdr_plugins.txt"                           install_herdr_plugins

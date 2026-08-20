@@ -100,6 +100,16 @@ jobs:
           test -f "$HOME/.omp/agent/models.yml"
           test ! -L "$HOME/.omp/agent/models.yml"
 
+          # Same never-linked rule as models.yml above, for the dstack backend
+          # credentials template.
+          test -f "$HOME/.dstack/server/config.yml"
+          test ! -L "$HOME/.dstack/server/config.yml"
+
+          # The systemd unit itself is a plain symlink like zshrc/gitconfig above —
+          # only *enabling* it (a separate "services" step, not covered by
+          # `--only configs`) touches the real systemd namespace.
+          test -L "$HOME/.config/systemd/user/dstack-server.service"
+
       # Re-running must be a no-op, not a pile of .bak files: the second run
       # should report every link as already correct and back nothing up.
       # `just smoke` (Justfile) — same throwaway-HOME double-install, just

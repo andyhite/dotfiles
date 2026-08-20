@@ -108,6 +108,9 @@ NvChad for editing.
 | `agent_skills.txt` | (not linked — read by `install.sh`) | cross-agent skill manifest, one `<owner>/<repo> --skill <name>` per line; `install.sh` runs `npx skills add … -g -y` for each |
 | `config/claude/settings.json` | `~/.claude/settings.json` | [Claude Code](https://claude.com/product/claude-code) CLI global settings — ships with only `$schema` for editor validation; the rest of `~/.claude` is sessions, an oauth/telemetry cache, a machine ID, backups, and the `skills/` symlinks `agent_skills.txt` already manages |
 | `config/claude/CLAUDE.md` | `~/.claude/CLAUDE.md` | a symlink (tracked as one in git) to `omp/agent/AGENTS.md` above — Claude Code's global user memory reuses the exact same content rather than carrying a second copy. The `claude` discovery provider is disabled in `omp/agent/config.yml`, so omp itself reads `AGENTS.md` directly and never this path |
+| `dstack/server/config.yml.example` | (template) | [dstack](https://dstack.ai) GPU-cloud task/dev-environment orchestrator — `install.sh` installs the CLI via `uv tool install`, and copies this to `~/.dstack/server/config.yml` on first run; see [the templates section](#the-local-templates) for why it's a template rather than a symlink |
+| `launchd/ai.dstack.server.plist` | `~/Library/LaunchAgents/ai.dstack.server.plist` (macOS) | `RunAtLoad`+`KeepAlive` LaunchAgent that starts `dstack server` at login and restarts it if it dies; loaded by the `services` step, never by `configs`, so a throwaway-`$HOME` test run never touches the real launchd namespace — see [the services step](#bootstrap-a-new-machine) |
+| `systemd/dstack-server.service` | `~/.config/systemd/user/dstack-server.service` (Linux) | the same job as the plist above, as a systemd `--user` unit (`Restart=on-failure`, `WantedBy=default.target`); same split from `configs` into the dedicated `services` step |
 
 ### Repo scripts, checks & docs
 
@@ -129,7 +132,7 @@ git clone https://github.com/andyhite/dotfiles.git ~/dotfiles
 ~/dotfiles/install.sh
 ```
 
-`install.sh` runs ten steps, and is safe to re-run any time (installs what's missing,
+`install.sh` runs eleven steps, and is safe to re-run any time (installs what's missing,
 updates what's already there). With a terminal attached each step asks first and Enter
 accepts; without one, or with `--yes`, it runs everything unattended:
 
@@ -233,33 +236,44 @@ reordering doesn't:
    `zshrc.local.example`, `gitconfig.local.example`, and `ssh/config.local.example`
    to their `~/.*.local` targets at mode 600 the first time only — a re-run never
    overwrites an already filled-in file. See [The `*.local` templates](#the-local-templates) below.
-4. **Registers repo hooks**: the zed-local git clean filter (strips `ssh_connections`
+4. **Enables the dstack server to start at login**, via a launchd `LaunchAgent`
+   (macOS) or a systemd `--user` unit (Linux) — `launchd/ai.dstack.server.plist` /
+   `systemd/dstack-server.service`, symlinked into place by the configs step above like
+   any other config file, then loaded/enabled here. Split into its own step rather than
+   folded into configs because `--only configs` (and `just smoke`/CI's `configs` job) run
+   against a throwaway `$HOME`, but `launchctl`/`systemctl` are OS-global and not
+   sandboxed by `$HOME` — enabling a real login service from a test run would leave it
+   running on the real machine. Guarded on `command -v dstack` and on the unit file
+   actually existing (skips cleanly if the configs step hasn't run yet); idempotent on
+   both platforms — re-running never double-loads the launchd job or re-enables an
+   already-enabled systemd unit.
+5. **Registers repo hooks**: the zed-local git clean filter (strips `ssh_connections`
    from `config/zed/settings.json` on the way into the index) and `pre-commit install`
    when the binary is on `PATH`, so `.pre-commit-config.yaml` is live from the first
    commit on a fresh clone. Kept out of the configs step because neither touches a
    home-directory symlink — both act on this repo's `.git`. See the Zed clean-filter and gitleaks / pre-commit notes under Notes by tool below.
-5. **Installs the language runtimes pinned in `~/.tool-versions`**, via `mise install`.
+6. **Installs the language runtimes pinned in `~/.tool-versions`**, via `mise install`.
    Runs right after the symlinks step and not before: mise reads its pins by walking up
    from wherever it's invoked, and `~/.tool-versions` is the symlink the configs step
    above just created — swap the order and this step runs against nothing on a fresh
    machine. See [mise](#mise) below.
-6. **Installs/updates every Herdr plugin** listed in `herdr_plugins.txt`. The tools step
+7. **Installs/updates every Herdr plugin** listed in `herdr_plugins.txt`. The tools step
    above installs herdr itself (Brewfile on macOS, the official installer on Linux — see
    [herdr](#herdr--homebrew-on-macos-curl-installer-on-linux) below), and this step is
    still guarded on `command -v herdr` in case that step was skipped or failed on this run.
-7. **Installs/updates omp plugins** from `omp_plugins.txt` — one direct git install per
+8. **Installs/updates omp plugins** from `omp_plugins.txt` — one direct git install per
    line, no marketplace. Re-running the install is what updates a git-sourced plugin, the
    opposite of the gh extensions trap below.
-8. **Installs/upgrades gh extensions** from `gh_extensions.txt`. Skipped when `gh` is
+9. **Installs/upgrades gh extensions** from `gh_extensions.txt`. Skipped when `gh` is
    missing or unauthenticated; see [gh extensions](#gh-extensions--manifest-beside-herdr_pluginstxt).
-9. **Installs cross-agent skills**, from two sources. `agent_skills.txt` first — one
+10. **Installs cross-agent skills**, from two sources. `agent_skills.txt` first — one
    `npx skills add <owner>/<repo> --skill <name> -g -y` per line — which needs the
    `runtimes` step above to have already put node on `PATH`, hence the ordering. Then
    any skill an installed Herdr plugin ships in its own `skills/` directory, symlinked
    into `~/.omp/agent/skills` — unchanged from before, and run after Herdr because a
    link made before a plugin's first install would point at a path that doesn't exist
    yet.
-10. **Headlessly restores NvChad's plugins** (`nvim --headless "+Lazy! restore" +qa`) once
+11. **Headlessly restores NvChad's plugins** (`nvim --headless "+Lazy! restore" +qa`) once
     neovim and the config are both in place — to the commits in `config/nvim/lazy-lock.json`,
     never past them. See [the lockfile section](#nvchads-lockfile--install-restores-it-lazy-sync-moves-it).
 
@@ -341,11 +355,12 @@ whenever it writes something new, so the next shell rebuilds once.
 
 ### The `*.local` templates
 
-Four tracked templates, one convention: `zshrc.local.example`, `gitconfig.local.example`,
-`ssh/config.local.example` and `omp/agent/models.yml.example` are copied — never linked —
-to their targets at mode 600 the first time `install.sh` runs, and left alone on every
-run after that, so a filled-in file is never clobbered. Each one holds real secrets or
-per-machine values that have no business in a public repo.
+Five tracked templates, one convention: `zshrc.local.example`, `gitconfig.local.example`,
+`ssh/config.local.example`, `omp/agent/models.yml.example`, and
+`dstack/server/config.yml.example` are copied — never linked — to their targets at mode 600
+the first time `install.sh` runs, and left alone on every run after that, so a filled-in
+file is never clobbered. Each one holds real secrets or per-machine values that have no
+business in a public repo.
 
 The two config templates exist because of how their tracked file reads the copy back, not
 just as a place to dump overrides:
@@ -369,6 +384,13 @@ than empty — it carries a literal `providers: {}`, because omp validates the f
 an object and a copy trimmed to pure comments parses as null and warns on every startup.
 See [the omp section](#omp--one-tracked-config-two-machines-different-accounts) for what
 goes in it.
+
+`dstack/server/config.yml.example` follows the same mirrored-path convention as
+`omp/agent/models.yml.example`, landing at `~/.dstack/server/config.yml` — the rest of
+`~/.dstack` (the sqlite db, server/job/runner logs, a generated ssh keypair) is state
+dstack writes itself, so only this one file is templated. It ships with the `main` project
+defined but no backend configured — dstack's docs require the project to exist even with
+zero backends — plus a commented RunPod block showing where a real `api_key` goes.
 
 ### mise
 

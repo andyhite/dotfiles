@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>ai.dstack.server</string>
+	<!--
+	  No absolute path to the dstack binary: a plist can't tilde/$HOME-expand
+	  ProgramArguments, and this repo lives at a different $HOME per machine.
+	  `/bin/zsh -c` sources zshenv — the one file this repo's zshrc/zshenv
+	  split already guarantees runs for a non-interactive shell (see zshenv's
+	  own comment: it's what a one-shot `ssh host 'cmd'` reads) — which puts
+	  ~/.local/bin, where uv's `dstack` shim lives, on PATH.
+
+	  `-n` is required, not optional: with no TTY attached, `dstack server`'s
+	  "Update the main project in ~/.dstack/config.yml?" confirmation prompt
+	  hits `EOFError` on `input()` and crashes the whole process on every
+	  single launch — `-n` answers it non-interactively (declining the
+	  update, the same choice Enter would make at that prompt's own default),
+	  which is what keeps KeepAlive from crash-looping it forever.
+	-->
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/zsh</string>
+		<string>-c</string>
+		<string>exec dstack server -n</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<!--
+	  dstack writes its own ~/.dstack/server.log regardless — this only
+	  catches a startup failure (PATH miss, missing config) before that
+	  logger initializes.
+	-->
+	<key>StandardOutPath</key>
+	<string>/tmp/dstack-server.launchd.log</string>
+	<key>StandardErrorPath</key>
+	<string>/tmp/dstack-server.launchd.log</string>
+</dict>
+</plist>
