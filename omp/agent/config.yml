@@ -167,6 +167,8 @@ compaction:
   methodOrder: 
     - snapcompact
     - remote
+    - handoff
+    - shake
     - soft
 ttsr: 
   contextMode: discard
