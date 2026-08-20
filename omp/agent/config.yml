@@ -33,7 +33,7 @@ symbolPreset: nerd
 theme: 
   dark: dark-one-tuned
   light: light-one
-setupVersion: 1
+setupVersion: 2
 dev: 
   autoqaConsent: granted
 statusLine: 
@@ -161,10 +161,13 @@ startup:
 features: 
   unexpectedStopDetection: true
 compaction: 
-  strategy: snapcompact
   handoffSaveToDisk: true
   thresholdPercent: 40
   idleEnabled: true
+  methodOrder: 
+    - snapcompact
+    - remote
+    - soft
 ttsr: 
   contextMode: discard
   repeatMode: after-gap
@@ -213,3 +216,5 @@ commands:
   enableClaudeUser: true
 secrets: 
   enabled: true
+composer: 
+  shape: claude
