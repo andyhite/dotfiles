@@ -947,23 +947,23 @@ ensure_nerd_font_linux() {
   # would never fire despite the font actually being installed.
   local installed
   installed="$(fc-list 2>/dev/null)"
-  if printf '%s' "$installed" | grep -qi "JetBrainsMono Nerd Font"; then
-    ok "JetBrainsMono Nerd Font" "already installed"
+  if printf '%s' "$installed" | grep -qi "GeistMono Nerd Font"; then
+    ok "GeistMono Nerd Font" "already installed"
     return
   fi
   local tmp
   tmp="$(mktemp -d)"
   if ! curl -fsSL -o "$tmp/font.zip" \
-    "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip"; then
+    "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/GeistMono.zip"; then
     rm -rf "$tmp"
-    warned "JetBrainsMono Nerd Font" "download failed — re-run to retry"
+    warned "GeistMono Nerd Font" "download failed — re-run to retry"
     return 0
   fi
-  mkdir -p "$HOME/.local/share/fonts/JetBrainsMonoNerdFont"
-  unzip -oq "$tmp/font.zip" -d "$HOME/.local/share/fonts/JetBrainsMonoNerdFont"
-  fc-cache -f "$HOME/.local/share/fonts/JetBrainsMonoNerdFont" >/dev/null
+  mkdir -p "$HOME/.local/share/fonts/GeistMonoNerdFont"
+  unzip -oq "$tmp/font.zip" -d "$HOME/.local/share/fonts/GeistMonoNerdFont"
+  fc-cache -f "$HOME/.local/share/fonts/GeistMonoNerdFont" >/dev/null
   rm -rf "$tmp"
-  added "JetBrainsMono Nerd Font" "installed"
+  added "GeistMono Nerd Font" "installed"
 }
 
 # macOS gets mise from the Brewfile. Linux has no equally universal package for

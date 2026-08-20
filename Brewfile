@@ -212,12 +212,15 @@ cask "zed"
 # per-Space Ghostty toggle, working around the upstream app-wide toggle_visibility bug
 # tracked in that file. See help/00-shell.md's hammerspoon section.
 cask "hammerspoon"
-# config/zed/settings.json sets buffer_font_family to "Monaspace Neon", so
-# font-monaspace is a hard requirement of that config, not a nice-to-have.
-cask "font-monaspace"
+# config/zed/settings.json sets ui_font_family to "Geist", so font-geist is
+# a hard requirement of that config, not a nice-to-have.
+cask "font-geist"
+# config/zed/settings.json sets buffer_font_family to "Geist Mono", so
+# font-geist-mono is a hard requirement of that config, not a nice-to-have.
+cask "font-geist-mono"
 # ghostty and nvim both render Nerd Font glyphs (icons in eza/telescope
 # output, powerline separators in the prompt); this is the one font both need.
-cask "font-jetbrains-mono-nerd-font"
+cask "font-geist-mono-nerd-font"
 # Ships a signed .pkg, so installing or upgrading it runs sudo mid-bundle —
 # the entry behind the password prompt install.sh's tools step warns about.
 cask "1password-cli"

@@ -157,7 +157,7 @@ reordering doesn't:
 
 1. **Installs/updates the tools this config drives**: starship, zoxide, atuin,
    fzf, eza, bat, direnv, tmux, lazygit, delta, difftastic, git-absorb, jj, fd,
-   carapace, gitleaks, pre-commit, just, uv, antidote, TPM, the JetBrains Mono
+   carapace, gitleaks, pre-commit, just, uv, antidote, TPM, the Geist Mono
    Nerd Font, neovim, ripgrep, tree-sitter-cli, mise, omp, claude, btop, herdr,
    gzg (ghzinga), and NvChad —
    plus Docker Desktop on macOS. macOS applies

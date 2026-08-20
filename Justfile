@@ -204,8 +204,9 @@ help-coverage:
     # Casks/fonts that install a GUI app or an asset, not a command that
     # could ever have a `## name —` help section.
     EXEMPT = {
-        "font-monaspace",
-        "font-jetbrains-mono-nerd-font",
+        "font-geist",
+        "font-geist-mono",
+        "font-geist-mono-nerd-font",
         "docker-desktop",
     }
 

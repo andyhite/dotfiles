@@ -137,11 +137,12 @@
       ]
     }
   },
-  "ui_font_family": ".ZedSans",
-  // Ships via the font-monaspace cask in this repo's Brewfile — install.sh's
+  // Ships via the font-geist cask in this repo's Brewfile.
+  "ui_font_family": "Geist",
+  // Ships via the font-geist-mono cask in this repo's Brewfile — install.sh's
   // brew bundle step is what makes this font actually present on a fresh
   // machine.
-  "buffer_font_family": "Monaspace Neon",
+  "buffer_font_family": "Geist Mono",
   // material-icon-theme is a Zed extension, not built in. icon_theme below
   // names it, so it has to be force-installed or a fresh machine falls back
   // to Zed's default icons with no error.

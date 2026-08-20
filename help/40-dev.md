@@ -304,8 +304,9 @@ since upstream provides none.
 `config/zed/settings.json` sets: `disable_ai` true (agents run from the
 terminal via omp, not inside the editor), vim mode with the VSCode base
 keymap, One Dark/One Light themes matching the rest of this repo's palette,
-Monaspace Neon as the buffer font (from the Brewfile's `font-monaspace`
-cask), the material-icon-theme extension force-installed, telemetry off, and
+Geist as the UI font (from the Brewfile's `font-geist` cask) and Geist Mono
+as the buffer font (from the Brewfile's `font-geist-mono` cask),
+the material-icon-theme extension force-installed, telemetry off, and
 per-language TypeScript formatting through `npx prettier` plus ESLint/
 organize-imports code actions on save.
 

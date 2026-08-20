@@ -21,7 +21,7 @@
 #
 # A filter rather than jq, too. This file is JSONC with `//` comments both in
 # its header and interleaved through the body (see the notes on `agent` and on
-# the Monaspace font). jq can't read them, and anything that reformats to get
+# the buffer font). jq can't read them, and anything that reformats to get
 # around it would rewrite all ~180 lines and throw the comments away. Deleting
 # a line range preserves every byte this filter isn't targeting.
 #
