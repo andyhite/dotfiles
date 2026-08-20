@@ -38,6 +38,7 @@ NvChad for editing.
   - [NvChad's lockfile — install restores it, `:Lazy sync` moves it](#nvchads-lockfile--install-restores-it-lazy-sync-moves-it)
   - [NvChad's Mason/Treesitter setup — do this yourself, on purpose](#nvchads-masontreesitter-setup--do-this-yourself-on-purpose)
   - [Ghostty over SSH — `TERM=xterm-ghostty` doesn't exist on most remotes](#ghostty-over-ssh--termxterm-ghostty-doesnt-exist-on-most-remotes)
+  - [Hammerspoon — per-Space Ghostty toggle, Ghostty's own is app-wide](#hammerspoon--per-space-ghostty-toggle-ghosttys-own-is-app-wide)
 - [Making changes](#making-changes)
   - [Justfile and CI](#justfile-and-ci)
 
@@ -61,6 +62,7 @@ NvChad for editing.
 | --- | --- | --- |
 | `tmux.conf` | `~/.tmux.conf` | tmux config, plugins managed by TPM |
 | `config/ghostty/config` | `~/.config/ghostty/config` | Ghostty terminal: `One Dark Two` theme, shell integration — same path on macOS and Linux |
+| `config/hammerspoon` | `~/.hammerspoon` (macOS only) | Hammerspoon: `init.lua` binds the per-Space Ghostty show/hide toggle that replaced Ghostty's own app-wide one — see [Hammerspoon](#hammerspoon--per-space-ghostty-toggle-ghosttys-own-is-app-wide) below |
 | `config/btop` | `~/.config/btop` | btop resource monitor: One Dark theme, `save_config_on_exit = false` so btop's default full-config-rewrite-on-quit can't overwrite this file — see [btop](#btop--one-dark-theme-and-the-config-rewrite-trap) below |
 | `config/ghzinga/config.toml` | `~/.config/ghzinga/config.toml` | [ghzinga](https://github.com/osolmaz/ghzinga) — GitHub issue/PR viewer TUI that the herdr plugin shells out to |
 | `config/herdr/config.toml` | `~/.config/herdr/config.toml` | Herdr (agent terminal workspace manager), `one-dark` theme + accent/border overrides |
@@ -1271,6 +1273,34 @@ a one-off manual fix on a host you don't want Ghostty auto-installing terminfo o
 ```sh
 infocmp -x xterm-ghostty | ssh host -- tic -x -
 ```
+
+### Hammerspoon — per-Space Ghostty toggle, Ghostty's own is app-wide
+
+Ghostty's built-in global show/hide keybind (`global:ctrl+enter=toggle_visibility`) is
+app-wide: run one Ghostty window per macOS Space and it always jumps to whichever window
+was most recently focused, instead of showing/hiding the one on the Space you're actually
+on — see [ghostty-org/ghostty#11084](https://github.com/ghostty-org/ghostty/discussions/11084).
+There's no Ghostty-side fix, so `config/hammerspoon/init.lua` replaces the keybind
+entirely: an `hs.window.filter` scoped to Ghostty with `currentSpace = true` finds the
+window that belongs to the current Space (minimized or hidden windows included — they're
+Space-agnostic in macOS, so a naive `visible`-only filter would miss one and spawn a
+duplicate instead of restoring it), then hides the whole app (`hs.application:hide()` —
+the same instant, no-genie-animation mechanism as Cmd+H, which is what Ghostty's own
+toggle already used and the one part of it that was never broken) if that window is
+focused, unhides and focuses it otherwise, or runs `ghostty +new-window` if the Space has
+none. See the `hammerspoon` section in `help/00-shell.md` for the command reference.
+
+Cask, not brew, and macOS-only in every sense — Hammerspoon has no Linux port and no
+headless use, so it's absent from `install.sh`'s Linux branch entirely (same treatment as
+Docker Desktop above); `config/hammerspoon` is still symlinked on Linux for consistency,
+it just does nothing there.
+
+Launch-at-login is Hammerspoon's own preference toggle (menu-bar icon → Preferences →
+"Launch at Login"), not something this repo tracks — deliberately: unlike dstack's server
+(a background daemon with no UI of its own, hence its tracked LaunchAgent under
+`launchd/`), Hammerspoon already ships a working, per-machine-appropriate way to do this,
+and duplicating it with a second tracked LaunchAgent just meant two mechanisms fighting
+over the same job.
 
 After that:
 

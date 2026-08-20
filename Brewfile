@@ -208,6 +208,10 @@ brew "herdr"
 # ── Casks ─────────────────────────────────────────────────────────────────────
 cask "ghostty"
 cask "zed"
+# macOS window/Space automation (Lua-scriptable) — drives config/hammerspoon/init.lua's
+# per-Space Ghostty toggle, working around the upstream app-wide toggle_visibility bug
+# tracked in that file. See help/00-shell.md's hammerspoon section.
+cask "hammerspoon"
 # config/zed/settings.json sets buffer_font_family to "Monaspace Neon", so
 # font-monaspace is a hard requirement of that config, not a nice-to-have.
 cask "font-monaspace"

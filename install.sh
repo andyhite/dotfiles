@@ -1116,6 +1116,13 @@ link_configs() {
     # reasoning as config/nvim below.
     "config/btop:$HOME/.config/btop"
     "config/nvim:$HOME/.config/nvim"
+    # The whole directory, not per-file — Hammerspoon only ever reads
+    # init.lua today, but linking the parent means a future module split
+    # (require()'d from init.lua) lands in this repo automatically, same
+    # reasoning as config/btop and config/nvim above. Hammerspoon's own
+    # state (console history, etc.) lives in macOS defaults, not this
+    # directory, so nothing machine-specific risks getting swept in.
+    "config/hammerspoon:$HOME/.hammerspoon"
     # The whole per-plugin config tree, not individual plugins — herdr creates a
     # config dir per plugin at install time, so linking the parent means new
     # plugins land in this repo automatically. herdr's own plugins.json registry

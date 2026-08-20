@@ -9,10 +9,12 @@ shell-integration-features = cursor,sudo,title,ssh-env,ssh-terminfo
 window-padding-x = 10
 window-padding-y = 10
 
-# Global show/hide (works even when Ghostty isn't focused). macOS needs
-# Accessibility permission; Linux needs a DE implementing the XDG Global
-# Shortcuts protocol (GNOME 48+, KDE 5.27+) and silently skips it otherwise.
-keybind = global:ctrl+enter=toggle_visibility
+# Global show/hide used to be bound here (global:ctrl+enter=toggle_visibility),
+# but Ghostty's toggle is app-wide, not per-Space, so with one window per
+# macOS Space it always jumped to the most-recently-focused window instead of
+# showing/hiding the one on the current Space. Hammerspoon owns ctrl+enter
+# now — see config/hammerspoon/init.lua and help/00-shell.md's hammerspoon
+# section.
 
 # Ghostty's own defaults bind plain Cmd+[ / Cmd+] to goto_split:previous/next.
 # `unbind` removes that (rather than rebinding it to something else) so the

@@ -314,19 +314,16 @@ kill it again.
 
 ## ghostty — the terminal, config/ghostty/config, one dark two theme
 
-`config/ghostty/config` sets the `One Dark Two` theme, JetBrains Mono Nerd Font at 14pt, 10px
+`config/ghostty/config` sets the `One Dark Two` theme, Geist Mono Nerd Font at 14pt, 10px
 window padding, and `shell-integration = detect` with `shell-integration-features =
 cursor,sudo,title,ssh-env,ssh-terminfo` — the last of which is what keeps a plain `ssh` to a
 box with no `xterm-ghostty` terminfo entry from breaking `nvim` and anything else that opens a
 real terminal on the far end (it installs the terminfo entry via `tic` on first connect, caches
 it per `user@host`, and falls back to `xterm-256color` if that fails).
 
-One keybinding is set explicitly: a global show/hide toggle that works even when Ghostty isn't
-the focused app. macOS needs Accessibility permission granted once; Linux needs a desktop
-environment implementing the XDG Global Shortcuts protocol (GNOME 48+, KDE 5.27+) and silently
-no-ops otherwise.
+`config/hammerspoon/init.lua` now owns the global show/hide toggle — see the `hammerspoon`
+section below for why Ghostty's own `toggle_visibility` keybind was dropped.
 
-    Ctrl+Enter                             # global show/hide toggle — works unfocused, needs OS permission (see above)
     ghostty +show-config                   # print the fully resolved config, including inherited defaults
     ghostty +show-config --default --docs  # print every default option with its doc comment
     ghostty +list-themes                   # browse/preview every built-in theme in a TUI
@@ -334,3 +331,24 @@ no-ops otherwise.
     ghostty +list-keybinds                 # show every keybind currently in effect
     ghostty +list-actions                  # list every action a keybind can trigger
     ghostty +validate-config               # check config/ghostty/config for errors before reloading
+
+## hammerspoon — Lua automation, config/hammerspoon/init.lua, per-Space Ghostty toggle
+
+Ghostty's own global `toggle_visibility` keybind is app-wide: with one Ghostty window per
+macOS Space, `Ctrl+Enter` always jumped to whichever window was most recently focused
+instead of showing/hiding the one on the current Space (upstream:
+https://github.com/ghostty-org/ghostty/discussions/11084). `config/hammerspoon/init.lua`
+replaces it: an `hs.window.filter` scoped to Ghostty + `currentSpace = true` finds the
+window that actually belongs to this Space (built from an empty base filter rather than
+the app-list shorthand, because the shorthand only matches visible windows and would miss
+one that's minimized or hidden), then hides the app (`hs.application:hide()` — Cmd+H's own
+mechanism, instant with no genie animation or Dock thumbnail, unlike `win:minimize()`) if
+that window is focused, unhides and focuses it otherwise, or opens a new window
+(`ghostty +new-window`, via a login shell so it picks up the same PATH `zshrc` sets up) if
+this Space has none.
+
+    Ctrl+Enter                              # global show/hide toggle, scoped to the current Space
+    open -a Hammerspoon                     # reopen the menu-bar console if it's been dismissed
+    hs.reload()                             # from Hammerspoon's console, reload init.lua after an edit
+    hs.window.filter.new(false):setAppFilter("Ghostty", {currentSpace = true}):getWindows()
+                                             # from the console, inspect what the toggle currently sees
