@@ -44,7 +44,18 @@ local function toggleGhostty()
       win:unminimize()
     end
     win:focus()
-  elseif win == hs.window.focusedWindow() then
+  elseif win ~= hs.window.orderedWindows()[1] then
+    -- Visible but not actually on top — occluded by another app's window
+    -- (e.g. a floating/always-on-top utility) even though Ghostty may still
+    -- hold keyboard focus, or simply not the frontmost app right now.
+    -- `focusedWindow()` alone can't tell "focused" apart from "focused but
+    -- buried", since z-order and input focus aren't the same thing on
+    -- macOS — orderedWindows()[1] is the actual front-to-back list across
+    -- every app, so it's the only reliable "is this really on top" check.
+    -- Bring it forward instead of hiding, so the toggle never buries the
+    -- window the user is looking at.
+    win:focus()
+  else
     -- app:hide() is Cmd+H's own mechanism: instant, no genie animation, no
     -- Dock/Mission Control thumbnail — unlike win:minimize(), which is a
     -- per-window action Hammerspoon has to fake and looks/feels different
@@ -53,8 +64,6 @@ local function toggleGhostty()
     -- app-wide on macOS, so per-Space filtering has nothing to fix here) —
     -- only *which* window it showed on the way back was wrong.
     win:application():hide()
-  else
-    win:focus()
   end
 end
 
