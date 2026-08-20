@@ -50,7 +50,9 @@ links to `~/.claude/settings.json`. `config/claude/CLAUDE.md` is a symlink
 (tracked as one in git) to `omp/agent/AGENTS.md` above, so Claude Code's
 global user memory and omp's global context are the same file — everything
 else under `~/.claude` is sessions, cache, and machine state, none of it
-meant for a repo.
+meant for a repo. zshrc aliases the bare `claude` invocation to always add
+`--dangerously-skip-permissions` — this machine is trusted enough that typing
+the flag out every time is pure friction.
 
     claude                          # launch or resume the interactive session
     claude --continue               # resume the most recent conversation

@@ -195,6 +195,12 @@ fi
 # ── Git ──────────────────────────────────────────────────────────────────────
 command -v lazygit >/dev/null 2>&1 && alias lg='lazygit'
 
+# ── Claude Code ──────────────────────────────────────────────────────────────
+# `--dangerously-skip-permissions` is what makes the tool usable at all on a
+# machine this trusted; typing it out every invocation is friction with no
+# safety benefit here, so it's baked into the alias instead.
+command -v claude >/dev/null 2>&1 && alias claude='claude --dangerously-skip-permissions'
+
 # ── Dotfiles help ────────────────────────────────────────────────────────────
 # `dh`, not `help`: zsh's run-help and bash's builtin help both already own
 # that word, and shadowing it breaks run-help for everyone.
