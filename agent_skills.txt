@@ -45,3 +45,7 @@ mattpocock/skills --skill writing-for-agents
 
 # Apple HIG-based UI review, used for macOS/Tauri design work.
 dickwu/apple-design-skill --skill apple-design
+
+# Strunk's 1918 Elements of Style, applied whenever the agent writes prose
+# (docs, commit messages, error text) rather than code.
+obra/the-elements-of-style --skill writing-clearly-and-concisely
