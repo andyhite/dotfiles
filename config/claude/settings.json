@@ -1,8 +1,43 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "tui": "fullscreen",
+  "agentPushNotifEnabled": true,
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "atuin hook claude-code",
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "command": "atuin hook claude-code",
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "atuin hook claude-code",
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ]
+  },
+  "inputNeededNotifEnabled": true,
   "skipDangerousModePermissionPrompt": true,
   "theme": "auto",
-  "inputNeededNotifEnabled": true,
-  "agentPushNotifEnabled": true
+  "tui": "fullscreen"
 }
