@@ -174,14 +174,9 @@ ttsr:
   contextMode: discard
   repeatMode: after-gap
 memory: 
-  backend: mnemopi
+  backend: off
 autolearn: 
-  enabled: true
-mnemopi: 
-  proactiveLinking: true
-  enhancedRecall: true
-  polyphonicRecall: true
-  injectionTokenLimit: 2000
+  enabled: false
 edit: 
   mode: hashline
 readLineNumbers: true
