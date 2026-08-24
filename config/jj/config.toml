@@ -5,7 +5,7 @@
 # pager — keeps working unchanged. jj is a second interface onto the same
 # commits, not a replacement for git.
 #
-# Why it's here: fleet (see the `fleet` skill) dispatches one worker per
+# Why it's here: foreman (see `skill://foreman-boss`) dispatches one worker per
 # worktree/branch, and `jj undo` reverts a single operation — a bad rebase, a
 # wrong abandon — atomically, which plain git has no equivalent for short of
 # reflog archaeology. jj also auto-rebases descendant commits when you amend one

@@ -35,12 +35,12 @@ douglascorrea/herdr-agent-inbox
 # event hook. Config: config.toml.
 tdi/herdr-worktree-setup
 
-# `fleet` dispatches peer coding agents into herdr worktree workspaces. A worker
-# is a separate `omp` in its own pane, worktree, and branch — not an in-process
-# `task` subagent sharing the boss process.
+# `foreman` dispatches peer coding agents into herdr worktree workspaces. A
+# worker is a separate `omp` in its own pane, worktree, and branch — not an
+# in-process `task` subagent sharing the boss process.
 # This plugin's startup hook is the PATH install: it symlinks the executable into
 # ~/.local/bin and refuses to clobber a path it does not own. The agent-facing
-# procedure (`skill://fleet` and `/fleet:*`) is Fleet's other half, an agent
-# plugin from the same repo, installed through omp's marketplace rather than
-# here — see fleet@foreman in omp_plugins.txt.
+# procedure (`skill://foreman-boss` and `/foreman:*`) is foreman's other half,
+# an agent plugin from the same repo, installed through a direct git install
+# rather than here — see foreman in omp_plugins.txt.
 andyhite/foreman/herdr

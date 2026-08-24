@@ -1507,7 +1507,7 @@ herdr_registry_query() {
 # It stays empty for a linked plugin on purpose. The checkout's own root is a
 # guess rather than recorded state, and walking up into it is actively wrong when
 # that repo is also an omp plugin: foreman keeps the herdr plugin in herdr/ and
-# ships skills/fleet at the root, which omp already discovers from the installed
+# ships its skills/ directory at the root, which omp already discovers from the installed
 # plugin. Linking those too would shadow the copy omp resolves with one pinned to
 # whatever the checkout happens to be at.
 herdr_plugin_roots() {
@@ -1631,15 +1631,15 @@ install_herdr_plugins() {
 # its marketplace.json when it collapsed the plugin to the repo root, because
 # marketplace-installed plugins are discovered through omp's claude-plugins
 # provider and a disabledProviders entry aimed at real ~/.claude content also
-# silently excluded fleet's commands and skills. A direct git install has no
+# silently excluded foreman's commands and skills. A direct git install has no
 # subdirectory syntax, which is why the plugin had to move to the root — and
 # why this step now installs from the source alone.
 #
 # Both fields on a manifest line are load-bearing. A git source doesn't encode
 # the package name (omp resolves it by diffing plugins/package.json across the
-# install, and `foreman` publishes `fleet`), while the name is the only handle
-# on an existing install, since omp's lockfile records a version but never a
-# source.
+# install, and a repo's name and its package name can differ), while the name
+# is the only handle on an existing install, since omp's lockfile records a
+# version but never a source.
 #
 # Re-running install is the update path here: for a git source omp follows its
 # `bun install` with a `bun update`, which is what moves the dependency forward.

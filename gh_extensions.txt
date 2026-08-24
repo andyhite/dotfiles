@@ -13,7 +13,7 @@
 # Deletes local branches whose PR is merged or closed. It checks PR state
 # rather than merge-base, which is what makes it correct for squash-merged
 # branches — `git branch --merged` never reports those, because the squash
-# commit isn't an ancestor of anything local. Here specifically because fleet
+# commit isn't an ancestor of anything local. Here specifically because foreman
 # creates a worktree and branch per dispatched worker, so merged-branch churn
 # is continuous rather than occasional.
 seachicken/gh-poi

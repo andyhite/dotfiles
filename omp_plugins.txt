@@ -7,9 +7,8 @@
 # The name is the second field because omp can't be asked for it: a git source
 # doesn't encode a package name (omp resolves it by diffing its own
 # plugins/package.json across the install), and the repo is frequently not what
-# the package is called — foreman publishes fleet. install.sh needs the name to
-# recognise an existing install, because omp's lockfile records a version but
-# never a source.
+# the package is called. install.sh needs the name to recognise an existing
+# install, because omp's lockfile records a version but never a source.
 #
 # Re-running install is how a git-sourced plugin updates: omp follows its
 # `bun install` with a `bun update`, which moves the dependency forward. There
@@ -20,38 +19,39 @@
 # git install would replace the symlink with a fetched copy and the checkout
 # would quietly stop being what runs.
 #
-# Everything here installs at user scope rather than into a project. Fleet
+# Everything here installs at user scope rather than into a project. Foreman
 # workers are separate omp processes in separate worktrees, and a project-scoped
 # plugin would be invisible to them.
 #
 # Skills are not plugins — cross-agent skills live in agent_skills.txt and are
 # installed with the `skills` CLI into ~/.agents/skills instead.
 
-# The orchestrator half of fleet. `/fleet:foreman` turns a session into a
-# project manager: it interviews you, slices the objective, and dispatches each
-# slice to a worker rather than writing code itself. The five dispatch commands
-# are named for the skill each one delegates to — /fleet:implement,
-# /fleet:diagnosing-bugs, /fleet:research, /fleet:prototype, /fleet:code-review
-# — and a worker's brief opens by telling it to run `fleet skill <that name>`,
-# which is what reaches a skill marked disable-model-invocation. Also ships
-# skill://fleet (the CLI contract) and skill://fleet-dispatch (how to write a
-# brief), plus the fleet_* custom tools its extension registers.
+# The boss half of foreman. `/foreman:boss` turns a session into a project
+# manager: it interviews you, slices the objective, and dispatches each slice
+# to a worker rather than writing code itself. `/foreman:dispatch` sends one
+# piece of work to a worker mid-session, once boss is already claimed. Also
+# ships skill://foreman-boss (the CLI contract), skill://foreman-dispatch (how
+# to write a brief), skill://foreman-worker (the worker-side procedure), plus
+# the foreman_* custom tools its extension registers.
 #
 # The CLI half is the herdr plugin andyhite/foreman/herdr in herdr_plugins.txt;
-# neither half is much use without the other, and the mattpocock skills the
-# commands delegate to come from agent_skills.txt.
+# neither half is much use without the other, and the mattpocock skills a
+# dispatch delegates to come from agent_skills.txt.
 #
-# This was `andyhite/foreman  fleet@foreman` until foreman dropped its
-# marketplace: marketplace plugins load through omp's claude-plugins provider,
-# so a disabledProviders entry meant to exclude real ~/.claude content also
-# excluded fleet's own commands and skills. Direct git installs have no
-# subdirectory syntax, so the plugin moved to the repo root to be installable
-# this way. A machine that installed either marketplace id still has the
-# marketplace registered and its own copy of /fleet:*; this step only ever adds,
-# so clear the old state once by hand:
+# This was `andyhite/foreman  fleet@foreman` until the repo dropped both its
+# marketplace and the product name `fleet`: marketplace plugins load through
+# omp's claude-plugins provider, so a disabledProviders entry meant to exclude
+# real ~/.claude content also excluded the plugin's own commands and skills.
+# Direct git installs have no subdirectory syntax, so the plugin moved to the
+# repo root to be installable this way, and the product itself was renamed
+# `foreman` to match — repo and published plugin share one name now, which is
+# why the second field below is a plain `foreman` rather than a distinct
+# package name. A machine that installed either marketplace id still has the
+# marketplace registered and its own copy of /fleet:*; this step only ever
+# adds, so clear the old state once by hand:
 #   omp plugin uninstall fleet@foreman     # or fleet@omp-fleet, if older still
 #   omp plugin marketplace remove foreman  # likewise omp-fleet
-github:andyhite/foreman  fleet
+github:andyhite/foreman  foreman
 
 # Model-driven context compression: an extension, not a command pack. omp's own
 # auto-compaction replaces the history with one summary once a threshold is
@@ -60,7 +60,7 @@ github:andyhite/foreman  fleet
 # `decompress` restores and `search_context` searches without restoring. Also
 # registers `acp_status` and the `/acp` report.
 #
-# An npm spec, not a github: shorthand like fleet above — the repo .gitignores
+# An npm spec, not a github: shorthand like foreman above — the repo .gitignores
 # `dist/` and its package.json points omp's extension entry at `dist/index.js`,
 # so a git install fetches a tree with no built entry point and loads nothing.
 # npm ships the build; it's the only source that works here.

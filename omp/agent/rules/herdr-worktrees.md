@@ -35,9 +35,9 @@ herdr worktree list --cwd "$PRIMARY"   # .result.worktrees[] -> open_workspace_i
 herdr worktree remove --workspace <id>
 ```
 
-Dispatching an agent into one is a level up again: `fleet spawn` sequences
+Dispatching an agent into one is a level up again: `foreman spawn` sequences
 create, agent discovery, rename, and dispatch in one command, and
-`skill://fleet` covers when that is worth doing.
+`skill://foreman-boss` covers when that is worth doing.
 
 **A worktree you will only read and write through the filesystem** — building
 another ref, diffing two versions, running a test suite against a branch —
