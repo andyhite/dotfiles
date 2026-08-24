@@ -829,9 +829,9 @@ model's context window:
 | At | What fires | Where it's set |
 | --- | --- | --- |
 | +22.5k growth, 50k foldable | soft nudge — the model is asked to compress | `compress.nudgeGrowthTokens` |
-| 30% | forced nudge — the ask stops being optional | `compress.maxContextLimit` |
-| 35% | the extension truncates old tool output itself | `compress.emergencyThresholdPercent` |
-| 40% | omp's snapcompact, as a genuine last resort | `compaction.thresholdPercent` |
+| 45% | forced nudge — the ask stops being optional | `compress.maxContextLimit` |
+| 50% | the extension truncates old tool output itself | `compress.emergencyThresholdPercent` |
+| 55% | omp's snapcompact, as a genuine last resort | `compaction.thresholdPercent` |
 
 The *ordering* is what makes the extension primary. `compaction.thresholdPercent` was once
 70, below the extension's forced nudge, which left that whole tier unreachable — the plugin
@@ -840,14 +840,19 @@ would be installed and snapcompact would still do all the work. Upstream's defau
 why it sits below it here. **Those four numbers are one setting spread across two files** —
 move one and check the rest.
 
-The tier *values* came down from 75/85/90 after measuring what they cost. Percentages are of
-the window and every routed Anthropic model carries a 1M one, so a 75% forced nudge meant no
-fold until three-quarters of a million tokens; the largest prefix actually observed was 767k.
-Cache reads are 63.5% of this repo's Anthropic spend and scale linearly with prefix size —
-there is no long-context premium to duck, a 900k request bills at the same per-token rate as
-a 9k one — so that headroom was being re-read on every request of every long session. 30%
-caps the routed models near 300k while staying above the observed 173k average, so typical
-sessions fold no more often than before and only the expensive tail is cut.
+**The forced-nudge floor is 45%, not a chosen value — it's the plugin's hardcoded minimum.**
+An earlier revision measured cost against observed prefix sizes and set
+`maxContextLimit` to 30%. That silently violated an internal invariant: `billion-context-omp`
+pairs `maxContextLimitPct` with a `nudge.minContextLimitPct` that defaults to 0.45 and has no
+`compress.*` key to lower it — `acp-omp.json` only ever sets the max side. Below 45%, startup
+logs `nudge.minContextLimitPct must not exceed nudge.maxContextLimitPct` on every turn. (A
+`coreOverrides.nudge.minContextLimitPct` key was tried as a workaround and doesn't work:
+`coreOverrides` is an `AdapterConfig` field the plugin only reads from its own
+`createAcpExtension(adapter)` call in code — `applyUserConfig` never copies it out of
+`acp-omp.json`, so the key is silently inert. Confirmed by reading `billion-context-omp`'s
+bundled `dist/index.js` directly, current through v0.3.3.) 45% is therefore the lowest
+forced-nudge floor this plugin version supports without patching it; the emergency and
+compaction tiers below shifted up by the same 15 points to stay ordered above it.
 
 `compaction.idleEnabled` is on for the same reason, and it is the cheapest tier to spend. It
 fires only above `compaction.idleThresholdTokens` (200k) and only after

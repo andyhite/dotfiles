@@ -162,7 +162,7 @@ features:
   unexpectedStopDetection: true
 compaction: 
   handoffSaveToDisk: true
-  thresholdPercent: 40
+  thresholdPercent: 55
   idleEnabled: true
   methodOrder: 
     - snapcompact
