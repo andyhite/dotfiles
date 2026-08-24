@@ -85,29 +85,25 @@ sidebar_max_width = 36
 
 # ── Sidebar rows ─────────────────────────────────────────────────────────────
 
-# herdr's packed sidebar only renders tokens you name here. Two plugins report
-# custom ones and BOTH are silently invisible without this block:
+# herdr's packed sidebar only renders tokens you name here. One plugin reports
+# custom ones and is silently invisible without this block:
 #   herdr-agent-inbox  $title (derived session name), $flag (⚑ settled /
 #                      ● unread), $age (session runtime), $since (time in
 #                      current state), and workspace-level $agents / $busy
-#   gh-pr              $pr — the branch's PR as "#123 ✓", where the symbol is
-#                      ✓ passing, ✗ failing, ● pending, ◆ merged, ⊘ closed,
-#                      ⟳ recomputing, and bare for an open PR with no checks
-# They don't collide: different token names, different writers.
 #
 # Builtins stay bare (state_icon, workspace, tab, agent, branch, git_status);
 # custom tokens keep the $. A styled token becomes a table.
 
 [ui.sidebar.agents]
-## Line 1 is the answer to "what is this?" — the AI-derived session title, with
-## PR state trailing it, dimmed so it reads as metadata rather than the name.
+## Line 1 is the answer to "what is this?" — the AI-derived session title,
+## dimmed so it reads as metadata rather than the name.
 ## Line 2 is the answer to "should I care right now?" — the unread/settled flag
 ## first, then which agent and where, then how long it's been going.
 ##
 ## `tab` is deliberately absent from line 2: agent-inbox renames the tab to
 ## this same $title, so showing both would print the name twice per row.
 rows = [
-  ["state_icon", "$title", { token = "$pr", dim = true }],
+  ["state_icon", "$title"],
   [{ token = "$flag", fg = "#e5c07b", bold = true }, "agent", "workspace", { token = "$age", dim = true }],
 ]
 
@@ -347,26 +343,6 @@ key = "prefix+alt+d"
 type = "shell"
 command = "herdr plugin action invoke restart-daemon --plugin herdr-agent-inbox"
 
-## reviewr — one binding, because `toggle` already converges: it closes every
-## reviewr pane in the workspace if any are open, else opens one at the
-## configured placement. Binding the raw pane-open would skip that de-duping.
-[[keys.command]]
-key = "prefix+alt+r"
-type = "shell"
-command = "herdr plugin action invoke toggle --plugin persiyanov.reviewr"
-
-## token-dashboard — u for usage, as a split below the current pane.
-##
-## This deliberately bypasses the plugin's own `open-dashboard` action, which
-## hardcodes --placement tab and so always costs a whole tab. The action does
-## nothing else — it shells out to exactly this command with tab substituted —
-## so calling the pane directly loses no behaviour. Down rather than right: it's
-## a status readout you glance at, not something you work inside.
-[[keys.command]]
-key = "prefix+u"
-type = "shell"
-command = "herdr plugin pane open --plugin dave.token-dashboard --entrypoint dashboard --placement split --direction down"
-
 ## command-palette — fzf over EVERY action of EVERY installed plugin, built at
 ## run time from `herdr plugin action list`, so it needs no maintenance as
 ## plugins come and go. This is what makes the "deliberately unbound" list
@@ -416,25 +392,5 @@ command = "$HOME/.config/herdr/palette/palette.sh"
 width = 80
 height = 20
 
-## gh-pr — open the focused agent's branch PR in a browser. prefix+o is herdr's
-## open_notification_target, so this takes the shift variant. The plugin's own
-## README suggests prefix+u and prefix+i, both already taken here by the token
-## dashboard and the inbox.
-##
-## Its `refresh` action isn't bound: the status already recomputes on
-## pane.focused and on worktree create/open, throttled to once per pane per
-## 30s, and a manual refresh is a palette entry away.
-[[keys.command]]
-key = "prefix+shift+o"
-type = "shell"
-command = "herdr plugin action invoke open-pr --plugin gh-pr"
-
 # Deliberately unbound — all reachable through prefix+p:
-#   ghzinga            its `open` action reads HERDR_PLUGIN_CLICKED_URL, which
-#                      only link-handler dispatch populates. Ctrl-click a
-#                      github.com issue or PR link instead; no binding needed.
-#   herdr-jira         open-jira-tab held prefix+j, which is focus_pane_down —
-#                      one of the four hjkl pane moves the mapping table at the
-#                      top of this file exists to preserve. A list you open a
-#                      few times a day does not get to cost a navigation key.
 #   worktree-setup     no actions at all; it is purely a worktree.created hook.

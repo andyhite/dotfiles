@@ -664,11 +664,6 @@ install_tools_macos() {
   ensure_omp
   ensure_claude_code
   ensure_dstack
-  # No Homebrew formula exists for ghzinga (confirmed via `brew search`) on
-  # either platform, only crates.io — cargo_ensure_latest's own ensure_rustup
-  # call is a no-op here since the Brewfile's `rust` formula above already
-  # put cargo on PATH.
-  cargo_ensure_latest ghzinga gzg
 }
 
 # ── Linux: apt + native installers ──────────────────────────────────────────
@@ -1126,9 +1121,6 @@ install_tools_linux() {
   if run_quiet herdr sh -c "curl -fsSL https://herdr.dev/install.sh | sh"; then
     ok "herdr" "installed/updated (installer always fetches latest)"
   fi
-  # No Homebrew formula exists for ghzinga on either platform, only
-  # crates.io — see the macOS branch's identical call for why.
-  cargo_ensure_latest ghzinga gzg
   # Ghostty itself is a local GUI app — install it on the machine it actually
   # runs on (macOS, via the branch above). Nothing to install here on a
   # headless/remote Linux box; its config still gets symlinked below in case
@@ -1155,14 +1147,6 @@ link_configs() {
     "zsh_plugins.txt:$HOME/.zsh_plugins.txt"
     "tmux.conf:$HOME/.tmux.conf"
     "config/starship.toml:$HOME/.config/starship.toml"
-    # The `osolmaz/ghzinga` herdr plugin is pure declarative wiring — it reads
-    # nothing itself, just shells out to `gzg`. All behaviour and config belong
-    # to the `gzg` binary, which reads this path directly (`cargo_ensure_latest
-    # ghzinga gzg` in the tools step installs/updates it — no Homebrew formula
-    # exists), so `dutifuldev.ghzinga`'s dir under plugins/config below is
-    # legitimately empty and this file has to be linked on its own rather
-    # than living there.
-    "config/ghzinga/config.toml:$HOME/.config/ghzinga/config.toml"
     "config/herdr/config.toml:$HOME/.config/herdr/config.toml"
     # The command palette bound to prefix+p in the config above. A directory
     # link because the script travels with the upstream MIT notice it's derived
@@ -1517,8 +1501,8 @@ herdr_registry_query() {
 # managed directory for a github install and the checkout itself for a linked
 # one. clone_root is only set for a github install of a repo subdirectory, where
 # it's the managed clone above that subdirectory: a repo can ship agent skills at
-# its root while the herdr plugin is one directory down (osolmaz/ghzinga does
-# exactly that), and those skills are outside plugin_root entirely.
+# its root while the herdr plugin is one directory down (foreman does exactly
+# that), and those skills are outside plugin_root entirely.
 #
 # It stays empty for a linked plugin on purpose. The checkout's own root is a
 # guess rather than recorded state, and walking up into it is actively wrong when
@@ -1763,13 +1747,13 @@ install_gh_extensions() {
 
 # ── omp skills from herdr plugins ───────────────────────────────────────────
 
-# Some herdr plugins ship an omp skill describing how to drive them (the browser
-# plugin's herdr-browser skill, for one). Nothing in omp discovers those on its
-# own: its plugin skill provider scans installed *omp* plugins under
-# ~/.omp/plugins/node_modules, and no provider looks anywhere near
-# ~/.config/herdr/plugins — so without this step `skill://herdr-browser` doesn't
-# resolve at all. Link rather than copy so the skill tracks the plugin, and run
-# after the installs above because herdr stores a github-installed plugin under a
+# Some herdr plugins ship an omp skill describing how to drive them. Nothing
+# in omp discovers those on its own: its plugin skill provider scans installed
+# *omp* plugins under ~/.omp/plugins/node_modules, and no provider looks
+# anywhere near ~/.config/herdr/plugins — so without this step a plugin-shipped
+# skill doesn't resolve at all. Link rather than copy so the skill tracks the
+# plugin, and run after the installs above because herdr stores a
+# github-installed plugin under a
 # content-hashed directory — a link made before an update points at a path that
 # no longer exists.
 #
@@ -1780,10 +1764,9 @@ install_gh_extensions() {
 # the glob needed to avoid matching the per-plugin config tree symlinked in
 # beside the installs.
 #
-# Two layouts, because plugins use both: `skills/` (herdr-browser) and
-# `.agents/skills/`, omp's canonical native location, which the `agents` provider
-# only ever scans at a user or project root and so never finds inside a plugin
-# (osolmaz/ghzinga ships its skill there, at its repo root).
+# Two layouts, because plugins use both: `skills/` and `.agents/skills/`, omp's
+# canonical native location, which the `agents` provider only ever scans at a
+# user or project root and so never finds inside a plugin.
 link_omp_skills() {
   local omp_skills="$HOME/.omp/agent/skills"
   local plugin_id plugin_root clone_root root skills_dir

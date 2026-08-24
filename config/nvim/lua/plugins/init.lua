@@ -70,9 +70,7 @@ return {
     -- same "review my changes" problem differently: a live file panel plus
     -- a real diff view that tracks the working tree/index as you stage and
     -- edit, and a proper 3-way merge-conflict view telescope has no
-    -- equivalent for. herdr-reviewr covers the standalone-pane review case
-    -- (reviewing from outside, e.g. a fleet worker's branch); this covers
-    -- the "I'm already inside nvim on this repo" case. Keep the telescope
+    -- equivalent for. Keep the telescope
     -- override above — it's still the right tool for jumping straight to a
     -- changed file by name, diffview is for sitting inside the diff.
     opts = {

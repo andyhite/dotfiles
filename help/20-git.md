@@ -192,24 +192,3 @@ full CI run can't disagree about whether a secret leaked.
     pre-commit clean               # clear the pre-commit hook cache
     pre-commit autoupdate          # bump hook repo revisions in .pre-commit-config.yaml to latest
     pre-commit uninstall           # remove the installed git hook
-
-## gzg — GitHub issue/PR TUI (ghzinga)
-
-The `gzg` binary, from the `ghzinga` crate — no Homebrew formula exists for it
-on either platform, so `install.sh`'s tools step installs/updates it via
-`cargo install --locked ghzinga` (the same crates.io-version-checked helper the
-Linux-only cargo fallbacks use, called unconditionally here since there's no
-brew alternative to prefer first). Configured in `config/ghzinga/`.
-`herdr_plugins.txt` wires it into herdr: ctrl-click any `github.com`
-issue/PR link in a pane and it opens in a `gzg` split, no manual invocation
-needed.
-
-    gzg                             # open the issue/PR browser in the current repo
-    gzg issue 1234                  # jump straight to one issue
-    gzg pr 1234                     # jump straight to one PR
-    gzg --repo owner/name           # browse a repo other than the current directory's
-    gzg issue list --state open     # list open issues without opening the full TUI
-
-Gotcha: `gzg`'s herdr `open` action only fires from a ctrl-click — it reads
-the clicked URL from the environment, so there's no herdr keybinding for it;
-launching it directly from a shell always works too.

@@ -5,18 +5,10 @@
 # Two things live outside this file:
 #   - Per-plugin settings, in config/herdr/plugins/config/<plugin_id>/, which is
 #     symlinked to ~/.config/herdr/plugins/config. Not every plugin uses it —
-#     ghzinga reads its config from elsewhere entirely (see its note).
+#     see each plugin's own README for whether it reads config at all.
 #   - Keybindings, in config/herdr/config.toml. herdr has no [keys] entry for
 #     plugin actions, so each one is a [[keys.command]] block shelling out to
 #     `herdr plugin action invoke`.
-
-# Chromium in a pane, drivable over CDP. Ships the herdr-browser omp skill that
-# the `skills` step symlinks into ~/.omp/agent/skills.
-ogulcancelik/herdr-browser
-
-# Local diff/review TUI in a split pane — a Rust app reading git, not an AI
-# reviewer. Also opens on the worktree.created event. Config: config.toml.
-persiyanov/herdr-reviewr
 
 # Directional pane focus that hands off to nvim splits instead of stopping at
 # the pane edge (vim-tmux-navigator, for herdr). Two-sided: the herdr half is
@@ -24,20 +16,10 @@ persiyanov/herdr-reviewr
 # config/nvim/lua/herdr-nav.lua.
 paulbkim-dev/vim-herdr-navigation
 
-# Ctrl-click a github.com issue/PR link in any pane and it opens in a ghzinga
-# TUI split. The plugin is pure wiring; all behaviour and all config belong to
-# the `gzg` binary — `cargo install ghzinga`, configured in config/ghzinga/.
-osolmaz/ghzinga/plugins/herdr
-
 # Inbox for agent panes, plus session/tab naming — it can auto-rename tabs, so
 # it replaces iurysza/herdr-tab-smart-rename (and the andyhite fork of it that
 # patched max_tokens -> max_completion_tokens for OpenAI reasoning models).
 douglascorrea/herdr-agent-inbox
-
-# Live token spend dashboard + cost notifications. Reads Pi/OpenCode/Claude
-# session files — it lists omp panes but can't price them, and there is no
-# Codex support. Exposes no configuration at all.
-Davidcreador/herdr-token-dashboard
 
 # JanTvrdik/herdr-command-palette was here until the palette became
 # config/herdr/palette/palette.sh, run straight from a `type = "popup"`
@@ -62,18 +44,3 @@ tdi/herdr-worktree-setup
 # plugin from the same repo, installed through omp's marketplace rather than
 # here — see fleet@foreman in omp_plugins.txt.
 andyhite/foreman/herdr
-
-# The focused agent's branch PR state as a sidebar token — "#123 ✓". Needs $pr
-# in [ui.sidebar.agents] rows to render at all. Ambient status only; ghzinga is
-# still the thing that opens a PR to read it.
-wyattjoh/herdr-plugin-gh-pr
-
-# Jira issues in a pane: JQL filters, search, status transitions, and `d` to
-# hand an issue to any agent herdr can see. That last part is why it's here —
-# `boss` (the fleet orchestrator) is a delegate target for free, so an issue
-# becomes a worktree and a dispatched worker without any glue. Its own
-# "+ start new agent" wizard is deliberately near-empty in config.toml; it
-# makes a tab at an existing cwd with no branch, which fleet does better.
-# Builds with cargo on install. Config: config.toml — base_url and
-# default_project are machine-specific and start as CHANGEME.
-a2u/herdr-jira

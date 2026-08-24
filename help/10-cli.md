@@ -150,7 +150,7 @@ reference. `tealdeer` is the Rust client (binary `tldr`, formula `tealdeer` — 
 is called out in the Brewfile itself). This repo goes further than just installing the client:
 `config/tldr/pages/` carries hand-written pages this repo authored for tools with no upstream
 tldr coverage yet (`fleet`, `herdr`, `omp`, `antidote`, `carapace`, `gh-poi`,
-`git-absorb`, `gzg`, `tree-sitter`), and `install.sh` symlinks that whole directory into
+`git-absorb`, `tree-sitter`), and `install.sh` symlinks that whole directory into
 tealdeer's real custom-pages path — `~/Library/Application Support/tealdeer/pages` on macOS,
 `~/.local/share/tealdeer/pages` on Linux, confirmed to diverge by `tldr --show-paths` — so
 `tldr fleet` works here the same way `tldr tar` does.

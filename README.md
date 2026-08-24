@@ -64,7 +64,6 @@ NvChad for editing.
 | `config/ghostty/config` | `~/.config/ghostty/config` | Ghostty terminal: `One Dark Two` theme, shell integration — same path on macOS and Linux |
 | `config/hammerspoon` | `~/.hammerspoon` (macOS only) | Hammerspoon: `init.lua` binds the per-Space Ghostty show/hide toggle that replaced Ghostty's own app-wide one — see [Hammerspoon](#hammerspoon--per-space-ghostty-toggle-ghosttys-own-is-app-wide) below |
 | `config/btop` | `~/.config/btop` | btop resource monitor: One Dark theme, `save_config_on_exit = false` so btop's default full-config-rewrite-on-quit can't overwrite this file — see [btop](#btop--one-dark-theme-and-the-config-rewrite-trap) below |
-| `config/ghzinga/config.toml` | `~/.config/ghzinga/config.toml` | [ghzinga](https://github.com/osolmaz/ghzinga) — GitHub issue/PR viewer TUI that the herdr plugin shells out to |
 | `config/herdr/config.toml` | `~/.config/herdr/config.toml` | Herdr (agent terminal workspace manager), `one-dark` theme + accent/border overrides |
 | `config/herdr/palette` | `~/.config/herdr/palette` | the `prefix+p` command palette — an fzf script run by a `type = "popup"` keybinding, plus the MIT notice of the plugin it's derived from |
 | `herdr_plugins.txt` | (not linked — read by `install.sh`) | Herdr plugin list, one `owner/repo[@ref]` per line; `install.sh` installs/updates each one |
@@ -159,7 +158,7 @@ reordering doesn't:
    fzf, eza, bat, direnv, tmux, lazygit, delta, difftastic, git-absorb, jj, fd,
    carapace, gitleaks, pre-commit, just, uv, antidote, TPM, the Geist Mono
    Nerd Font, neovim, ripgrep, tree-sitter-cli, mise, omp, claude, btop, herdr,
-   gzg (ghzinga), and NvChad —
+   and NvChad —
    plus Docker Desktop on macOS. macOS applies
    `Brewfile` with `brew bundle` (formulae + casks, including Ghostty itself);
    Linux goes through `apt` where a package exists, and falls back
@@ -209,9 +208,6 @@ reordering doesn't:
      ahead of Homebrew's `bin` on `PATH`, so a machine that ever ran that installer by
      hand keeps a copy `brew upgrade` will never touch. `which -a herdr` shows both if
      that's happened.
-   - gzg (the `ghzinga` crate): no Homebrew formula on either platform, so both branches
-     fall back to `cargo install --locked ghzinga` via the same `cargo_ensure_latest`
-     helper the Linux-only fallback tools below use.
    - Linux-only: `fd-find` installs as `fdfind`, so `ensure_fd_shim_linux` symlinks
      `~/.local/bin/fd` — telescope and fzf shell out to the literal name `fd`, not a
      shell alias. delta, difftastic, git-absorb, sd, tealdeer, hyperfine, and jj fall
@@ -980,14 +976,6 @@ Brewfile line existed, or by following herdr's own README — keeps a copy `brew
 upgrade` will never see or touch. `which -a herdr` shows both if that's happened;
 `rm ~/.local/bin/herdr` lets the Homebrew copy win, same fix as uv's.
 
-**gzg**, the `ghzinga` crate's binary, lives one level below this: it's what the
-`osolmaz/ghzinga/plugins/herdr` plugin (`herdr_plugins.txt`) shells out to on a
-ctrl-click, and `config/ghzinga/config.toml` is its config, not the plugin's. No
-Homebrew formula exists for it on either platform, so both branches of the tools
-step fall back to `cargo_ensure_latest ghzinga gzg` — the same crates.io-version-
-checked cargo install the Linux-only fallback tools use, just called unconditionally
-here since there's no brew alternative to prefer first.
-
 ### Herdr plugins — the list is tracked, herdr's registry isn't
 
 Herdr keeps its installed-plugin state in `~/.config/herdr/plugins.json`, which it
@@ -995,9 +983,8 @@ rewrites on every install: absolute paths, resolved commit SHAs, install timesta
 That's generated state, not config, so it stays out of this repo — the same call
 antidote's generated `zsh_plugins.zsh` gets. `herdr_plugins.txt` is the tracked source
 of truth instead:
-
 ```
-persiyanov/herdr-reviewr          # default branch at install time
+paulbkim-dev/vim-herdr-navigation  # default branch at install time
 someone/their-plugin@v1.2.0       # pinned to a tag, branch, or commit
 ```
 
@@ -1039,8 +1026,8 @@ plugin that no longer existed.
 
 `razajamil/herdr-plugin-workspace-manager` — declarative tab/pane layouts applied to
 each new worktree — went the same way once `fleet` started building the workspaces it
-dispatches into itself. Two things arranging one fresh worktree is the same race that
-got reviewr's `auto_open` turned off, and the plugin only ever won it on a repo it had
+dispatches into itself. Two things arranging one fresh worktree is a race other plugins
+have hit before, and the plugin only ever won it on a repo it had
 a YAML layout for; every other worktree got the bare pane anyway. Removal was two
 steps: `herdr plugin uninstall herdr-plugin-workspace-manager` on each machine, then
 its config directory — which lives in this repo, so deleting
@@ -1070,14 +1057,14 @@ the laptop needed any of it, since local-only meant mirror was never installed
 anywhere else. `prefix+alt+n`, `prefix+alt+c`, `prefix+alt+v` and `prefix+alt+s` are
 free again, and the palette lost ten of its thirty-three actions with it.
 
-With ten plugins and twenty-three registered actions between them, keybindings stopped
+With four plugins and thirteen registered actions between them, keybindings stopped
 being a per-plugin question and became one decision: `config/herdr/palette/palette.sh`,
 bound to `prefix+p` — free because this config moved herdr's own `previous_tab` off it
 and onto `prefix+shift+tab` — builds its fzf list at run time from `herdr plugin action
 list`, so every action of every installed plugin is one fuzzy search away whether or not
 it has a key. Only the ones reached for constantly earn a `[[keys.command]]` entry;
-ghzinga's click-driven `open` and worktree-setup's total absence of actions all stay
-reachable through the palette instead of crowding the keymap.
+worktree-setup's total absence of actions stays reachable through the palette instead
+of crowding the keymap.
 
 That palette started as the `JanTvrdik/herdr-command-palette` plugin and is now a script
 in this repo, for two reasons that are really one. fzf needs a TTY; a herdr plugin action
@@ -1093,21 +1080,17 @@ because fzf matches against what it displays, so a hidden field can't be searche
 
 Herdr's packed sidebar renders only the tokens named in a `[ui.sidebar.agents]`/
 `[ui.sidebar.spaces]` row — a plugin can write a custom token correctly and still be
-invisible if nothing names it. Two plugins depend on this: `herdr-agent-inbox`
+invisible if nothing names it. One plugin depends on this: `herdr-agent-inbox`
 contributes `$title`, `$flag`, `$age`, `$since`, and the workspace-level `$agents`/
-`$busy`; `gh-pr` contributes `$pr`, the branch's PR state as `#123 ✓`. Both rows are
-named in `config/herdr/config.toml` — miss one and its plugin looks broken when it's
-actually just unrendered.
+`$busy`. That row is named in `config/herdr/config.toml` — leaving it out would make
+the plugin look broken when it's actually just unrendered.
 
 `worktree.created` fires on a new worktree and `worktree-setup` makes the checkout
 usable — copies `.env*` from the main checkout, `mise trust`, `direnv allow`, installs
 deps. Nothing else runs at that moment, by design: arranging the workspace belongs to
 whoever asked for the worktree. `fleet` builds its own tabs and panes and starts the
 agent itself via `herdr agent start`, which blocks until herdr detects it's ready; a
-worktree created by hand stays one bare pane until you shape it. `reviewr` could
-auto-open here too and deliberately doesn't — a branch cut seconds ago is a zero-line
-diff, and on a fleet worktree the pane would land on top of the layout fleet just
-declared. `prefix+alt+r` opens it when there is finally something to read.
+worktree created by hand stays one bare pane until you shape it.
 
 ### Herdr plugin keybindings — `[keys]` only knows herdr's own actions
 
@@ -1127,8 +1110,8 @@ command = "herdr plugin action invoke settle --plugin herdr-agent-inbox"
 session-modal terminal. Plugin actions invoked this way are short control commands with
 no output worth watching, so `shell` is the right call almost every time.
 
-Several plugin READMEs (reviewr, vim-herdr-navigation, token-dashboard) still
-document `type = "plugin_action"` with a combined `<plugin>.<action>` command string
+Some plugin READMEs still document
+`type = "plugin_action"` with a combined `<plugin>.<action>` command string
 instead of this. That form is stale: `herdr --default-config` on 0.8.0 documents only
 `shell`/`pane`/`popup`, and `plugin_action` isn't one of them. Use the `shell`-plus-CLI
 form above regardless of what a given plugin's own docs say.
@@ -1220,8 +1203,6 @@ orchestrator and worker; the only difference is that one of them was told to be 
 to notice the index changed under it — still the right tool for jumping to a changed file
 by name. diffview is for sitting inside the diff: a live file panel, a diff view that
 tracks staging and edits, and a 3-way merge-conflict view telescope has no equivalent for.
-herdr-reviewr covers reviewing from a standalone pane; diffview covers "already inside
-nvim on this repo".
 
 Four mappings in `lua/mappings.lua`: `<leader>gd` (`DiffviewOpen`), `<leader>gc`
 (`DiffviewClose`), `<leader>gh` (`DiffviewFileHistory %`), `<leader>gH`

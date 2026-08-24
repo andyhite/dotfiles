@@ -85,9 +85,9 @@ worker `fleet spawn` creates is a herdr pane living in a herdr worktree
 workspace. The `herdr` agent skill that lets an agent drive its own session
 only arms itself when `HERDR_ENV=1` is set — i.e. only when that agent is
 actually running inside a herdr-managed pane, not just any terminal. And
-plugins like `persiyanov/herdr-reviewr` (a diff-review split) or
-`ogulcancelik/herdr-browser` (Chromium over CDP) exist as panes precisely
-because herdr is what's already multiplexing the terminal they share.
+plugins like `douglascorrea/herdr-agent-inbox` (the agent inbox split) exist
+as panes precisely because herdr is what's already multiplexing the terminal
+they share.
 
     herdr                            # launch or attach to the persistent session
     herdr agent start                # start a supported interactive agent in an existing pane
@@ -107,16 +107,10 @@ often enough to be worth memorizing.
 
 Installed plugins (`herdr_plugins.txt`), one line each on what they add:
 
-- `ogulcancelik/herdr-browser` — Chromium in a pane, drivable over CDP
-- `persiyanov/herdr-reviewr` — local diff/review TUI split, not an AI reviewer
 - `paulbkim-dev/vim-herdr-navigation` — ctrl-h/j/k/l crosses into nvim splits instead of stopping at the pane edge
-- `osolmaz/ghzinga/plugins/herdr` — ctrl-click a github.com issue/PR link, opens gzg in a split
 - `douglascorrea/herdr-agent-inbox` — inbox plus auto tab/session naming for agent panes
-- `Davidcreador/herdr-token-dashboard` — live token spend and cost notifications (omp/OpenCode/Claude sessions)
 - `tdi/herdr-worktree-setup` — on worktree.created: copies .env*, mise trust, direnv allow, installs deps
 - `andyhite/foreman/herdr` — fleet's CLI half, installs the `fleet` binary onto PATH
-- `wyattjoh/herdr-plugin-gh-pr` — focused agent's branch PR state as a sidebar token
-- `a2u/herdr-jira` — Jira issues in a pane, with `d` to hand one to any visible agent
 
 ## fleet — the orchestrator
 
