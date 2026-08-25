@@ -141,6 +141,7 @@ retry:
       - openai/gpt-5.6-terra:medium
       - cursor/composer-2.5
   usageReservePolicy: confirm
+  usageReservePct: 5
 advisor: 
   enabled: false
 interruptMode: immediate
@@ -159,7 +160,7 @@ startup:
   changelogMode: summary
   quiet: true
 features: 
-  unexpectedStopDetection: true
+  unexpectedStopDetection: smart
 compaction: 
   handoffSaveToDisk: true
   thresholdPercent: 55
@@ -174,7 +175,7 @@ ttsr:
   contextMode: discard
   repeatMode: after-gap
 memory: 
-  backend: off
+  backend: "off"
 autolearn: 
   enabled: false
 edit: 
