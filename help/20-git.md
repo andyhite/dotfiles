@@ -53,6 +53,20 @@ never looks merged by merge-base alone.
     gh poi --describe              # print why each candidate branch is/isn't deletable
     gh poi --force                 # skip the confirmation prompt and delete immediately
 
+## lin — Linear issue tracker from the terminal
+
+`aaronkwhite/linear-cli`, installed from the author's own Homebrew tap on
+macOS (`brew "aaronkwhite/tap/lin"` — no core formula, no apt package) and
+via `cargo install lincli` on Linux. Binary name is `lin`, not `linear-cli`
+or `lincli`. Needs a Linear API key once: `lin auth login` (interactive) or
+the `LINEAR_API_KEY` environment variable.
+
+    lin auth login                  # interactive setup, saves a named workspace
+    lin issue list                  # list issues in the current workspace
+    lin issue view ABC-123          # show one issue's details
+    lin issue create                # create a new issue, interactive prompts
+    lin issue create -t "title"     # create a new issue non-interactively
+
 ## git-lfs — large file storage
 
 Wired globally, not per-repo: `gitconfig`'s `filter "lfs"` block (clean,

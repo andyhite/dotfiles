@@ -30,6 +30,7 @@ NvChad for editing.
   - [herdr — Homebrew on macOS, curl installer on Linux](#herdr--homebrew-on-macos-curl-installer-on-linux)
   - [Herdr plugins — the list is tracked, herdr's registry isn't](#herdr-plugins--the-list-is-tracked-herdrs-registry-isnt)
   - [Herdr plugin keybindings — `[keys]` only knows herdr's own actions](#herdr-plugin-keybindings--keys-only-knows-herdrs-own-actions)
+  - [lin — Homebrew tap on macOS, cargo on Linux](#lin--homebrew-tap-on-macos-cargo-on-linux)
   - [Agent skills — the list is tracked, the lockfile isn't](#agent-skills--the-list-is-tracked-the-lockfile-isnt)
   - [`foreman` — dispatching agents herdr can reach, because omp can't](#foreman--dispatching-agents-herdr-can-reach-because-omp-cant)
   - [The worktree rule was wrong in a way `foreman` made visible](#the-worktree-rule-was-wrong-in-a-way-foreman-made-visible)
@@ -215,8 +216,9 @@ reordering doesn't:
      that's happened.
    - Linux-only: `fd-find` installs as `fdfind`, so `ensure_fd_shim_linux` symlinks
      `~/.local/bin/fd` — telescope and fzf shell out to the literal name `fd`, not a
-     shell alias. delta, difftastic, git-absorb, sd, tealdeer, hyperfine, and jj fall
-     back to `cargo install` where apt has no package. gitleaks and carapace pull
+     shell alias. delta, difftastic, git-absorb, sd, tealdeer, hyperfine, jj, and lin
+     fall back to `cargo install` where apt has no package (and, for `lin`, where
+     macOS has no tap bottle for the target arch). gitleaks and carapace pull
      GitHub release binaries. `wl-clipboard` and `xclip` install together on Linux so
      tmux-yank and nvim's `+` register can paste on either Wayland or X11.
    - `pre-commit` lands via apt when possible, otherwise `uv tool install` after the
@@ -1120,6 +1122,19 @@ Some plugin READMEs still document
 instead of this. That form is stale: `herdr --default-config` on 0.8.0 documents only
 `shell`/`pane`/`popup`, and `plugin_action` isn't one of them. Use the `shell`-plus-CLI
 form above regardless of what a given plugin's own docs say.
+
+### lin — Homebrew tap on macOS, cargo on Linux
+
+`lin` ([aaronkwhite/linear-cli](https://github.com/aaronkwhite/linear-cli)) has no
+Homebrew core formula and no apt package, so the Brewfile pulls the author's own tap
+(`brew "aaronkwhite/tap/lin"`) rather than building it — same tier as the `herdr` Linux
+fallback above, just a tap instead of a curl installer. Linux gets it via `cargo install
+lincli` in `install.sh`'s Linux branch (see the [general dev CLIs
+bullet](#bootstrap-a-new-machine) above); the crate name (`lincli`) and the binary name
+(`lin`) differ, same shape as `git-delta`/`delta` and `difftastic`/`difft` elsewhere in
+that list. No config file is tracked for it — `lin auth login` (interactive) or the
+`LINEAR_API_KEY` environment variable authenticates it per machine, same as any other
+credential this repo deliberately keeps out of tracked content.
 
 ### Agent skills — the list is tracked, the lockfile isn't
 

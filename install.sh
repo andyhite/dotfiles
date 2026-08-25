@@ -1099,6 +1099,7 @@ install_tools_linux() {
   command -v hyperfine >/dev/null 2>&1 || cargo_ensure_latest hyperfine
   command -v jj >/dev/null 2>&1 || cargo_ensure_latest jj-cli jj
   command -v fd >/dev/null 2>&1 || cargo_ensure_latest fd-find fd
+  command -v lin >/dev/null 2>&1 || cargo_ensure_latest lincli lin
 
   # $HOME expanded here rather than left for the inner `sh -c` — one less layer
   # of quoting to reason about, and it fails loudly if it's ever unset.

@@ -85,6 +85,14 @@ brew "difftastic"
 # restacking a chain of worker branches cheap. Config: config/jj/config.toml.
 brew "jj"
 
+# lin — Linear issue tracker from the terminal (github.com/aaronkwhite/linear-cli).
+# No Homebrew core formula and no apt package, so this pulls the author's own
+# tap rather than a cargo build on macOS — same tier as gh above, just for
+# Linear instead of GitHub. Binary name is `lin`, not `linear-cli`. Linux gets
+# the same tool via `cargo install lincli` in install.sh's Linux branch, since
+# the tap only publishes bottles for macOS.
+brew "aaronkwhite/tap/lin"
+
 # .pre-commit-config.yaml runs this at commit time. It catches the generic
 # secret case — tokens, keys, credentials — leaving CI's bespoke work-
 # identifier grep (ci.yml) to do only the part it's uniquely positioned for:

@@ -199,6 +199,7 @@ help-coverage:
         "ripgrep": "rg",
         "neovim": "nvim",
         "1password-cli": "op",
+        "aaronkwhite/tap/lin": "lin",
     }
 
     # Casks/fonts that install a GUI app or an asset, not a command that
