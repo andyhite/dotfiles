@@ -321,6 +321,33 @@ ensure_claude_code() {
   fi
 }
 
+ensure_prime_agent() {
+  # https://github.com/PrimeIntellect-ai/prime-agent — self-improving RLM
+  # coding agent. The installer downloads a versioned release and verifies
+  # its SHA-256 checksum, so re-running it here on every pass would be a
+  # needless re-download; prime-agent ships its own `prime-agent update` for
+  # upgrades, same install-only reasoning as ensure_omp above.
+  if command -v prime-agent >/dev/null 2>&1; then
+    ok "prime-agent" "installed — upgrade with 'prime-agent update'"
+    return
+  fi
+  added "prime-agent" "installing"
+  # The installer asks two [Y/n] questions on a real terminal. The second
+  # (bootstrap the IPython kernel now vs. on first use) has a documented
+  # escape hatch — PRIME_AGENT_BOOTSTRAP_KERNEL_ON_INSTALL=0 defers it to
+  # first `prime-agent` run, matching upstream's own lazy-bootstrap docs.
+  # The first ("Install Prime Agent v$version globally with npm?") has no
+  # such variable: its prompt reads directly from /dev/tty rather than
+  # stdin, so it can't be silenced by piping input here — it only auto-
+  # continues when the process has no controlling terminal at all (a
+  # headless `ssh` without `-t`, cron, CI), which this interactive step
+  # never is. One Enter keypress (the default answer) is unavoidable.
+  if ! PRIME_AGENT_BOOTSTRAP_KERNEL_ON_INSTALL=0 sh -c 'curl -fsSL https://app.primeintellect.ai/prime-agent/install.sh | sh'; then
+    warned "prime-agent" "download failed — re-run to retry"
+    return 0
+  fi
+}
+
 ensure_dstack() {
   # https://dstack.ai — GPU-cloud task/dev-environment orchestrator; backends
   # (runpod, here) live in ~/.dstack/server/config.yml, templated from
@@ -470,7 +497,14 @@ ensure_completions() {
 # helper, so it's usually present.
 #
 # Callers must treat empty output as "couldn't tell", never as "no release".
+# Every caller runs this inside a `$(...)` command substitution, which bash
+# hands its own subshell with SIGINT ignored (a POSIX compatibility rule for
+# old `x=$(cmd)` idioms) — so without the reset below, Ctrl-C during a stalled
+# GitHub API call would sit there until the request itself times out, dead to
+# every interrupt in the meantime. Resetting it here only touches that
+# subshell's copy of the signal table, never the parent script's.
 github_latest_tag() {
+  trap - INT
   local repo="$1"
   if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
     gh api "repos/$repo/releases/latest" --jq .tag_name 2>/dev/null || true
@@ -663,6 +697,7 @@ install_tools_macos() {
   ensure_nvchad
   ensure_omp
   ensure_claude_code
+  ensure_prime_agent
   ensure_dstack
 }
 
@@ -738,7 +773,7 @@ cargo_ensure_latest() {
   command -v "$bin" >/dev/null 2>&1 && current="$("$bin" --version | awk '{print $2}')"
   # Same reasoning as github_latest_tag: a failed probe must not abort the run,
   # and an empty result means "couldn't tell", not "no such crate".
-  latest="$(curl -fsSL -H "User-Agent: dotfiles-install-script (github.com/andyhite/dotfiles)" \
+  latest="$(trap - INT; curl -fsSL -H "User-Agent: dotfiles-install-script (github.com/andyhite/dotfiles)" \
     "https://crates.io/api/v1/crates/$crate" 2>/dev/null \
     | grep -o '"newest_version":"[^"]*"' | head -1 | cut -d'"' -f4 || true)"
   if [ -z "$latest" ]; then
@@ -1115,6 +1150,7 @@ install_tools_linux() {
   fi
   ensure_omp
   ensure_claude_code
+  ensure_prime_agent
   # Official installer, run_quiet-wrapped like starship/atuin/uv above — no
   # Homebrew tap, no apt package this young. Lands in ~/.local/bin, already
   # on PATH; re-runs are the update path, same as the others in this group.
