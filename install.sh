@@ -1926,6 +1926,14 @@ install_agent_skills() {
     # </dev/null is load-bearing: this loop's stdin *is* the manifest, and the
     # CLI reads stdin looking for prompt answers — draining the rest of the file
     # and silently reducing the loop to a single iteration.
+    #
+    # run_quiet buffers this command's own output until it fails, and each
+    # invocation is a fresh `npx` network round trip against a manifest that
+    # can run into the dozens (one mattpocock/skills entry per skill) — with
+    # no line printed first, a slow or rate-limited entry looks identical to
+    # a hang. `say` prints immediately, unbuffered, so the last line on
+    # screen always names the entry actually in flight.
+    say "$skill: from $source"
     if run_quiet "$skill" sh -c "cd '$HOME' && $runner --yes skills add '$source' --skill '$skill' -g -y" </dev/null; then
       updated "$skill" "from $source"
     fi
