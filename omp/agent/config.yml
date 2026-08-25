@@ -10,8 +10,8 @@ modelRoles:
   slow: anthropic/claude-opus-5:max
   task: anthropic/claude-sonnet-5:low
   smol: anthropic/claude-haiku-4-5:low
-  commit: anthropic/claude-haiku-4-5:low
-  tiny: anthropic/claude-haiku-4-5:low
+  commit: anthropic/claude-haiku-4-5:minimal
+  tiny: anthropic/claude-haiku-4-5:minimal
   vision: anthropic/claude-sonnet-5:medium
   designer: anthropic/claude-opus-5:high
   advisor: anthropic/claude-sonnet-5:medium
@@ -117,14 +117,14 @@ retry:
       - openai/gpt-5.6-luna:low
       - cursor/composer-2.5
     commit: 
-      - openai-codex/gpt-5.4-mini:low
-      - anthropic-api/claude-haiku-4-5
-      - openai/gpt-5.4-mini:low
+      - openai-codex/gpt-5.4-mini:minimal
+      - anthropic-api/claude-haiku-4-5:minimal
+      - openai/gpt-5.4-mini:minimal
       - cursor/composer-2.5
     tiny: 
-      - openai-codex/gpt-5.4-mini:low
-      - anthropic-api/claude-haiku-4-5
-      - openai/gpt-5.4-mini:low
+      - openai-codex/gpt-5.4-mini:minimal
+      - anthropic-api/claude-haiku-4-5:minimal
+      - openai/gpt-5.4-mini:minimal
       - cursor/composer-2.5
     vision: 
       - openai-codex/gpt-5.6-terra:medium
