@@ -609,6 +609,15 @@ ensure_brewfile() {
     return 0
   fi
 
+  # Homebrew 6.0's trust gate refuses to load a formula from any tap but
+  # Homebrew's own core/cask taps until it's been explicitly trusted — both
+  # `bundle check` and `bundle install` fail outright otherwise, with
+  # "Refusing to load formula ... from untrusted tap". `lin` is this
+  # Brewfile's only third-party-tap entry; trusting it here is idempotent
+  # (it just records the entry in trust.json) and cheap, so it runs
+  # unconditionally rather than only after a failure.
+  brew trust --formula aaronkwhite/tap/lin >/dev/null 2>&1 || true
+
   # `check` is the cheap path, and the common one on a machine that has run this
   # before: it exits 0 only when every entry is installed and current, so the
   # multi-minute `bundle install` below is reached only when there's real work.
