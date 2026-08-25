@@ -60,6 +60,24 @@ the flag out every time is pure friction.
     claude update                   # check for and install an update now
     claude mcp list                 # list configured MCP servers
 
+## prime-agent — Prime Agent
+
+`install.sh`'s tools step installs it: the installer at
+[app.primeintellect.ai/prime-agent/install.sh](https://github.com/PrimeIntellect-ai/prime-agent)
+downloads a versioned release, verifies its SHA-256 checksum, and installs
+the `prime-agent` command. Install-only, like omp above — it ships its own
+`prime-agent update`, so re-running `install.sh` skips it once the command is
+on `PATH` rather than re-downloading.
+
+    prime-agent                     # launch or resume the interactive session
+    prime-agent agents              # browse running, idle, and saved sessions
+    prime-agent attach <agent>      # reattach to a running session
+    prime-agent --resume [path|id]  # browse sessions or resume one directly
+    prime-agent status              # inspect background service state
+    prime-agent doctor [--fix]      # inspect or repair background services
+    prime-agent update [--force]    # update Prime Agent
+    prime-agent shutdown [--force]  # stop every agent, worker, and background service
+
 ## herdr — the terminal multiplexer for coding agents
 
 `install.sh`'s tools step installs it: a real Homebrew core formula on macOS

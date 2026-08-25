@@ -332,17 +332,39 @@ ensure_prime_agent() {
     return
   fi
   added "prime-agent" "installing"
-  # The installer asks two [Y/n] questions on a real terminal. The second
-  # (bootstrap the IPython kernel now vs. on first use) has a documented
-  # escape hatch — PRIME_AGENT_BOOTSTRAP_KERNEL_ON_INSTALL=0 defers it to
-  # first `prime-agent` run, matching upstream's own lazy-bootstrap docs.
-  # The first ("Install Prime Agent v$version globally with npm?") has no
-  # such variable: its prompt reads directly from /dev/tty rather than
-  # stdin, so it can't be silenced by piping input here — it only auto-
-  # continues when the process has no controlling terminal at all (a
-  # headless `ssh` without `-t`, cron, CI), which this interactive step
-  # never is. One Enter keypress (the default answer) is unavoidable.
-  if ! PRIME_AGENT_BOOTSTRAP_KERNEL_ON_INSTALL=0 sh -c 'curl -fsSL https://app.primeintellect.ai/prime-agent/install.sh | sh'; then
+  # The installer draws a full-screen ASCII splash while it works, gated only
+  # on PRIME_AGENT_INSTALLER_PLAIN and `[ -t 1 ]` — not on terminal size, so
+  # a piped run still draws it against its 80x24 fallback. PLAIN=1 skips it
+  # for plain, scrollable log output instead. Separately it asks two [Y/n]
+  # questions, both answered "yes" by a bare Enter or by no terminal at all.
+  # The second (bootstrap the IPython kernel now vs. on first use) has a
+  # documented escape hatch —
+  # PRIME_AGENT_BOOTSTRAP_KERNEL_ON_INSTALL=0 defers it to first `prime-agent`
+  # run. The first ("Install Prime Agent v$version globally with npm?") has
+  # no such variable: its prompt opens /dev/tty directly, so piping stdin
+  # here never reaches it — but its own fallback for a genuinely unattended
+  # run (headless `ssh` without `-t`, cron, CI) is to skip the confirmation
+  # once the process has no controlling terminal at all, and opening the
+  # literal path "/dev/tty" can't spontaneously acquire one. So give the
+  # child exactly that: `setsid -w` (Linux, util-linux) starts it in a new
+  # session with none and waits for its real exit status; macOS ships no
+  # setsid binary, so a one-line perl call does the same POSIX::setsid()
+  # syscall then execs in place (no fork, so no exit-status ambiguity) —
+  # /usr/bin/perl ships with the base system, unlike python3, so it needs no
+  # Xcode command-line-tools prompt. `${detach+"${detach[@]}"}` (unquoted,
+  # matching install_remote_all's FORWARD_ARGS guard above) expands to zero
+  # words when neither tool exists and empty-array expansion would otherwise
+  # trip `set -u` on bash 3.2. stdin still moves to /dev/null: a detached
+  # session still passes `[ -t 0 ]` if stdin points at the real terminal.
+  local -a detach=()
+  if command -v setsid >/dev/null 2>&1; then
+    detach=(setsid -w)
+  elif command -v perl >/dev/null 2>&1; then
+    detach=(perl -e 'use POSIX qw(setsid); setsid(); exec { $ARGV[0] } @ARGV or die $!;' --)
+  fi
+  if ! PRIME_AGENT_BOOTSTRAP_KERNEL_ON_INSTALL=0 PRIME_AGENT_INSTALLER_PLAIN=1 \
+    ${detach+"${detach[@]}"} sh -c \
+    'curl -fsSL https://app.primeintellect.ai/prime-agent/install.sh | sh' </dev/null; then
     warned "prime-agent" "download failed — re-run to retry"
     return 0
   fi
