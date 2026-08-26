@@ -378,8 +378,10 @@ ensure_dstack() {
   # `uv tool install` is the one path that works on both — same reasoning as
   # pre-commit's fallback in install_tools_linux. Callers must ensure uv is
   # already on PATH first: the Brewfile on macOS, the installer just above
-  # on Linux.
-  if run_quiet dstack uv tool install dstack; then
+  # on Linux. The `[server]` extra is required — the bare package omits the
+  # server's own dependencies, so `dstack server` fails at startup with
+  # "missing server dependencies" even though the CLI itself works.
+  if run_quiet dstack uv tool install 'dstack[server]'; then
     ok "dstack" "$(dstack --version 2>/dev/null || echo installed)"
   fi
 }
