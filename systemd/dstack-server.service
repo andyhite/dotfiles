@@ -13,7 +13,12 @@ Type=simple
 # hits EOFError on input() and crashes on every launch — `-n` answers it
 # non-interactively (declining the update, the prompt's own default),
 # which is what keeps Restart=on-failure from crash-looping it forever.
-ExecStart=%h/.local/bin/dstack server -n
+#
+# `-p 3333`: everything else on this machine was already wired to expect
+# dstack on 3333, not the CLI's default of 3000 — matches the plist beside
+# this file and ~/.dstack/config.yml's `url`, which dstack itself
+# regenerates from whatever port the server last bound.
+ExecStart=%h/.local/bin/dstack server -n -p 3333
 Restart=on-failure
 RestartSec=5
 

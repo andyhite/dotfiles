@@ -366,15 +366,17 @@ scrolling view instead of `docker stats`'s fixed columns.
 
 ## dstack — GPU-cloud task/dev-environment orchestrator
 
-Installed via `uv tool install dstack` on both OSes (no Homebrew formula, no
-apt package). Backend credentials (RunPod, here) live in
+Installed via `uv tool install dstack[server]` on both OSes (no Homebrew
+formula, no apt package). Backend credentials (RunPod, here) live in
 `~/.dstack/server/config.yml`, templated from `dstack/server/config.yml.example`
 — see README's `*.local` templates section — because that file holds a real
 API key. The client config `~/.dstack/config.yml` (project token + server
 URL) is left untracked: `dstack server` regenerates it, so there's nothing
-meaningful to template.
+meaningful to template. Both the launchd `LaunchAgent` and systemd unit pin
+`-p 3333` (the CLI's own default is 3000) so the URL that config regenerates
+to matches what everything else on the machine already expects.
 
-    dstack server                    # start the local control-plane server
+    dstack server -p 3333            # start the local control-plane server on the pinned port
     dstack apply -f .dstack.yml      # provision a run from a task/dev-environment spec
     dstack ps                        # list current runs and their status
     dstack stop <run-name>           # stop a run

@@ -18,12 +18,17 @@
 	  single launch — `-n` answers it non-interactively (declining the
 	  update, the same choice Enter would make at that prompt's own default),
 	  which is what keeps KeepAlive from crash-looping it forever.
+
+	  `-p 3333`: everything else on this machine (scripts, bookmarks, other
+	  tools) was already wired to expect dstack on 3333, not the CLI's
+	  default of 3000 — matches `~/.dstack/config.yml`'s `url`, which dstack
+	  itself regenerates from whatever port the server last bound.
 	-->
 	<key>ProgramArguments</key>
 	<array>
 		<string>/bin/zsh</string>
 		<string>-c</string>
-		<string>exec dstack server -n</string>
+		<string>exec dstack server -n -p 3333</string>
 	</array>
 	<key>RunAtLoad</key>
 	<true/>
