@@ -41,10 +41,11 @@ $line_break$character"""
 # Sets the palette to "one_dark".
 palette = 'one_dark'
 
-# Default (500ms) is too tight right after a reboot — Spotlight reindexing
-# and Time Machine's post-boot backup contend for CPU/disk long enough that
-# git_branch/git_status's `git` calls miss it and starship prints a WARN.
-command_timeout = 1000
+# Default (500ms) is too tight whenever Spotlight's mdworker_shared is
+# reindexing — not just right after a reboot, any bulk reindex (e.g. after
+# installing/downloading a lot of files) spikes load enough that git_branch/
+# git_status's `git` calls miss it and starship prints a WARN.
+command_timeout = 2000
 
 # Sets the colors of the "one_dark" palette.
 [palettes.one_dark]
