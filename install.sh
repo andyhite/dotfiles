@@ -1649,6 +1649,59 @@ omp_marketplace_registered() {
   omp plugin marketplace list 2>/dev/null | awk '{print $1}' | grep -qx "$1"
 }
 
+# ── Herdr plugins ────────────────────────────────────────────────────────────
+
+# Runs after the symlinks so each plugin's config dir is created inside this
+# repo rather than in a real directory that would have to be adopted later.
+# Re-installing an already-installed plugin is exactly how herdr updates one
+# (it re-resolves the ref and replaces the install), so this runs every time
+# instead of skipping what's present.
+install_herdr_plugins() {
+  if [ ! -f "$DOTFILES_DIR/herdr_plugins.txt" ]; then
+    skipped "herdr_plugins.txt" "not present"
+    return 0
+  fi
+  if ! command -v herdr >/dev/null 2>&1; then
+    skipped "herdr" "not on PATH — install it, then re-run"
+    return 0
+  fi
+
+  local line plugin_spec plugin_ref link_path
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%%#*}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [ -n "$line" ] || continue
+
+    plugin_spec="${line%%@*}"
+    plugin_ref=""
+    [ "$line" != "$plugin_spec" ] && plugin_ref="${line#*@}"
+
+    # A plugin developed on this machine is link-installed, and installing the
+    # published copy would replace that link — so report it and move on.
+    link_path="$(herdr_link_path "$plugin_spec")"
+    if [ -n "$link_path" ]; then
+      skipped "$plugin_spec" "local link: $link_path"
+      continue
+    fi
+
+    # Flags must follow the positional argument — herdr's plugin parser
+    # rejects `herdr plugin install --yes <spec>` with a usage error.
+    #
+    # </dev/null for the same reason as the skills loop below: this loop's stdin
+    # is the manifest, and any prompt-reading child would eat the rest of it.
+    if [ -n "$plugin_ref" ]; then
+      if run_quiet "$plugin_spec" herdr plugin install "$plugin_spec" --ref "$plugin_ref" --yes </dev/null; then
+        updated "$plugin_spec" "@$plugin_ref"
+      fi
+    else
+      if run_quiet "$plugin_spec" herdr plugin install "$plugin_spec" --yes </dev/null; then
+        updated "$plugin_spec" "default branch"
+      fi
+    fi
+  done < "$DOTFILES_DIR/herdr_plugins.txt"
+}
+
 # ── omp plugins ──────────────────────────────────────────────────────────────
 
 # The omp counterpart to install_herdr_plugins. A plain manifest line installs
