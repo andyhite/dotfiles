@@ -1301,7 +1301,6 @@ link_configs() {
     # Per-file for the same reason as the extensions above — anything omp or
     # another tool drops into ~/.omp/agent/rules stays visible alongside it.
     "omp/agent/rules/output-style.md:$HOME/.omp/agent/rules/output-style.md"
-    "omp/agent/rules/herdr-worktrees.md:$HOME/.omp/agent/rules/herdr-worktrees.md"
     # The rendered corpus this reads lives in help/ in this repo; the script
     # resolves its own real path through the symlink and walks back from
     # there, so linking the script alone is enough — no separate link for
@@ -1641,69 +1640,23 @@ omp_link_path() {
   return 0
 }
 
-# ── Herdr plugins ────────────────────────────────────────────────────────────
-
-# Runs after the symlinks so each plugin's config dir is created inside this
-# repo rather than in a real directory that would have to be adopted later.
-# Re-installing an already-installed plugin is exactly how herdr updates one
-# (it re-resolves the ref and replaces the install), so this runs every time
-# instead of skipping what's present.
-install_herdr_plugins() {
-  if [ ! -f "$DOTFILES_DIR/herdr_plugins.txt" ]; then
-    skipped "herdr_plugins.txt" "not present"
-    return 0
-  fi
-  if ! command -v herdr >/dev/null 2>&1; then
-    skipped "herdr" "not on PATH — install it, then re-run"
-    return 0
-  fi
-
-  local line plugin_spec plugin_ref link_path
-  while IFS= read -r line || [ -n "$line" ]; do
-    line="${line%%#*}"
-    line="${line#"${line%%[![:space:]]*}"}"
-    line="${line%"${line##*[![:space:]]}"}"
-    [ -n "$line" ] || continue
-
-    plugin_spec="${line%%@*}"
-    plugin_ref=""
-    [ "$line" != "$plugin_spec" ] && plugin_ref="${line#*@}"
-
-    # A plugin developed on this machine is link-installed, and installing the
-    # published copy would replace that link — so report it and move on.
-    link_path="$(herdr_link_path "$plugin_spec")"
-    if [ -n "$link_path" ]; then
-      skipped "$plugin_spec" "local link: $link_path"
-      continue
-    fi
-
-    # Flags must follow the positional argument — herdr's plugin parser
-    # rejects `herdr plugin install --yes <spec>` with a usage error.
-    #
-    # </dev/null for the same reason as the skills loop below: this loop's stdin
-    # is the manifest, and any prompt-reading child would eat the rest of it.
-    if [ -n "$plugin_ref" ]; then
-      if run_quiet "$plugin_spec" herdr plugin install "$plugin_spec" --ref "$plugin_ref" --yes </dev/null; then
-        updated "$plugin_spec" "@$plugin_ref"
-      fi
-    else
-      if run_quiet "$plugin_spec" herdr plugin install "$plugin_spec" --yes </dev/null; then
-        updated "$plugin_spec" "default branch"
-      fi
-    fi
-  done < "$DOTFILES_DIR/herdr_plugins.txt"
+# Whether marketplace $1 is already registered. `marketplace add` has no
+# upsert form — it errors outright on a name that's already there — so the
+# manifest loop below has to check first rather than retry on failure.
+# `marketplace list` has no --json output, so this greps the same one-name-
+# per-line text a human reads.
+omp_marketplace_registered() {
+  omp plugin marketplace list 2>/dev/null | awk '{print $1}' | grep -qx "$1"
 }
 
 # ── omp plugins ──────────────────────────────────────────────────────────────
 
-# The omp counterpart to install_herdr_plugins. It used to register a
-# marketplace and install `<plugin>@<marketplace>` out of it; foreman dropped
-# its marketplace.json when it collapsed the plugin to the repo root, because
-# marketplace-installed plugins are discovered through omp's claude-plugins
-# provider and a disabledProviders entry aimed at real ~/.claude content also
-# silently excluded foreman's commands and skills. A direct git install has no
-# subdirectory syntax, which is why the plugin had to move to the root — and
-# why this step now installs from the source alone.
+# The omp counterpart to install_herdr_plugins. A plain manifest line installs
+# a bare npm/git spec directly, same as before. A line whose name field is
+# `name@marketplace` instead installs through omp's marketplace system: omp
+# resolves neither the marketplace source nor the plugin id from the other, so
+# both stay explicit on the line — `source` registers the marketplace,
+# `name@marketplace` is what `plugin install` takes.
 #
 # Both fields on a manifest line are load-bearing. A git source doesn't encode
 # the package name (omp resolves it by diffing plugins/package.json across the
@@ -1711,12 +1664,13 @@ install_herdr_plugins() {
 # is the only handle on an existing install, since omp's lockfile records a
 # version but never a source.
 #
-# Re-running install is the update path here: for a git source omp follows its
-# `bun install` with a `bun update`, which is what moves the dependency forward.
-# That's the opposite of the marketplace scheme this replaced, where install
-# reused the clone already on disk and a separate `marketplace update` was the
-# only thing that fetched — and the opposite of gh extensions below, where
-# install refuses outright once a thing is present.
+# Re-running install is the update path here. For a bare git source, omp
+# follows its `bun install` with a `bun update`, which is what moves the
+# dependency forward. A marketplace install has no such update-on-reinstall
+# behavior — `plugin install name@marketplace` refuses outright once the id is
+# present, so the marketplace branch below always passes --force, and updates
+# the catalog first with `marketplace update` so --force actually reinstalls
+# the latest rather than replaying what's cached.
 install_omp_plugins() {
   if [ ! -f "$DOTFILES_DIR/omp_plugins.txt" ]; then
     skipped "omp_plugins.txt" "not present"
@@ -1727,7 +1681,7 @@ install_omp_plugins() {
     return 0
   fi
 
-  local line source plugin_name link_path
+  local line source plugin_name link_name link_path marketplace_name
   while IFS= read -r line || [ -n "$line" ]; do
     line="${line%%#*}"
     line="${line#"${line%%[![:space:]]*}"}"
@@ -1744,19 +1698,38 @@ install_omp_plugins() {
     source="${line%%[[:space:]]*}"
     plugin_name="${line##*[[:space:]]}"
 
-    # A plugin developed on this machine is link-installed, and a git install
-    # would replace that symlink with a fetched copy — so report and move on.
-    link_path="$(omp_link_path "$plugin_name")"
+    # A plugin developed on this machine is link-installed under its bare
+    # name, never `name@marketplace` — strip the marketplace suffix before
+    # checking so a marketplace-form manifest line still finds the dev link
+    # and a marketplace install doesn't clobber it (they share the same
+    # node_modules/<name> slot).
+    link_name="${plugin_name%%@*}"
+    link_path="$(omp_link_path "$link_name")"
     if [ -n "$link_path" ]; then
-      skipped "$plugin_name" "local link: $link_path"
+      skipped "$link_name" "local link: $link_path"
       continue
     fi
 
     # </dev/null for the same reason as the loops above: this loop's stdin is
     # the manifest, and a prompt-reading child would eat the rest of it.
-    if run_quiet "$plugin_name" omp plugin install "$source" </dev/null; then
-      updated "$plugin_name" "from $source"
-    fi
+    case "$plugin_name" in
+      *@*)
+        marketplace_name="${plugin_name#*@}"
+        if omp_marketplace_registered "$marketplace_name"; then
+          run_quiet "$marketplace_name" omp plugin marketplace update "$marketplace_name" </dev/null || true
+        else
+          run_quiet "$marketplace_name" omp plugin marketplace add "$source" </dev/null || continue
+        fi
+        if run_quiet "$plugin_name" omp plugin install "$plugin_name" --force </dev/null; then
+          updated "$plugin_name" "from $source"
+        fi
+        ;;
+      *)
+        if run_quiet "$plugin_name" omp plugin install "$source" </dev/null; then
+          updated "$plugin_name" "from $source"
+        fi
+        ;;
+    esac
   done < "$DOTFILES_DIR/omp_plugins.txt"
 }
 

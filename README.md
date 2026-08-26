@@ -1169,39 +1169,11 @@ it. The CLI arrives through foreman's herdr plugin, listed in `herdr_plugins.txt
 its startup hook puts `foreman` on `PATH`. The boss procedure (`skill://foreman-boss`
 and `/foreman:*`) plus the `foreman_*` custom tools are foreman's omp plugin, a
 direct git install of the repo root — see `omp_plugins.txt`, which also records the
-one-time cleanup for machines that still carry the marketplace this replaced. This
-checkout retains only the general worktree rule below.
-
-### The worktree rule was wrong in a way `foreman` made visible
-
-`omp/agent/rules/herdr-worktrees.md` used to say, with `alwaysApply: true`, that inside
-herdr you always use `herdr worktree` and never `git worktree`. Writing `foreman` on top of
-it exposed the flaw: **an agent cannot move itself into the worktree it just created.** An
-omp process keeps the directory it launched in, and `herdr pane move` relocates a pane's
-display rather than its shell's cwd. So for an agent's own use — building another ref,
-diffing two versions — `herdr worktree create` buys a sidebar entry, a tab and a pane it
-did not want.
-
-The rule is now organised around who will occupy the worktree. Someone else will sit in
-it, human or agent: `herdr worktree create`, which is the only path that runs
-`tdi.worktree-setup` (the `.env*` copy, `mise trust`, `direnv allow`).
-Nobody will, and you only need the files: plain `git worktree add` in a temp directory,
-plain `git worktree remove` after. Removal has to match creation — `git worktree remove`
-on a herdr-created worktree orphans the workspace, leaving a sidebar entry pointing at
-nothing.
-
-One measured trap, on 0.8.0: `herdr worktree open` is *not* a way to promote a plain
-`git worktree add` into a real workspace. `tdi.worktree-setup` hooks `worktree.created`
-only, so an opened worktree never gets its `.env*`, its `mise trust` or its installed
-deps — you get a workspace wrapped around a checkout that is still unusable.
+one-time cleanup for machines that still carry the marketplace this replaced.
 
 ### The boss is opt-in
 
-Dropping `alwaysApply` was also what kept `foreman` from becoming ambient. An always-on
-rule about worktrees is one short step from every session deciding to dispatch a worker
-at its own discretion. The rule is now a rulebook entry — it keeps its `description`,
-and the model reads it through `rule://herdr-worktrees` when it is actually about to
-touch a worktree. Bossing is a separate, deliberate opt-in: `/foreman:boss <objective>`,
+Bossing is a separate, deliberate opt-in: `/foreman:boss <objective>`,
 a command from foreman's omp plugin, which adopts the role and points at
 `skill://foreman-boss` for the procedure. Nothing loads that skill on its own; a
 session that never asks for a boss never hears about one.
