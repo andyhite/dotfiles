@@ -34,13 +34,3 @@ douglascorrea/herdr-agent-inbox
 # issue otherwise starts with none of its gitignored files. No actions, pure
 # event hook. Config: config.toml.
 tdi/herdr-worktree-setup
-
-# `foreman` dispatches peer coding agents into herdr worktree workspaces. A
-# worker is a separate `omp` in its own pane, worktree, and branch — not an
-# in-process `task` subagent sharing the boss process.
-# This plugin's startup hook is the PATH install: it symlinks the executable into
-# ~/.local/bin and refuses to clobber a path it does not own. The agent-facing
-# procedure (`skill://foreman-boss` and `/foreman:*`) is foreman's other half,
-# an agent plugin from the same repo, installed through a direct git install
-# rather than here — see foreman in omp_plugins.txt.
-andyhite/foreman/herdr

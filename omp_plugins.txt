@@ -26,17 +26,16 @@
 # Skills are not plugins — cross-agent skills live in agent_skills.txt and are
 # installed with the `skills` CLI into ~/.agents/skills instead.
 
-# The boss half of foreman. `/foreman:boss` turns a session into a project
-# manager: it interviews you, slices the objective, and dispatches each slice
-# to a worker rather than writing code itself. `/foreman:dispatch` sends one
-# piece of work to a worker mid-session, once boss is already claimed. Also
-# ships skill://foreman-boss (the CLI contract), skill://foreman-dispatch (how
-# to write a brief), skill://foreman-worker (the worker-side procedure), plus
-# the foreman_* custom tools its extension registers.
-#
-# The CLI half is the herdr plugin andyhite/foreman/herdr in herdr_plugins.txt;
-# neither half is much use without the other, and the mattpocock skills a
-# dispatch delegates to come from agent_skills.txt.
+# foreman dispatches peer coding agents into git worktrees via herdr panes,
+# and carries their reports and questions back. A worker is a separate `omp`
+# in its own pane, worktree, and branch — not an in-process `task` subagent
+# sharing this process. Pure omp extension now: registers the foreman_spawn,
+# foreman_send, foreman_ask, foreman_ls, and foreman_reap tools plus one
+# model-invoked skill://foreman. There is no herdr-plugin half anymore (it
+# used to also live in herdr_plugins.txt as andyhite/foreman/herdr) and no
+# /foreman:* commands or split skill://foreman-boss/dispatch/worker skills —
+# a spawned worker still needs to be running under herdr for its pane to
+# exist, but nothing here installs onto herdr itself.
 #
 # This was `andyhite/foreman  fleet@foreman` until the repo dropped both its
 # marketplace and the product name `fleet`: marketplace plugins load through
