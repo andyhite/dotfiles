@@ -1,10 +1,10 @@
-providers: 
-  webSearchOrder: 
+providers:
+  webSearchOrder:
     []
   memoryModel: online
-  maxInFlightRequests: 
+  maxInFlightRequests:
     openai-codex: 8
-modelRoles: 
+modelRoles:
   default: anthropic/claude-sonnet-5:medium
   plan: anthropic/claude-opus-5:high
   slow: anthropic/claude-opus-5:max
@@ -15,13 +15,13 @@ modelRoles:
   vision: anthropic/claude-sonnet-5:medium
   designer: anthropic/claude-opus-5:high
   advisor: anthropic/claude-sonnet-5:medium
-modelProviderOrder: 
+modelProviderOrder:
   - anthropic
   - openai-codex
   - anthropic-api
   - openai
   - cursor
-disabledProviders: 
+disabledProviders:
   - amazon-bedrock
   - bedrock-mantle
   - codex
@@ -30,189 +30,189 @@ disabledProviders:
   - cursor
   - gemini
 symbolPreset: nerd
-theme: 
+theme:
   dark: dark-one-tuned
   light: light-one
 setupVersion: 2
-dev: 
+dev:
   autoqaConsent: granted
-statusLine: 
+statusLine:
   preset: custom
   separator: slash
   showHookStatus: true
   compactThinkingLevel: true
   transparent: true
   sessionAccent: true
-  leftSegments: 
+  leftSegments:
     - pi
     - hostname
     - path
     - git
     - pr
-  rightSegments: 
+  rightSegments:
     - model
     - mode
     - subagents
     - cost
     - usage
     - context_pct
-  segmentOptions: 
-    model: 
+  segmentOptions:
+    model:
       showThinkingLevel: false
-    path: 
+    path:
       abbreviate: true
       maxLength: 60
-    git: 
+    git:
       showBranch: true
       showStaged: true
       showUnstaged: true
       showUntracked: true
-    time: 
+    time:
       format: 24h
       showSeconds: true
-terminal: 
+terminal:
   showProgress: true
-tui: 
+tui:
   textSizing: true
   codexResetFireworks: false
   tight: false
   scrollbackRebuild: true
   imeSafeCursor: false
-display: 
+display:
   shimmer: classic
   showTokenUsage: true
   cacheMissMarker: true
-task: 
+task:
   showResolvedModelBadge: true
   eager: preferred
 personality: none
-retry: 
+retry:
   usageAwareFallback: true
   modelFallback: true
   fallbackRevertPolicy: cooldown-expiry
-  fallbackChains: 
-    default: 
+  fallbackChains:
+    default:
       - openai-codex/gpt-5.6-terra:medium
       - anthropic-api/claude-sonnet-5
       - openai/gpt-5.6-terra:medium
       - cursor/composer-2.5
-    plan: 
+    plan:
       - openai-codex/gpt-5.6-sol:high
       - anthropic-api/claude-opus-5:high
       - openai/gpt-5.6:high
       - cursor/composer-2.5
-    slow: 
+    slow:
       - openai-codex/gpt-5.6-sol:xhigh
       - anthropic-api/claude-opus-5:max
       - openai/gpt-5.6-sol:xhigh
       - cursor/composer-2.5
-    task: 
+    task:
       - openai-codex/gpt-5.6-terra:medium
       - anthropic-api/claude-sonnet-5
       - openai/gpt-5.6-terra:medium
       - cursor/composer-2.5
-    smol: 
+    smol:
       - openai-codex/gpt-5.6-luna:low
       - anthropic-api/claude-haiku-4-5
       - openai/gpt-5.6-luna:low
       - cursor/composer-2.5
-    commit: 
+    commit:
       - openai-codex/gpt-5.4-mini:minimal
       - anthropic-api/claude-haiku-4-5:minimal
       - openai/gpt-5.4-mini:minimal
       - cursor/composer-2.5
-    tiny: 
+    tiny:
       - openai-codex/gpt-5.4-mini:minimal
       - anthropic-api/claude-haiku-4-5:minimal
       - openai/gpt-5.4-mini:minimal
       - cursor/composer-2.5
-    vision: 
+    vision:
       - openai-codex/gpt-5.6-terra:medium
       - anthropic-api/claude-sonnet-5
       - openai/gpt-5.6-terra:medium
-    designer: 
+    designer:
       - openai-codex/gpt-5.6-sol:high
       - anthropic-api/claude-opus-5:high
       - openai/gpt-5.6-sol:high
       - cursor/composer-2.5
-    advisor: 
+    advisor:
       - openai-codex/gpt-5.6-terra:medium
       - anthropic-api/claude-sonnet-5
       - openai/gpt-5.6-terra:medium
       - cursor/composer-2.5
-  usageReservePolicy: confirm
-  usageReservePct: 5
-advisor: 
+  usageReservePolicy: auto
+  usageReservePct: 25
+advisor:
   enabled: false
 interruptMode: immediate
 followUpMode: all
 steeringMode: all
-loop: 
+loop:
   mode: reset
 doubleEscapeAction: tree
-error: 
+error:
   notify: "on"
-collab: 
+collab:
   displayName: andyhite
-marketplace: 
+marketplace:
   autoUpdate: auto
-startup: 
+startup:
   changelogMode: summary
   quiet: true
-features: 
+features:
   unexpectedStopDetection: smart
-compaction: 
+compaction:
   handoffSaveToDisk: true
   thresholdPercent: 55
   idleEnabled: true
-  methodOrder: 
+  methodOrder:
     - snapcompact
     - remote
     - handoff
     - shake
     - soft
-ttsr: 
+ttsr:
   contextMode: discard
   repeatMode: after-gap
-memory: 
+memory:
   backend: "off"
-autolearn: 
+autolearn:
   enabled: false
-edit: 
+edit:
   mode: hashline
 readLineNumbers: true
-read: 
+read:
   renderMarkdown: true
   toolResultPreview: true
-lsp: 
+lsp:
   formatOnWrite: false
-bash: 
-  autoBackground: 
+bash:
+  autoBackground:
     enabled: true
   direnv: auto
-bashInterceptor: 
+bashInterceptor:
   enabled: true
-astGrep: 
+astGrep:
   enabled: true
-computer: 
+computer:
   enabled: true
-debug: 
+debug:
   enabled: false
-checkpoint: 
+checkpoint:
   enabled: true
-github: 
+github:
   enabled: true
-web_search: 
+web_search:
   enabled: true
-todo: 
+todo:
   eager: preferred
-browser: 
+browser:
   relay: true
-plan: 
+plan:
   defaultOnStartup: false
-commands: 
+commands:
   enableClaudeUser: true
-secrets: 
+secrets:
   enabled: true
-composer: 
+composer:
   shape: claude
