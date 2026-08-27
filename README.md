@@ -32,9 +32,6 @@ NvChad for editing.
   - [Herdr plugin keybindings — `[keys]` only knows herdr's own actions](#herdr-plugin-keybindings--keys-only-knows-herdrs-own-actions)
   - [lin — Homebrew tap on macOS, cargo on Linux](#lin--homebrew-tap-on-macos-cargo-on-linux)
   - [Agent skills — the list is tracked, the lockfile isn't](#agent-skills--the-list-is-tracked-the-lockfile-isnt)
-  - [`foreman` — dispatching agents herdr can reach, because omp can't](#foreman--dispatching-agents-herdr-can-reach-because-omp-cant)
-  - [The worktree rule was wrong in a way `foreman` made visible](#the-worktree-rule-was-wrong-in-a-way-foreman-made-visible)
-  - [The boss is opt-in](#the-boss-is-opt-in)
   - [NvChad — diffview alongside telescope `git_status`](#nvchad--diffview-alongside-telescope-git_status)
   - [NvChad's lockfile — install restores it, `:Lazy sync` moves it](#nvchads-lockfile--install-restores-it-lazy-sync-moves-it)
   - [NvChad's Mason/Treesitter setup — do this yourself, on purpose](#nvchads-masontreesitter-setup--do-this-yourself-on-purpose)
@@ -476,7 +473,7 @@ rebase replays a conflict you already resolved once.
 
 **jj** is optional per checkout (`jj git init --colocate` once) — `.git` stays
 authoritative, so lazygit, `gh`, and delta keep working unchanged. It earns its place
-from foreman-style work: `jj undo` reverts one operation atomically, and descendant commits
+from stacked agent-branch work: `jj undo` reverts one operation atomically, and descendant commits
 rebase automatically when you amend mid-stack. `config/jj/config.toml` is linked
 unconditionally because jj refuses to create a commit without `user.name`/`user.email`,
 unlike git. The honest tradeoff is a second mental model on top of git — no staging
@@ -562,9 +559,9 @@ and `gh extension upgrade` is the only command that moves an existing one forwar
 plugin installs work the other way round — see `omp_plugins.txt`. The step checks
 `gh auth status` once up front; an unauthenticated box skips the whole manifest with a
 note rather than failing once per line. The one extension listed today is `seachicken/gh-poi`
-— squash-merged branches never look merged to `git branch --merged`, but foreman creates a
-worktree and branch per dispatched worker, so merged-branch churn is continuous rather
-than occasional.
+— squash-merged branches never look merged to `git branch --merged`, and a worktree per
+branch of stacked agent work means merged-branch churn is continuous rather than
+occasional.
 
 ### btop — One Dark theme, and the config-rewrite trap
 
@@ -966,8 +963,8 @@ push keys. Uninstalling the plugin alone would have left a service running again
 plugin that no longer existed.
 
 `razajamil/herdr-plugin-workspace-manager` — declarative tab/pane layouts applied to
-each new worktree — went the same way once `foreman` started building the workspaces it
-dispatches into itself. Two things arranging one fresh worktree is a race other plugins
+each new worktree — went the same way once a per-worker dispatch tool started building
+the workspaces it dispatches into itself. Two things arranging one fresh worktree is a race other plugins
 have hit before, and the plugin only ever won it on a repo it had
 a YAML layout for; every other worktree got the bare pane anyway. Removal was two
 steps: `herdr plugin uninstall herdr-plugin-workspace-manager` on each machine, then
@@ -1029,9 +1026,9 @@ the plugin look broken when it's actually just unrendered.
 `worktree.created` fires on a new worktree and `worktree-setup` makes the checkout
 usable — copies `.env*` from the main checkout, `mise trust`, `direnv allow`, installs
 deps. Nothing else runs at that moment, by design: arranging the workspace belongs to
-whoever asked for the worktree. `foreman` builds its own tabs and panes and starts the
-agent itself via `herdr agent start`, which blocks until herdr detects it's ready; a
-worktree created by hand stays one bare pane until you shape it.
+whoever asked for the worktree. A dispatch tool that builds its own tabs and panes can
+start the agent itself via `herdr agent start`, which blocks until herdr detects it's
+ready; a worktree created by hand stays one bare pane until you shape it.
 
 ### Herdr plugin keybindings — `[keys]` only knows herdr's own actions
 
@@ -1088,37 +1085,6 @@ its own here — it picks skills up through its `agents` skill provider, reading
 (`~/.omp/agent/skills` is a separate, narrower thing: the same `skills` step also
 symlinks any skill an installed Herdr plugin ships in its own `skills/` directory there —
 unrelated to `agent_skills.txt`, and the one part of this step that isn't new.)
-
-### `foreman` — dispatching agents herdr can reach, because omp can't
-
-`foreman` dispatches peer coding agents into herdr worktree workspaces: each worker
-is a separate `omp` in its own pane, worktree, and branch, rather than an in-process
-`task` subagent. It lives at [andyhite/foreman](https://github.com/andyhite/foreman),
-which keeps the transport, lifecycle, and workspace-ownership rationale with the
-implementation.
-
-It ships as two plugins from that one repo, sharing its name — coincidence, not an
-install-time namespace; there is no marketplace here, so nothing keys an install on
-it. The CLI arrives through foreman's herdr plugin, listed in `herdr_plugins.txt`;
-its startup hook puts `foreman` on `PATH`. The boss procedure (`skill://foreman-boss`
-and `/foreman:*`) plus the `foreman_*` custom tools are foreman's omp plugin, a
-direct git install of the repo root — see `omp_plugins.txt`, which also records the
-one-time cleanup for machines that still carry the marketplace this replaced.
-
-### The boss is opt-in
-
-Bossing is a separate, deliberate opt-in: `/foreman:boss <objective>`,
-a command from foreman's omp plugin, which adopts the role and points at
-`skill://foreman-boss` for the procedure. Nothing loads that skill on its own; a
-session that never asks for a boss never hears about one.
-
-Worth being clear about what is *not* doing the gating here, because all three look like
-they should. Rules have no per-agent scoping — there is no frontmatter field binding one
-to an agent, and `scope:` scopes TTSR stream surfaces, not agents. Skills are session-wide
-for the same reason: every documented filter (`ignoredSkills`, `disabledExtensions`,
-the per-source toggles) applies to the whole session. And omp has no `--agent` flag, so a
-task-agent definition can't back a top-level session either. The launch is identical for
-boss and worker; the only difference is that one of them was told to be one.
 
 ### NvChad — diffview alongside telescope `git_status`
 

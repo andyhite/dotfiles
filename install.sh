@@ -1530,8 +1530,8 @@ ensure_runtimes() {
 # The owner/repo a checkout's origin points at, empty when the path isn't a
 # checkout or has no origin. Both URL shapes git uses end in those same two
 # path segments, so taking the last two covers https and ssh alike — including
-# the `git@github.com-personal:owner/repo.git` Host aliases this repo's own
-# ssh/config defines, which is what foreman's origin actually looks like.
+# a `git@github.com-personal:owner/repo.git` split-identity Host alias, the
+# shape this repo's own ssh/config defines for personal-vs-work accounts.
 git_origin_slug() {
   local url owner repo
   url="$(git -C "$1" remote get-url origin 2>/dev/null)" || return 0
@@ -1566,15 +1566,16 @@ herdr_registry_query() {
 # managed directory for a github install and the checkout itself for a linked
 # one. clone_root is only set for a github install of a repo subdirectory, where
 # it's the managed clone above that subdirectory: a repo can ship agent skills at
-# its root while the herdr plugin is one directory down (foreman does exactly
-# that), and those skills are outside plugin_root entirely.
+# its root while the herdr plugin is one directory down, and those skills are
+# outside plugin_root entirely.
 #
 # It stays empty for a linked plugin on purpose. The checkout's own root is a
 # guess rather than recorded state, and walking up into it is actively wrong when
-# that repo is also an omp plugin: foreman keeps the herdr plugin in herdr/ and
-# ships its skills/ directory at the root, which omp already discovers from the installed
-# plugin. Linking those too would shadow the copy omp resolves with one pinned to
-# whatever the checkout happens to be at.
+# that repo is also an omp plugin: a repo that keeps its herdr plugin in a
+# subdirectory and ships its skills/ directory at the root has that root
+# discovered by omp already, from the installed plugin. Linking those too
+# would shadow the copy omp resolves with one pinned to whatever the checkout
+# happens to be at.
 herdr_plugin_roots() {
   herdr_registry_query '.[]? | select(.plugin_root) | [
       .plugin_id,

@@ -79,8 +79,8 @@ brew "git-absorb"
 brew "difftastic"
 
 # Used colocated (`jj git init --colocate`) so the repo stays a normal git
-# repo underneath. Earns its place from foreman: every dispatched worker gets
-# its own worktree and branch, and `jj undo` on the operation log reverts a
+# repo underneath. Earns its place on stacked agent-branch work: every branch
+# gets its own worktree, and `jj undo` on the operation log reverts a
 # worker's change atomically, while jj's automatic descendant rebase makes
 # restacking a chain of worker branches cheap. Config: config/jj/config.toml.
 brew "jj"
@@ -199,8 +199,8 @@ brew "tealdeer"
 brew "cloc"
 brew "rsync"
 
-# herdr — the terminal multiplexer config/herdr/config.toml, herdr_plugins.txt
-# and this Brewfile's `andyhite/foreman` bits all assume is already on PATH.
+# herdr — the terminal multiplexer config/herdr/config.toml and
+# herdr_plugins.txt assume is already on PATH.
 # A real Homebrew core formula (`brew info herdr`), same tier as lazygit/btop
 # above — not a tap, not a cargo build.
 #

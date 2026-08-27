@@ -5,10 +5,10 @@
 # pager — keeps working unchanged. jj is a second interface onto the same
 # commits, not a replacement for git.
 #
-# Why it's here: foreman (see `skill://foreman-boss`) dispatches one worker per
-# worktree/branch, and `jj undo` reverts a single operation — a bad rebase, a
-# wrong abandon — atomically, which plain git has no equivalent for short of
-# reflog archaeology. jj also auto-rebases descendant commits when you amend one
+# Why it's here: dispatching one agent worker per worktree/branch benefits from
+# `jj undo`, which reverts a single operation — a bad rebase, a wrong abandon —
+# atomically, which plain git has no equivalent for short of reflog
+# archaeology. jj also auto-rebases descendant commits when you amend one
 # mid-stack, which is exactly what a review round needs when the requested fixes
 # belong spread across several commits an agent already wrote.
 #

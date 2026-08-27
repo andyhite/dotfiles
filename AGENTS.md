@@ -120,8 +120,8 @@ Conventional Commits, one line, all lowercase, imperative mood, no trailing peri
 
 - Types in use: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `ci`, `chore`,
   `revert`.
-- Scope is the tool or config area (`omp`, `herdr`, `nvim`, `zsh`, `foreman`,
-  `ssh`, `ghostty`, `starship`, `atuin`, `brewfile`, `ci`, `setup`); omit it for
+- Scope is the tool or config area (`omp`, `herdr`, `nvim`, `zsh`, `ssh`,
+  `ghostty`, `starship`, `atuin`, `brewfile`, `ci`, `setup`); omit it for
   repo-wide changes.
 - Add a body only when the reasoning is worth recording.
 

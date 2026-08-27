@@ -16,9 +16,7 @@ same role names.
     omp plugin install <src>        # install a plugin at user scope (npm spec or git shorthand)
     omp plugin install --dry-run <src>  # show what an install would do, changing nothing
 
-Installed omp plugins (`omp_plugins.txt`), one line each on what they add:
-
-- `foreman` — the boss half: `/foreman:*` commands, `skill://foreman-boss`, the `foreman_*` tools
+No plugins are currently tracked in `omp_plugins.txt`.
 
 Gotcha: for omp plugins, install IS the update path — the opposite of the gh
 extensions trap. Re-running `omp plugin install` on a git or npm source lets
@@ -94,15 +92,15 @@ every plugin below reads from, so tooling can tell "waiting on you" apart
 from "finished while you weren't looking" without scraping terminal output.
 
 It's also the terminal layer the rest of this toolchain assumes it's running
-inside of. foreman has no terminal or worktree management of its own — its CLI
-half is itself a herdr plugin (`andyhite/foreman/herdr` below), and every
-worker `foreman spawn` creates is a herdr pane living in a herdr worktree
-workspace. The `herdr` agent skill that lets an agent drive its own session
-only arms itself when `HERDR_ENV=1` is set — i.e. only when that agent is
-actually running inside a herdr-managed pane, not just any terminal. And
-plugins like `douglascorrea/herdr-agent-inbox` (the agent inbox split) exist
-as panes precisely because herdr is what's already multiplexing the terminal
-they share.
+inside of. A per-worker dispatch tool with no terminal or worktree management
+of its own would run its CLI half as a herdr plugin, and every worker it
+creates as a herdr pane living in a herdr worktree workspace. The `herdr`
+agent skill that lets an agent drive its own session only arms itself when
+`HERDR_ENV=1` is set — i.e. only when that agent is actually running inside a
+herdr-managed pane, not just any terminal. And plugins like
+`douglascorrea/herdr-agent-inbox` (the agent inbox split) exist as panes
+precisely because herdr is what's already multiplexing the terminal they
+share.
 
     herdr                            # launch or attach to the persistent session
     herdr agent start                # start a supported interactive agent in an existing pane
@@ -125,36 +123,6 @@ Installed plugins (`herdr_plugins.txt`), one line each on what they add:
 - `paulbkim-dev/vim-herdr-navigation` — ctrl-h/j/k/l crosses into nvim splits instead of stopping at the pane edge
 - `douglascorrea/herdr-agent-inbox` — inbox plus auto tab/session naming for agent panes
 - `tdi/herdr-worktree-setup` — on worktree.created: copies .env*, mise trust, direnv allow, installs deps
-- `andyhite/foreman/herdr` — foreman's CLI half, installs the `foreman` binary onto PATH
-
-## foreman — the boss
-
-Two halves, both required. The herdr plugin `andyhite/foreman/herdr`
-(`herdr_plugins.txt`) is the CLI — its startup hook symlinks the `foreman`
-binary onto PATH. The omp plugin `foreman` (`omp_plugins.txt`, a direct git
-install of `andyhite/foreman` — no marketplace) is the agent-facing half:
-`/foreman:*` commands and the `skill://foreman-boss` / `skill://foreman-dispatch`
-/ `skill://foreman-worker` skills. A worker dispatched by foreman is a separate
-`omp` process in its own pane, worktree, and branch — never an in-process
-`task` subagent sharing the boss's own process.
-
-    foreman boss                    # claim the boss handle for this pane
-    foreman spawn <branch>          # create a worktree, start an agent, dispatch work to it
-    foreman send <handle> <text>    # dispatch work to a worker, return immediately
-    foreman ask <handle> <text>     # dispatch and block until the worker's report is in
-    foreman join                    # collect this repo's workers, print their reports
-    foreman ls                      # list workers, their kinds, and their states
-    foreman dashboard               # inspect and operate foreman interactively
-    foreman reap <handle>           # remove a worker's worktree and forget it
-    foreman report -f <file>        # (worker side) write the report the boss collects
-    foreman doctor                  # check prerequisites are in place
-
-`/foreman:boss` claims the boss handle and adopts the role for the session;
-`/foreman:dispatch` sends one piece of work to a worker mid-session. A
-dispatched worker's brief names a role or a list of skills to run — literal
-skill names it reaches with `foreman skill <name>`, which is how it triggers
-a skill marked disable-model-invocation that it couldn't otherwise reach on
-its own.
 
 ## skills — the cross-agent skill CLI
 

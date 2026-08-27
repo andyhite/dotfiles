@@ -27,37 +27,11 @@
 # git or marketplace install would replace the symlink with a fetched copy and
 # the checkout would quietly stop being what runs.
 #
-# Everything here installs at user scope rather than into a project. Foreman
-# workers are separate omp processes in separate worktrees, and a project-scoped
-# plugin would be invisible to them.
+# Everything here installs at user scope rather than into a project. A
+# project-scoped plugin would be invisible to any other worktree of the same
+# repo, since each worktree runs its own omp process.
 #
 # Skills are not plugins — cross-agent skills live in agent_skills.txt and are
 # installed with the `skills` CLI into ~/.agents/skills instead.
-
-# foreman dispatches peer coding agents into git worktrees via herdr panes,
-# and carries their reports and questions back. A worker is a separate `omp`
-# in its own pane, worktree, and branch — not an in-process `task` subagent
-# sharing this process. Pure omp extension now: registers the foreman_spawn,
-# foreman_convene, foreman_roles, foreman_send, foreman_ask, foreman_wait,
-# foreman_ls, and foreman_reap tools plus skill://foreman-spawner,
-# skill://foreman-worker, and skill://foreman-expert. There is no herdr-plugin
-# half anymore (it used to also live in herdr_plugins.txt as
-# andyhite/foreman/herdr) and no /foreman:* commands — a spawned worker still
-# needs to be running under herdr for its pane to exist, but nothing here
-# installs onto herdr itself.
 #
-# name@marketplace installs through omp's marketplace system: `source` below
-# is what `omp plugin marketplace add` registers, `foreman@foreman` is what
-# `omp plugin install` then takes. foreman re-added `.omp-plugin/
-# marketplace.json` — a self-hosting single-plugin catalog — after a stretch
-# where this file did a direct `github:andyhite/foreman foreman` install; that
-# was only ever a workaround for a disabledProviders entry that excluded the
-# marketplace-installed plugin's own commands and skills along with the real
-# ~/.claude content it was meant to exclude, and it's gone now that
-# /marketplace install and /marketplace upgrade work again. Before that it was
-# `andyhite/foreman  fleet@foreman`, back when the product was named `fleet`;
-# a machine still carrying that install has its own copy of /fleet:* and
-# should clear it once by hand, then re-run this step:
-#   omp plugin uninstall fleet@foreman     # or fleet@omp-fleet, if older still
-#   omp plugin marketplace remove foreman  # likewise omp-fleet
-andyhite/foreman  foreman@foreman
+# (No plugins are currently tracked here.)
