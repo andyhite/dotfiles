@@ -9,6 +9,11 @@ shell-integration-features = cursor,sudo,title,ssh-env,ssh-terminfo
 window-padding-x = 10
 window-padding-y = 10
 
+# Default discrete (physical mouse wheel) multiplier is 3 lines per click,
+# which makes nvim/shells scroll way too far per notch. Trackpad (precision)
+# scrolling is already smooth at its default of 1, so only discrete is tuned.
+mouse-scroll-multiplier = discrete:1
+
 # Global show/hide used to be bound here (global:ctrl+enter=toggle_visibility),
 # but Ghostty's toggle is app-wide, not per-Space, so with one window per
 # macOS Space it always jumped to the most-recently-focused window instead of
