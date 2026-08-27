@@ -70,49 +70,23 @@ hide_tab_bar_when_single_tab = false
 mouse_scroll_lines = 1
 agent_panel_sort = "spaces"
 
-## herdr-agent-inbox's sidebar-grow / sidebar-shrink actions (prefix+alt+l and
-## prefix+alt+h below) rewrite these three numbers in place and reload. They
-## bail out with an error if ANY of the three is missing, which is why all
-## three are spelled out here even though every value is herdr's own default.
-##
-## The actions pin all three to the target width to force it past herdr's
-## clamp-on-reload, then relax min/max back to 20/60 so the mouse can still
-## drag the divider. So expect these numbers to drift in git as you resize —
-## that's the feature working, not a stray edit.
+## Sidebar bounds. herdr has no native runtime resize command, so these are
+## just fixed defaults rather than something a keybinding rewrites in place.
 sidebar_width = 26
 sidebar_min_width = 18
 sidebar_max_width = 36
 
 # ── Sidebar rows ─────────────────────────────────────────────────────────────
 
-# herdr's packed sidebar only renders tokens you name here. One plugin reports
-# custom ones and is silently invisible without this block:
-#   herdr-agent-inbox  $title (derived session name), $flag (⚑ settled /
-#                      ● unread), $age (session runtime), $since (time in
-#                      current state), and workspace-level $agents / $busy
-#
-# Builtins stay bare (state_icon, workspace, tab, agent, branch, git_status);
-# custom tokens keep the $. A styled token becomes a table.
-
 [ui.sidebar.agents]
-## Line 1 is the answer to "what is this?" — the AI-derived session title,
-## dimmed so it reads as metadata rather than the name.
-## Line 2 is the answer to "should I care right now?" — the unread/settled flag
-## first, then which agent and where, then how long it's been going.
-##
-## `tab` is deliberately absent from line 2: agent-inbox renames the tab to
-## this same $title, so showing both would print the name twice per row.
 rows = [
-  ["state_icon", "$title"],
-  [{ token = "$flag", fg = "#e5c07b", bold = true }, "agent", "workspace", { token = "$age", dim = true }],
+  ["state_icon", "workspace", "tab"],
+  ["agent"],
 ]
 
 [ui.sidebar.spaces]
-## $agents is the per-state count, $busy the longest current working stint —
-## together they answer "is this workspace waiting on me" without expanding it.
-## Second row is the git context that makes a worktree identifiable at all.
 rows = [
-  ["state_icon", "workspace", "$agents", { token = "$busy", dim = true }],
+  ["state_icon", "workspace"],
   ["branch", "git_status"],
 ]
 
@@ -287,66 +261,6 @@ command = "herdr plugin action invoke up --plugin vim-herdr-navigation"
 key = "ctrl+l"
 type = "shell"
 command = "herdr plugin action invoke right --plugin vim-herdr-navigation"
-
-## herdr-agent-inbox — the inbox itself, as a split beside the current pane
-## rather than the overlay its manifest declares. `--placement` overrides the
-## manifest, and a split is the right shape here: the inbox is a picker you act
-## from, so you want it next to the agent you're triaging, not covering it.
-## With no --target-pane it splits whichever pane is focused, which from a
-## keybinding is always the one you're looking at.
-[[keys.command]]
-key = "prefix+i"
-type = "shell"
-command = "herdr plugin pane open --plugin herdr-agent-inbox --entrypoint inbox --placement split --direction right"
-
-## m / shift+m are the two halves of one idea: mark this agent handled, or mark
-## it as still wanting me. Settling drops it to the bottom of the inbox; unread
-## flags it up to attention rank. Both are undone automatically the moment the
-## agent starts working or blocks again.
-[[keys.command]]
-key = "prefix+m"
-type = "shell"
-command = "herdr plugin action invoke settle --plugin herdr-agent-inbox"
-
-[[keys.command]]
-key = "prefix+shift+m"
-type = "shell"
-command = "herdr plugin action invoke unread --plugin herdr-agent-inbox"
-
-## Same idea, whole workspace: settles every agent here that's done, idle or
-## unknown. The end-of-session sweep.
-[[keys.command]]
-key = "prefix+alt+m"
-type = "shell"
-command = "herdr plugin action invoke settle-workspace --plugin herdr-agent-inbox"
-
-## Throw away this agent's cached session title and derive a new one — for when
-## the opening prompt turned out not to describe where the session went. Plain
-## prefix+t is free; prefix+shift+t is herdr's own rename_tab, which is the
-## manual counterpart (and permanently releases the tab from auto-naming).
-[[keys.command]]
-key = "prefix+t"
-type = "shell"
-command = "herdr plugin action invoke retitle --plugin herdr-agent-inbox"
-
-## h/l = narrower/wider, the vim axis. These rewrite sidebar_width and the two
-## bounds in this file and reload — see the [ui] comment above.
-[[keys.command]]
-key = "prefix+alt+h"
-type = "shell"
-command = "herdr plugin action invoke sidebar-shrink --plugin herdr-agent-inbox"
-
-[[keys.command]]
-key = "prefix+alt+l"
-type = "shell"
-command = "herdr plugin action invoke sidebar-grow --plugin herdr-agent-inbox"
-
-## The daemon is started by herdr's startup hook and re-checked on every
-## pane.agent_detected, so it normally self-heals. This is for when it doesn't.
-[[keys.command]]
-key = "prefix+alt+d"
-type = "shell"
-command = "herdr plugin action invoke restart-daemon --plugin herdr-agent-inbox"
 
 ## command-palette — fzf over EVERY action of EVERY installed plugin, built at
 ## run time from `herdr plugin action list`, so it needs no maintenance as
