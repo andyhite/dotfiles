@@ -26,7 +26,6 @@ disabledProviders:
   - bedrock-mantle
   - codex
   - claude
-  - claude-plugins
   - cursor
   - gemini
 symbolPreset: nerd
@@ -216,3 +215,5 @@ secrets:
   enabled: true
 composer:
   shape: claude
+disabledExtensions:
+  []
