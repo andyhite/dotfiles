@@ -16,11 +16,14 @@ window-padding-y = 10
 # now — see config/hammerspoon/init.lua and help/00-shell.md's hammerspoon
 # section.
 
-# Ghostty's own defaults bind plain Cmd+[ / Cmd+] to goto_split:previous/next.
-# `unbind` removes that (rather than rebinding it to something else) so the
-# raw chord passes through to whatever's running in the pane — herdr's
-# next_workspace/previous_workspace (config/herdr/config.toml) claims it from
-# there. Cmd+Shift+[ / Cmd+Shift+] still switch Ghostty's own native tabs;
-# only the un-shifted chord moves.
+# Ghostty's own defaults bind plain Cmd+[ / Cmd+] to goto_split:previous/next,
+# and Cmd+Shift+[ / Cmd+Shift+] to native tab switching. `unbind` removes all
+# four (rather than rebinding them) so the raw chords pass through to
+# whatever's running in the pane — herdr's next_workspace/previous_workspace
+# and next_tab/previous_tab (config/herdr/config.toml) claim them from there.
+# Native Ghostty tabs go unused here, so surrendering their switcher chord
+# costs nothing.
 keybind = super+[=unbind
 keybind = super+]=unbind
+keybind = super+shift+[=unbind
+keybind = super+shift+]=unbind

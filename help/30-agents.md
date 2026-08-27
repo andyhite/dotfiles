@@ -19,14 +19,11 @@ same role names.
 Installed omp plugins (`omp_plugins.txt`), one line each on what they add:
 
 - `foreman` — the boss half: `/foreman:*` commands, `skill://foreman-boss`, the `foreman_*` tools
-- `billion-context-omp` — model-driven context compression; `compress`/`decompress`/`search_context` and the `/acp` report
 
 Gotcha: for omp plugins, install IS the update path — the opposite of the gh
 extensions trap. Re-running `omp plugin install` on a git or npm source lets
 omp follow its `bun install` with a `bun update`, which moves the dependency
-forward; there is no separate update command to pair it with. It's also why
-billion-context-omp's own `autoUpdate` is switched off in `omp/acp-omp.json`:
-left on, the extension reinstalls itself from npm behind the manifest's back.
+forward; there is no separate update command to pair it with.
 `omp update` is deliberately the only upgrade path for omp itself — install.sh
 never re-downloads it, so `omp update` (or `--check` first) is how you
 actually get a new release. Machine-local model providers (API keys, custom

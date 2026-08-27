@@ -162,7 +162,7 @@ features:
   unexpectedStopDetection: smart
 compaction:
   handoffSaveToDisk: true
-  thresholdPercent: 55
+  thresholdPercent: 40
   idleEnabled: true
   methodOrder:
     - snapcompact
@@ -170,6 +170,8 @@ compaction:
     - handoff
     - shake
     - soft
+  idleThresholdTokens: 200000
+  idleTimeoutSeconds: 120
 ttsr:
   contextMode: discard
   repeatMode: after-gap

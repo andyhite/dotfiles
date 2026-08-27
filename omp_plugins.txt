@@ -61,30 +61,3 @@
 #   omp plugin uninstall fleet@foreman     # or fleet@omp-fleet, if older still
 #   omp plugin marketplace remove foreman  # likewise omp-fleet
 andyhite/foreman  foreman@foreman
-
-# Model-driven context compression: an extension, not a command pack. omp's own
-# auto-compaction replaces the history with one summary once a threshold is
-# crossed; this hands the model a `compress` tool and lets it pick which message
-# ranges become summaries, so a compressed range stays a labelled block that
-# `decompress` restores and `search_context` searches without restoring. Also
-# registers `acp_status` and the `/acp` report.
-#
-# An npm spec, not a github: shorthand like foreman above — the repo .gitignores
-# `dist/` and its package.json points omp's extension entry at `dist/index.js`,
-# so a git install fetches a tree with no built entry point and loads nothing.
-# npm ships the build; it's the only source that works here.
-#
-# Keep it the only compression extension installed. Two extensions both
-# rewriting the message list undo each other's folds, and omp's own compaction
-# is a second authority of the same kind — which is why compaction.thresholdPercent
-# in omp/agent/config.yml sits above this plugin's own thresholds rather than
-# below them. That ordering is load-bearing and documented in README's
-# billion-context section; the numbers on both sides have to move together.
-#
-# Settings live in omp/acp-omp.json, linked to ~/.omp/acp-omp.json by the
-# configs step. Note it sets `autoUpdate: false`: upstream defaults to checking
-# npm and installing a newer version behind your back, which for a package that
-# shipped 17 releases in its first three days means the thing rewriting every
-# request changes without a commit here. Re-running this step is the update
-# path, same as everything else in this file.
-billion-context-omp  billion-context-omp

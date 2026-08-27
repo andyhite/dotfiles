@@ -25,7 +25,7 @@ NvChad for editing.
   - [dnsmasq — wildcard local DNS via macOS's per-domain resolver](#dnsmasq--wildcard-local-dns-via-macoss-per-domain-resolver)
   - [Zed's `ssh_connections` is stripped by a clean filter](#zeds-ssh_connections-is-stripped-by-a-clean-filter)
   - [omp — one tracked config, two machines, different accounts](#omp--one-tracked-config-two-machines-different-accounts)
-  - [billion-context — the model decides what leaves the context](#billion-context--the-model-decides-what-leaves-the-context)
+  - [omp compaction — a fold is priced in cache, not tokens](#omp-compaction--a-fold-is-priced-in-cache-not-tokens)
   - [Atuin](#atuin)
   - [herdr — Homebrew on macOS, curl installer on Linux](#herdr--homebrew-on-macos-curl-installer-on-linux)
   - [Herdr plugins — the list is tracked, herdr's registry isn't](#herdr-plugins--the-list-is-tracked-herdrs-registry-isnt)
@@ -67,6 +67,7 @@ NvChad for editing.
 | `config/btop` | `~/.config/btop` | btop resource monitor: One Dark theme, `save_config_on_exit = false` so btop's default full-config-rewrite-on-quit can't overwrite this file — see [btop](#btop--one-dark-theme-and-the-config-rewrite-trap) below |
 | `config/herdr/config.toml` | `~/.config/herdr/config.toml` | Herdr (agent terminal workspace manager), `one-dark` theme + accent/border overrides |
 | `config/herdr/palette` | `~/.config/herdr/palette` | the `prefix+p` command palette — an fzf script run by a `type = "popup"` keybinding, plus the MIT notice of the plugin it's derived from |
+| `config/herdr/layout` | `~/.config/herdr/layout` | the `prefix+f` fold command — a `type = "shell"` keybinding that folds a row of N side-by-side panes into N/2 columns of two |
 | `herdr_plugins.txt` | (not linked — read by `install.sh`) | Herdr plugin list, one `owner/repo[@ref]` per line; `install.sh` installs/updates each one |
 | `config/herdr/plugins/config` | `~/.config/herdr/plugins/config` | per-plugin Herdr config, one directory per plugin id — the whole tree is linked, so new plugins land here on install |
 | `caddy/Caddyfile` | `/opt/homebrew/etc/Caddyfile` (macOS only) | base Caddyfile — `local_certs` only, imports the machine-local one below; symlinked by the `tools` step, not `configs` — see [Caddy](#caddy--local-https-for-internal-only-dev-hostnames) below |
@@ -103,7 +104,6 @@ NvChad for editing.
 | `omp/agent/extensions/atuin.ts` | `~/.omp/agent/extensions/atuin.ts` | records omp's `bash` commands into Atuin history as `--author pi` (a `KNOWN_AGENTS` name, so `$all-user` hides them), with omp's intent string as `--intent`. Hand-maintained: `atuin hook install` has no omp target |
 | `omp/agent/rules/output-style.md` | `~/.omp/agent/rules/output-style.md` | `alwaysApply: true` rule that shapes every omp response for an ADHD reader — answer first, numbered steps, one next action, no preamble or recap |
 | `omp/agent/AGENTS.md` | `~/.omp/agent/AGENTS.md` | omp's native global context file (highest-priority discovery provider — shadows every other tool's user-level context). Holds the same ADHD output-style guidance as `rules/output-style.md` above, since it's a personal preference rather than an omp-specific one; `config/claude/CLAUDE.md` below symlinks straight to this file, so it's the one source of truth |
-| `omp/acp-omp.json` | `~/.omp/acp-omp.json` | `billion-context-omp` settings — the compression thresholds, and the two upstream tool guardrails turned off in favour of omp's own. Ordered against `compaction.thresholdPercent` in `config.yml`; see [billion-context](#billion-context--the-model-decides-what-leaves-the-context) |
 | `omp_plugins.txt` | (not linked — read by `install.sh`) | omp plugin manifest, one `<install-source> <plugin-name>` per line; `install.sh` runs `omp plugin install <source>` for each, and skips one that's link-installed for local development |
 | `agent_skills.txt` | (not linked — read by `install.sh`) | cross-agent skill manifest, one `<owner>/<repo> --skill <name>` per line; `install.sh` runs `npx skills add … -g -y` for each |
 | `config/claude/settings.json` | `~/.claude/settings.json` | [Claude Code](https://claude.com/product/claude-code) CLI global settings — push/input-needed notifications, `theme: auto`, `skipDangerousModePermissionPrompt`, `tui: fullscreen`, and `PreToolUse`/`PostToolUse`/`PostToolUseFailure` hooks (all matcher `Bash`) that pipe `atuin hook claude-code` the same way `omp/agent/extensions/atuin.ts` does for omp; the rest of `~/.claude` is sessions, an oauth/telemetry cache, a machine ID, backups, and the `skills/` symlinks `agent_skills.txt` already manages |
@@ -811,97 +811,31 @@ That leaves nothing per-machine in `config.yml` at all, which is the point: one 
 file, every machine, and the only difference is which providers each one has bothered to
 authenticate.
 
-### billion-context — the model decides what leaves the context
+### omp compaction — a fold is priced in cache, not tokens
 
-`billion-context-omp` (`omp_plugins.txt`) takes over from omp's auto-compaction as the
-*primary* context authority. omp's own compaction is threshold-driven and destructive:
-cross the line and the history becomes one summary. This extension hands the model a
-`compress` tool instead and lets it choose which message ranges to fold, so a folded range
-stays a labelled block — `decompress` restores it, `search_context` searches inside it
-without restoring, and `/acp` reports what's currently folded.
+`compaction` in `omp/agent/config.yml` is tuned against measured spend rather than comfort.
+Across 61k Anthropic messages, 44% of the bill came from requests carrying a cached prefix
+over 200k tokens, and Anthropic's 1M window charges no long-context premium — so every
+extra cached token was a straight linear cost with nothing bought back. Both knobs below
+exist to keep that prefix small, against the one cost a fold actually has: rewriting the
+head of the history invalidates the prompt cache from that point forward, plus one
+summarizer call.
 
-Its settings live in `omp/acp-omp.json`, linked to `~/.omp/acp-omp.json`. They can't live
-in `config.yml`: that file belongs to omp, which rewrites it, so a comment explaining a
-number there wouldn't survive one session. JSON can't carry comments either — which is why
-every value in that file is justified here instead.
+`thresholdPercent: 40` is an explicit percent-of-window trigger where omp's own default is
+`-1` (reserve-based, which only fires once the window is nearly full). It read 55 for as
+long as `billion-context-omp` was installed: that extension's forced-nudge floor is
+hardcoded at 45%, so omp's snapcompact had to sit above it or the plugin's whole tier was
+unreachable. The plugin is gone and the floor with it — 40 is the number the spend data
+produced on its own.
 
-**The threshold ladder is the load-bearing part.** Four mechanisms can drop content, and
-they only compose as an escalation if their thresholds stay ordered. Percentages are of the
-model's context window:
-
-| At | What fires | Where it's set |
-| --- | --- | --- |
-| +22.5k growth, 50k foldable | soft nudge — the model is asked to compress | `compress.nudgeGrowthTokens` |
-| 45% | forced nudge — the ask stops being optional | `compress.maxContextLimit` |
-| 50% | the extension truncates old tool output itself | `compress.emergencyThresholdPercent` |
-| 55% | omp's snapcompact, as a genuine last resort | `compaction.thresholdPercent` |
-
-The *ordering* is what makes the extension primary. `compaction.thresholdPercent` was once
-70, below the extension's forced nudge, which left that whole tier unreachable — the plugin
-would be installed and snapcompact would still do all the work. Upstream's default
-`emergencyThresholdPercent` of 95% inverts the same way against an omp backstop, which is
-why it sits below it here. **Those four numbers are one setting spread across two files** —
-move one and check the rest.
-
-**The forced-nudge floor is 45%, not a chosen value — it's the plugin's hardcoded minimum.**
-An earlier revision measured cost against observed prefix sizes and set
-`maxContextLimit` to 30%. That silently violated an internal invariant: `billion-context-omp`
-pairs `maxContextLimitPct` with a `nudge.minContextLimitPct` that defaults to 0.45 and has no
-`compress.*` key to lower it — `acp-omp.json` only ever sets the max side. Below 45%, startup
-logs `nudge.minContextLimitPct must not exceed nudge.maxContextLimitPct` on every turn. (A
-`coreOverrides.nudge.minContextLimitPct` key was tried as a workaround and doesn't work:
-`coreOverrides` is an `AdapterConfig` field the plugin only reads from its own
-`createAcpExtension(adapter)` call in code — `applyUserConfig` never copies it out of
-`acp-omp.json`, so the key is silently inert. Confirmed by reading `billion-context-omp`'s
-bundled `dist/index.js` directly, current through v0.3.3.) 45% is therefore the lowest
-forced-nudge floor this plugin version supports without patching it; the emergency and
-compaction tiers below shifted up by the same 15 points to stay ordered above it.
-
-`compaction.idleEnabled` is on for the same reason, and it is the cheapest tier to spend. It
-fires only above `compaction.idleThresholdTokens` (200k) and only after
-`compaction.idleTimeoutSeconds` (300s) of idle, so it targets precisely the sessions whose
-oversized prefix is about to be re-read many more times, and it spends the fold when no turn
-is waiting on it. The guard is what keeps it honest: a fold's real cost is the cache it
-invalidates plus the summarizer call, and below 200k there is not enough prefix to earn that
-back.
-
-Auto-compaction stays *enabled* rather than switched off, so omp's overflow recovery — the
-path taken when a request actually comes back with a context-length error — is still there.
-Manual `/compact` works either way.
-
-**Two guardrails are turned off because omp's own are better.** `toolOutputMaxBytes: 0` and
-`toolBashDefaultTimeout: 0`. The extension head-truncates an oversized tool result and, for
-anything but `bash`, keeps no copy of the rest — the tail is simply gone. omp already caps
-tool output *and* spills the full text to an `artifact://` id the model can page through,
-so its version costs the same and loses nothing. The 60-second `bash` default is likewise
-narrower than omp's own deadline handling, and it would kill exactly the long, legitimate
-commands this repo runs: `just smoke`, `brew bundle`.
-
-**`autoUpdate: false`** because upstream defaults to polling npm after every LLM call and
-`npm install`ing a newer release in place. For the code that rewrites every request, on a
-package that shipped 17 versions in its first three days, that's the machine changing with
-no commit here. `./install.sh --only omp` is the update path, same as everything else in
-the manifest.
-
-**Three keys are deliberately left unset.** `transformMode` resolves *per API* when unset —
-the extension rewrites the provider wire payload for Anthropic and ollama, and rewrites the
-context event everywhere else, because three of omp's other providers discard a payload
-replacement outright. Pinning either value would break one of the two families, and the
-routing in `config.yml` reaches both. `modelContextLimit` is unset for the same reason:
-roles route to models with different windows, and one fixed number would mis-tune every
-model but one. `prompts` is unset because those four strings *are* the compression rules;
-overriding them is the one change here that trades summary quality directly, which is why
-upstream gates it behind a separate `acknowledgePromptsRisk` flag.
-
-**`nudgeGrowthTokens` stays at upstream's 50000**, even though fewer and larger folds is the
-cheaper direction. The extension's fixed cost — roughly 5k tokens of system prompt and tool
-schemas on every turn — sits in the cached prefix and is nearly free to re-read. What
-actually costs money is the fold itself: a fold rewrites messages near the *start* of the
-prefix, and editing a message invalidates the cache from that point forward, so an early
-edit forfeits nearly all of it and the next turn pays full price. Raising the number buys
-fewer forfeits at the price of coarser summaries, and that trade wants a measurement rather
-than a guess. It's pinned rather than left implicit only so an upstream default change can't
-move it silently.
+`idleEnabled: true` (omp ships it off) is the cheapest fold available and the only one that
+targets the 200k figure directly. It fires only above `idleThresholdTokens` (200000) and
+only after `idleTimeoutSeconds` (120, down from upstream's 300) of idle, so it folds
+precisely the sessions whose oversized prefix is about to be re-read many more times, and
+it spends the fold when no turn is waiting on it. The token guard is what keeps it honest:
+below 200k there is not enough prefix to earn back the cache a fold invalidates. The
+shortened timeout means a session left alone has already folded by the time it's picked
+back up, instead of paying the oversized prefix on the next turn and folding after it.
 
 ### Atuin
 

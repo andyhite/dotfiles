@@ -1220,10 +1220,14 @@ link_configs() {
     "config/herdr/config.toml:$HOME/.config/herdr/config.toml"
     # The command palette bound to prefix+p in the config above. A directory
     # link because the script travels with the upstream MIT notice it's derived
-    # from, and `type = "popup"` needs a real path to exec — this is the only
-    # keybinding in that file pointing at this repo rather than a herdr
-    # subcommand, so the link is what makes the binding work at all.
+    # from, and `type = "popup"` needs a real path to exec — the link is what
+    # makes that binding work at all.
     "config/herdr/palette:$HOME/.config/herdr/palette"
+    # Same for the prefix+f fold command: a `type = "shell"` keybinding execs
+    # the path directly, so the binding is dead without this link. A directory
+    # link like the palette above — this repo owns the whole directory, so a
+    # second layout script needs no second entry here.
+    "config/herdr/layout:$HOME/.config/herdr/layout"
     "config/ghostty/config:$HOME/.config/ghostty/config"
     "config/atuin/config.toml:$HOME/.config/atuin/config.toml"
     # Themes live in a subdirectory atuin resolves by name; linked per-file so a
@@ -1259,14 +1263,6 @@ link_configs() {
     # copy — the `claude` discovery provider is disabled in config.yml above,
     # so omp only ever reads this one.
     "omp/agent/AGENTS.md:$HOME/.omp/agent/AGENTS.md"
-    # ~/.omp root, not ~/.omp/agent — billion-context-omp reads this exact path.
-    # Per-file for the same reason as the entry above: the parent is omp's whole
-    # state directory (stats.db, sessions, the plugin registry, downloaded
-    # natives). It's also the only place this plugin's thresholds can live with a
-    # record of why — config.yml above is rewritten by omp itself, so comments
-    # there don't survive, and JSON can't carry them at all. The reasoning sits
-    # in README's billion-context section.
-    "omp/acp-omp.json:$HOME/.omp/acp-omp.json"
     # Individual extension files, not the directory: ~/.omp/agent/extensions also
     # receives extensions written by other tools (herdr drops one in), and linking
     # the parent would hide them. `atuin hook install` has no omp target, so this

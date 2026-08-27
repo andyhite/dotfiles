@@ -177,27 +177,32 @@ detach = "prefix+d"
 ## to nvim's own buffer-cycling keys. edit_scrollback keeps its default prefix+e.
 toggle_sidebar = "prefix+n"
 
-## <tab> / <S-tab> cycle buffers along nvim's tabufline, and herdr's tab bar is
-## the same row of things. This takes prefix+tab from cycle_pane_next, which is
-## the one binding here that loses its key: directional focus_pane_* covers the
-## same ground, which is why <C-w>w goes unused in vim too.
-next_tab = "prefix+tab"
-previous_tab = "prefix+shift+tab"
+## <tab> / <S-tab> used to cycle buffers along nvim's tabufline, mirrored here
+## as next_tab/previous_tab — but cmd+shift+[/] is a stronger match: it's the
+## same chord browsers (and Ghostty's own native tabs) use for tab switching,
+## so cycling herdr tabs needs no prefix at all. That only reaches herdr
+## because config/ghostty/config unbinds its own default super+shift+[ /
+## super+shift+] (native tab switching) — see the comment there; without it
+## Ghostty eats the chord before herdr ever sees it. Freeing prefix+tab
+## restores herdr's default cycle_pane_next/previous binding, which goes
+## unused here anyway since directional focus_pane_* covers the same ground.
+next_tab = "cmd+shift+]"
+previous_tab = "cmd+shift+["
 
 ## The sidebar's two lists, by keyboard. Workspaces already had prefix+w
 ## (the "workspaces / tabs" picker) and prefix+g (the session navigator, whose
 ## bare up/down are the navigate_workspace_* pair) — these add direct jumps.
 ## Every action below is unbound by default, so nothing is displaced.
 ##
-## Bracket pairs follow vim's "next/previous thing of a kind" convention (]q,
-## ]c, ]d …). Agents keep that prefix+[/] pair. Workspaces go on bare
-## cmd+[/] instead of prefix+shift+[/] — same chord as a browser's tab/back-
-## forward switcher, so cycling herdr workspaces doesn't need the prefix at
-## all. That only reaches herdr because config/ghostty/config unbinds its own
+## Workspaces go on bare cmd+[/] — same chord as a browser's back/forward
+## navigation, so cycling herdr workspaces doesn't need the prefix either.
+## That only reaches herdr because config/ghostty/config unbinds its own
 ## default super+[ / super+] (goto_split:previous/next) — see the comment
 ## there; without it Ghostty eats the chord before herdr ever sees it.
-next_agent = "prefix+]"
-previous_agent = "prefix+["
+##
+## Agent navigation (next_agent/previous_agent) is deliberately left unbound:
+## unused, and this keeps the bracket convention above reserved for tabs and
+## workspaces instead of tripling it up onto agents too.
 next_workspace = "cmd+]"
 previous_workspace = "cmd+["
 
@@ -351,9 +356,9 @@ command = "herdr plugin action invoke restart-daemon --plugin herdr-agent-inbox"
 ## prefix+p is free here: herdr's default previous_tab lives there, and this
 ## config moved that to prefix+shift+tab.
 ##
-## The one binding in this file that isn't `type = "shell"`, and the only one
-## that runs a script from this repo rather than the herdr CLI. Both follow
-## from fzf needing a TTY: a herdr action runs server-side without one, so the
+## The one binding in this file that isn't `type = "shell"`, and it runs a
+## script from this repo rather than the herdr CLI. Both of those follow from
+## fzf needing a TTY: a herdr action runs server-side without one, so the
 ## jt.command-palette plugin this replaces had to bounce its action through an
 ## `overlay` plugin pane to get a terminal, and an overlay covers the whole
 ## canvas. `type = "popup"` is a session-modal terminal that leaves the tab
@@ -394,3 +399,28 @@ height = 20
 
 # Deliberately unbound — all reachable through prefix+p:
 #   worktree-setup     no actions at all; it is purely a worktree.created hook.
+
+# ── Local layout commands ────────────────────────────────────────────────────
+
+## fold-columns — turn a row of N side-by-side panes into N/2 columns of two
+## stacked panes, pairing left to right. Past three or four agents abreast every
+## pane is too narrow to read while the space under each one goes unused, and
+## this trades one back for the other. An odd pane out keeps its own full-height
+## column.
+##
+## prefix+f is free: herdr binds nothing to f by default, and neither does the
+## [keys] table above.
+##
+## A script in this repo rather than an inline `command` string, for the same
+## reason the palette is one: herdr has no restack or layout command at all, so
+## the fold is a sequence of pane moves around a herdr quirk — a same-tab
+## `pane move --split down` is a silent no-op — and that takes a paragraph to
+## explain. config/herdr/layout/fold-columns.sh carries the paragraph; a TOML
+## string can't. `type = "shell"` because the entire output is a state change,
+## same as the plugin blocks above. Those come first only because TOML requires
+## every [[keys.command]] to follow the [keys] table, not because this one is a
+## plugin action.
+[[keys.command]]
+key = "prefix+f"
+type = "shell"
+command = "$HOME/.config/herdr/layout/fold-columns.sh"
