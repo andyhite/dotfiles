@@ -49,23 +49,27 @@ command_timeout = 2000
 
 # Sets the colors of the "gruvbox_dark_hard" palette. Hex values come from
 # Ghostty's own bundled "Gruvbox Dark Hard" theme resource (the 16-color ANSI
-# palette actually rendered on this terminal) — the canonical gruvbox spec
-# has a real orange primitive too, unlike GitHub's palette before it, so
-# color_orange needs no substitute here.
+# palette actually rendered on this terminal). Segment backgrounds use the
+# neutral ANSI 1-6 colors, not the bright ANSI 9-14 ones: gruvbox's bright
+# row is tuned for a handful of emphasized glyphs against a dark background,
+# not for painting whole powerline blocks — using it for every segment made
+# the bar read as neon. The bright variants stay in reserve for the few
+# small accents (battery-critical, error/replace-mode icons) that should
+# still pop.
 [palettes.gruvbox_dark_hard]
 mono0 = '#ebdbb2' # terminal white — bright fg (ANSI 15).
 mono1 = '#ebdbb2' # syntax_fg.
 mono2 = '#a89984' # ANSI white — muted fg.
 mono3 = '#928374' # ANSI bright black — comment grey.
 mono4 = '#3c3836' # gruvbox bg1 — raised-panel bg, not page bg.
-color_red0 = '#fb4934'
-color_red1 = '#cc241d' # neutral (non-bright) red — darker for battery-critical fg.
-color_green = '#b8bb26'
-color_yellow = '#fabd2f'
-color_blue = '#83a598'
-color_purple = '#d3869b'
-color_cyan = '#8ec07c'
-color_orange = '#fe8019' # gruvbox's own bright orange — a real ANSI-adjacent primitive.
+color_red0 = '#cc241d' # neutral red — segment backgrounds.
+color_red1 = '#fb4934' # bright red — reserved for battery-critical fg.
+color_green = '#98971a' # neutral green — segment backgrounds.
+color_yellow = '#d79921' # neutral yellow — segment backgrounds.
+color_blue = '#83a598' # bright blue — same accent used everywhere else.
+color_purple = '#b16286' # neutral purple — segment/icon backgrounds.
+color_cyan = '#689d6a' # neutral aqua — segment backgrounds.
+color_orange = '#d65d0e' # neutral orange — segment backgrounds.
 syntax_fg = '#ebdbb2'
 syntax_bg = '#1d2021'
 color_bg2 = '#665c54' # gruvbox bg3 — one step past mono4 on the same surface ladder.
