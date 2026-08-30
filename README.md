@@ -15,7 +15,7 @@ NvChad for editing.
   - [`make` on macOS — `gmake`, not `gnumake`](#make-on-macos--gmake-not-gnumake)
   - [Shells with no line editor — `TERM=dumb`, or no tty](#shells-with-no-line-editor--termdumb-or-no-tty)
 - [Notes by tool](#notes-by-tool)
-  - [Git — rebase-first, with delta, difftastic, absorb, and jj](#git--rebase-first-with-delta-difftastic-absorb-and-jj)
+  - [Git — rebase-first, with delta, difftastic, hunk, absorb, and jj](#git--rebase-first-with-delta-difftastic-hunk-absorb-and-jj)
   - [Shell — carapace, fd, uv, and Linux clipboards](#shell--carapace-fd-uv-and-linux-clipboards)
   - [dotfiles-help — the `help/` corpus and `dh`](#dotfiles-help--the-help-corpus-and-dh)
   - [gh extensions — manifest beside `herdr_plugins.txt`](#gh-extensions--manifest-beside-herdr_pluginstxt)
@@ -153,8 +153,8 @@ The steps, in order — the order is load-bearing, which is why `--only` exists 
 reordering doesn't:
 
 1. **Installs/updates the tools this config drives**: starship, zoxide, atuin,
-   fzf, eza, bat, direnv, tmux, lazygit, delta, difftastic, git-absorb, jj, fd,
-   carapace, gitleaks, pre-commit, just, uv, antidote, TPM, the Geist Mono
+   fzf, eza, bat, direnv, tmux, lazygit, delta, difftastic, hunk, git-absorb, jj,
+   fd, carapace, gitleaks, pre-commit, just, uv, antidote, TPM, the Geist Mono
    Nerd Font, neovim, ripgrep, tree-sitter-cli, mise, omp, claude, prime-agent,
    btop, herdr,
    and NvChad —
@@ -215,7 +215,9 @@ reordering doesn't:
      `~/.local/bin/fd` — telescope and fzf shell out to the literal name `fd`, not a
      shell alias. delta, difftastic, git-absorb, sd, tealdeer, hyperfine, jj, and lin
      fall back to `cargo install` where apt has no package (and, for `lin`, where
-     macOS has no tap bottle for the target arch). gitleaks and carapace pull
+     macOS has no tap bottle for the target arch). hunk (npm package `hunkdiff`)
+     installs the same mise-first-`npm`-then-plain-`npm` way as markdownlint-cli2,
+     since it ships neither an apt package nor a crate. gitleaks and carapace pull
      GitHub release binaries. `wl-clipboard` and `xclip` install together on Linux so
      tmux-yank and nvim's `+` register can paste on either Wayland or X11.
    - `pre-commit` lands via apt when possible, otherwise `uv tool install` after the
@@ -444,7 +446,7 @@ interactive one does.
 
 ## Notes by tool
 
-### Git — rebase-first, with delta, difftastic, absorb, and jj
+### Git — rebase-first, with delta, difftastic, hunk, absorb, and jj
 
 `gitconfig` is deliberately rebase-oriented (`pull.rebase`, `rebase.autoStash`,
 `rebase.autoSquash`, `rebase.updateRefs`, `rerere.enabled`, `rerere.autoupdate`) so
@@ -465,6 +467,12 @@ the panel for input.
 It diffs syntax trees, which is what you want when a refactor moved or reindented code
 and a line-based view reads as a wholesale rewrite; it is deliberately not on every
 `git diff` because it is slower on large diffs and has no intra-line word diff.
+
+**hunk** is a standalone review-stream diff viewer (`hunk diff` / `hunk show`), not
+wired into any git pager or difftool slot. It earns its place alongside delta and
+difftastic for the job neither covers well: reading an entire multi-file changeset —
+especially an agent-authored one — top to bottom in one stream, with inline
+annotations rendered beside the hunks they explain.
 
 **git-absorb** (`git absorb = !git-absorb --and-rebase`) is the review-fixup step the
 rebase settings above were missing: it assigns worktree hunks to the commits that last

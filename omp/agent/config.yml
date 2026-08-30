@@ -25,9 +25,9 @@ disabledProviders:
   - amazon-bedrock
   - bedrock-mantle
   - codex
-  - claude
   - cursor
   - gemini
+  - claude
 symbolPreset: nerd
 theme:
   dark: dark-one-tuned
@@ -84,9 +84,13 @@ display:
 task:
   showResolvedModelBadge: true
   eager: preferred
+  isolation:
+    commits: generic
+    merge: patch
+    mode: auto
 personality: none
 retry:
-  usageAwareFallback: true
+  usageAwareFallback: false
   modelFallback: true
   fallbackRevertPolicy: cooldown-expiry
   fallbackChains:
@@ -140,7 +144,7 @@ retry:
       - openai/gpt-5.6-terra:medium
       - cursor/composer-2.5
   usageReservePolicy: auto
-  usageReservePct: 25
+  usageReservePct: 10
 advisor:
   enabled: false
 interruptMode: immediate

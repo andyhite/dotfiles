@@ -138,6 +138,20 @@ wall of red/green noise.
     difft old.rs new.rs             # diff two files directly, outside git
     difft --display side-by-side old.rs new.rs  # force side-by-side rendering
 
+## hunk — review-first terminal diff viewer
+
+Not wired into any git slot (no pager, no difftool) — it's a standalone
+multi-file review stream for reading an entire changeset top to bottom,
+including agent-authored diffs that carry inline reasoning annotations.
+Reach for it over delta/difftastic when reviewing more than a couple of
+files at once, not for a single `git diff`.
+
+    hunk diff                       # review the working tree's uncommitted changes
+    hunk show                       # review a single commit
+    hunk show main..HEAD            # review a range of commits
+    [ / ]                           # jump to the previous/next hunk in the stream
+    1 / 2 / 0                       # force side-by-side / stacked / auto layout
+
 ## git-absorb — auto-fixup for stacked commits
 
 `git absorb --and-rebase` looks at your worktree's uncommitted hunks,

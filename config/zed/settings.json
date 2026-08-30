@@ -12,6 +12,11 @@
 // machine hardcode work project paths that don't exist on a fresh checkout.
 // Reconnecting to a host from the command palette regenerates it locally.
 {
+  "active_pane_modifiers": {
+    "inactive_opacity": 1.0
+  },
+  "bottom_dock_layout": "contained",
+  "accessible_mode": false,
   "markdown_preview": {
     "max_width": 1440.0,
     "limit_content_width": false

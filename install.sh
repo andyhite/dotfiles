@@ -1182,6 +1182,16 @@ install_tools_linux() {
   else
     skipped "markdownlint-cli2" "no node — run the tools and runtimes steps first"
   fi
+  # hunk (npm package `hunkdiff`, binary `hunk`) ships no apt package either —
+  # same npm-is-upstream reasoning and mise-first $md_runner as
+  # markdownlint-cli2 just above, reused rather than recomputed.
+  if [ -n "$md_runner" ]; then
+    if run_quiet hunk sh -c "$md_runner install -g --prefix '$HOME/.local' hunkdiff" </dev/null; then
+      ok "hunk" "$(mise exec -- "$HOME/.local/bin/hunk" --version 2>/dev/null || echo installed)"
+    fi
+  else
+    skipped "hunk" "no node — run the tools and runtimes steps first"
+  fi
   ensure_omp
   ensure_claude_code
   ensure_prime_agent

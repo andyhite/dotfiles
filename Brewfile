@@ -78,6 +78,12 @@ brew "git-absorb"
 # line-based view falls apart. Binary is `difft`.
 brew "difftastic"
 
+# Review-first terminal diff viewer for reviewing agent-authored changesets —
+# pairs with delta/difftastic above but targets the specific job of reading a
+# multi-file changeset top to bottom (agent diffs, PR review) rather than
+# git's own pager/difftool slots. Binary is `hunk`, formula is `hunk`.
+brew "hunk"
+
 # Used colocated (`jj git init --colocate`) so the repo stays a normal git
 # repo underneath. Earns its place on stacked agent-branch work: every branch
 # gets its own worktree, and `jj undo` on the operation log reverts a
