@@ -1297,6 +1297,11 @@ link_configs() {
     # file, so it's linked unconditionally alongside gitconfig above rather
     # than treated as optional.
     "config/jj/config.toml:$HOME/.config/jj/config.toml"
+    # Own settings only (theme, line numbers, agent notes) — hunk stays
+    # deliberately unwired from core.pager/difftool (see gitconfig's [delta]
+    # section and help/20-git.md), so this file only affects `hunk diff`/`show`
+    # sessions run directly.
+    "config/hunk/config.toml:$HOME/.config/hunk/config.toml"
     # config.yml only: hosts.yml sits beside it and holds gh's OAuth tokens.
     "config/gh/config.yml:$HOME/.config/gh/config.yml"
     # One file, not the directory: ~/.ssh holds private keys. Machine-specific

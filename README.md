@@ -90,6 +90,7 @@ NvChad for editing.
 | `gh_extensions.txt` | (not linked — read by `install.sh`) | gh CLI extension manifest, one `owner/repo` per line; `install.sh`'s `gh` step installs new extensions and upgrades ones already present — see [gh extensions](#gh-extensions--manifest-beside-herdr_pluginstxt) |
 | `config/jj/config.toml` | `~/.config/jj/config.toml` | jj config for colocated repos — identity, pager, diff formatter; linked because jj refuses to commit without `user.name`/`user.email` |
 | `config/lazygit/config.yml` | `~/Library/Application Support/lazygit/config.yml` (macOS), `~/.config/lazygit/config.yml` (Linux) | Lazygit: One Dark theme, Nerd Font v3 icons, fuzzy filtering, and nvim integration; `zshrc` exposes it as `lg`, while the OS-specific destinations are Lazygit's native defaults |
+| `config/hunk/config.toml` | `~/.config/hunk/config.toml` | Hunk review-stream viewer: `one-dark-pro` theme (a real Shiki theme id, unlike delta's OneHalfDark approximation), line numbers, and default-on agent notes for reviewing agent-authored changesets; stays unwired from `core.pager`/difftool on purpose — see the Git section below |
 | `ssh/config` | `~/.ssh/config` | portable ssh identity config — per-key `Host` blocks for github.com (`IdentitiesOnly yes` so the agent can't offer the wrong key first), github.com-personal, hf.co, runpod.io, plus dstack's `Include ~/.dstack/ssh/config` (dstack injects that line into `~/.ssh/config` — a symlink into this repo — on every provision, so tracking it is the only way the tree stays clean; inert where dstack has never run); machine-specific hosts live in `~/.ssh/config.local` instead |
 | `ssh/config.local.example` | (copy, not linked) | template for `~/.ssh/config.local` — throwaway test hosts, machine-specific aliases. `ssh/config`'s first non-dstack line is `Include ~/.ssh/config.local`, because ssh takes the first value it finds for any option and this is the only way the local file can override rather than be shadowed |
 
@@ -472,7 +473,12 @@ and a line-based view reads as a wholesale rewrite; it is deliberately not on ev
 wired into any git pager or difftool slot. It earns its place alongside delta and
 difftastic for the job neither covers well: reading an entire multi-file changeset —
 especially an agent-authored one — top to bottom in one stream, with inline
-annotations rendered beside the hunks they explain.
+annotations rendered beside the hunks they explain. `config/hunk/config.toml`
+(`~/.config/hunk/config.toml`) sets `theme = "one-dark-pro"` — hunk is Shiki-backed
+and actually ships a theme literally named One Dark, unlike delta above — plus
+`line_numbers = true` to match delta's gutter and `agent_notes = true`, since this
+machine's diffs are read almost entirely as agent-authored changesets rather than
+opting the notes rail in per session.
 
 **git-absorb** (`git absorb = !git-absorb --and-rebase`) is the review-fixup step the
 rebase settings above were missing: it assigns worktree hunks to the commits that last

@@ -144,7 +144,9 @@ Not wired into any git slot (no pager, no difftool) — it's a standalone
 multi-file review stream for reading an entire changeset top to bottom,
 including agent-authored diffs that carry inline reasoning annotations.
 Reach for it over delta/difftastic when reviewing more than a couple of
-files at once, not for a single `git diff`.
+files at once, not for a single `git diff`. `~/.config/hunk/config.toml`
+sets the `one-dark-pro` theme (a real Shiki theme, unlike delta's
+approximation) and turns agent notes on by default.
 
     hunk diff                       # review the working tree's uncommitted changes
     hunk show                       # review a single commit

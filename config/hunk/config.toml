@@ -1,0 +1,28 @@
+# hunk (npm hunkdiff, brew formula `hunk`) is a standalone review-stream diff
+# viewer — not wired into git's core.pager or a difftool slot the way delta
+# and difftastic are (see gitconfig and help/20-git.md for why: it earns its
+# keep reading a whole multi-file changeset top to bottom, especially an
+# agent-authored one, a job neither of those tools does well). This file only
+# tunes hunk's own `hunk diff` / `hunk show` / `hunk patch` sessions.
+
+# one-dark-pro is a real Shiki-backed theme id, unlike delta (OneHalfDark,
+# the closest bundled approximation — see gitconfig's [delta] comment) and
+# Ghostty's own bundled "One Dark Two". Matches every other themed tool here.
+theme = "one-dark-pro"
+
+# Line numbers in the gutter, same as gitconfig's [delta] line-numbers = true
+# and lazygit's shared delta pager — keeps the gutter consistent across every
+# diff view this machine renders.
+line_numbers = true
+
+# This machine's diffs are read almost entirely as agent-authored changesets
+# (Claude/omp sessions, `hunk diff --watch` open in a side pane while an
+# agent works) rather than hand-written patches, so the inline agent-notes
+# rail earns its screen space by default instead of staying opt-in.
+agent_notes = true
+
+# Ghostty (config/ghostty/config) sets no background-opacity — it renders a
+# fully opaque canvas — so letting it show through would just repaint hunk's
+# own themed background with itself. Explicit rather than relying on the
+# false default so the reasoning survives a future Ghostty transparency change.
+transparent_background = false
