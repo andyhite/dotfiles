@@ -123,7 +123,7 @@ put `cargo` there). Not mise-managed: cargo has to exist before any
 cargo-installed tool can be built, so on Linux it doubles as a bootstrap
 dependency, not just a dev tool — `install.sh` falls back to
 `cargo install --locked` for any tool with no apt package (delta,
-difftastic, git-absorb, sd, tealdeer, hyperfine, fd, jj; see `cargo` below
+difftastic, git-absorb, sd, tealdeer, hyperfine, fd; see `cargo` below
 for the commands that come with either install path).
 
     rustc --version                      # confirm the compiler version — works on both platforms

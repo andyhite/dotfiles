@@ -84,13 +84,6 @@ brew "difftastic"
 # git's own pager/difftool slots. Binary is `hunk`, formula is `hunk`.
 brew "hunk"
 
-# Used colocated (`jj git init --colocate`) so the repo stays a normal git
-# repo underneath. Earns its place on stacked agent-branch work: every branch
-# gets its own worktree, and `jj undo` on the operation log reverts a
-# worker's change atomically, while jj's automatic descendant rebase makes
-# restacking a chain of worker branches cheap. Config: config/jj/config.toml.
-brew "jj"
-
 # lin — Linear issue tracker from the terminal (github.com/aaronkwhite/linear-cli).
 # No Homebrew core formula and no apt package, so this pulls the author's own
 # tap rather than a cargo build on macOS — same tier as gh above, just for

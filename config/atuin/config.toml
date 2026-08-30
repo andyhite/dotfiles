@@ -119,7 +119,7 @@ scroll_exits = false
 ## installs and drives.
 common_subcommands = [
   "apt", "cargo", "composer", "dnf", "docker", "dotnet", "git", "go", "ip",
-  "jj", "kubectl", "nix", "nmcli", "npm", "pecl", "pnpm", "podman", "port",
+  "kubectl", "nix", "nmcli", "npm", "pecl", "pnpm", "podman", "port",
   "systemctl", "tmux", "yarn",
   "atuin", "brew", "bun", "gh", "herdr", "mise", "omp", "uv",
 ]

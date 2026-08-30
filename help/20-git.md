@@ -173,30 +173,6 @@ This is why it fits this config specifically: rerere is on, so if the
 rebase absorb triggers regenerates a conflict you've already resolved once,
 it resolves silently instead of asking again.
 
-## jj — a second mental model on top of the same git repo
-
-`jj git init --colocate` in an existing checkout keeps `.git` as the
-authoritative store — every existing git tool (lazygit, delta, gh, hooks)
-keeps working untouched, because there's still a real `.git` underneath. jj
-is a layer, not a replacement.
-
-    jj st                          # working-copy status
-    jj log                         # commit graph, including the working copy itself as a commit
-    jj new                         # start a new empty commit on top of the current one
-    jj describe -m "message"       # set/edit the message of a commit (default: the working copy)
-    jj squash                      # fold the working copy's changes into its parent commit
-    jj rebase -d main              # rebase the current change (and descendants) onto main
-    jj undo                        # undo the last jj operation
-    jj op log                      # full history of jj operations, what `undo` walks back through
-    jj git fetch                   # pull from the git remote into jj's view of history
-    jj git push                    # push jj's history back out as git commits/branches
-
-Gotcha, the thing that most surprises a git user: there is no staging area.
-The working copy IS a commit at all times — `jj st` shows a diff against its
-parent, not an index. What git calls "add and commit" is just `jj describe`
-on a commit that already exists; what git calls "amend" is the default
-behavior of editing the working-copy commit in place.
-
 ## gitleaks — secret scanner
 
 Run from this repo's own `.pre-commit-config.yaml`, and worth running

@@ -1108,7 +1108,6 @@ install_tools_linux() {
   command -v sd >/dev/null 2>&1 || cargo_ensure_latest sd
   command -v tldr >/dev/null 2>&1 || cargo_ensure_latest tealdeer tldr
   command -v hyperfine >/dev/null 2>&1 || cargo_ensure_latest hyperfine
-  command -v jj >/dev/null 2>&1 || cargo_ensure_latest jj-cli jj
   command -v fd >/dev/null 2>&1 || cargo_ensure_latest fd-find fd
   command -v lin >/dev/null 2>&1 || cargo_ensure_latest lincli lin
 
@@ -1293,11 +1292,6 @@ link_configs() {
     # git reads $XDG_CONFIG_HOME/git/ignore on its own, which is why gitconfig
     # declares no core.excludesFile.
     "config/git/ignore:$HOME/.config/git/ignore"
-    # jj refuses to create a commit without user.name/user.email set — this
-    # is a hard requirement of having jj installed at all, not a preference
-    # file, so it's linked unconditionally alongside gitconfig above rather
-    # than treated as optional.
-    "config/jj/config.toml:$HOME/.config/jj/config.toml"
     # Own settings only (theme, line numbers, agent notes) — hunk stays
     # deliberately unwired from core.pager/difftool (see gitconfig's [delta]
     # section and help/20-git.md), so this file only affects `hunk diff`/`show`
