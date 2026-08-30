@@ -5,65 +5,35 @@ onboarding = false
 delivery = "herdr"
 
 [theme]
-name = "one-dark"
+## herdr's own bundled gruvbox theme (built-ins: catppuccin, terminal,
+## tokyo-night, dracula, nord, gruvbox, one-dark, solarized, kanagawa,
+## rose-pine, vesper — checked via `herdr --default-config`) is a true match
+## for the first time in this file's history: every other tracked config
+## (Ghostty, delta, btop, hunk, NvChad, Zed) also runs Gruvbox Dark Hard now,
+## so there's no approximation to document here.
+name = "gruvbox"
 auto_switch = false
 
-## Herdr's own accent, pinned to Ghostty's palette 4 (config/ghostty/config ->
-## One Dark Two, `palette = 4=#71b9f4`) so herdr's chrome and everything running
-## inside a pane agree on what "blue" is. herdr's own one-dark accent is #61afef.
+## Herdr's own accent, resynced to Ghostty's bright-blue ANSI slot
+## (`palette = 12=#83a598`) now that config/ghostty/config runs Gruvbox Dark
+## Hard. Gruvbox's *normal* blue (palette 4, #458588) is too dark/desaturated
+## to read well as a UI accent against a #1d2021 canvas; the bright slot is
+## the same hue, lifted for legibility.
 ##
 ## There is also a `[ui] accent` key documented in `herdr --default-config`. It's
 ## the same knob: when both are set theme.custom wins and ui.accent paints
 ## nothing, so only one belongs in this file.
 [theme.custom]
-accent = "#71b9f4"
+accent = "#83a598"
 
-## The five below are contrast repairs, not taste. herdr's one-dark assumes its
-## own base (#282c34) is the background, but the sidebar, pane borders and
-## status rows all render on bg=default — which is Ghostty's background,
-## #21252b. Everything herdr dims lands ~10% darker than the theme intended.
-##
-## Ratios are WCAG contrast against #21252b. 3:1 is the floor for borders and
-## icons, 4.5:1 for text. Foregrounds are raised along one-dark's own grey axis
-## (hue 219, sat 9.8%) so the palette stays one-dark, and the four dim tiers
-## stay ordered and distinct: 4.03 < 4.72 < 5.58 (subtext0) < 7.22 (text).
-##
-##   overlay0     2.55 -> 4.03  sidebar headers, UNFOCUSED PANE BORDERS, hint
-##                              text, overlay scrollbar track, `unknown` state
-##                              icon, branch on unselected rows. This is the one
-##                              that was actually unreadable.
-##   overlay1     3.56 -> 4.72  scrollbar thumb, inactive settings-tab labels,
-##                              the tab bar's `+`
-##
-## The other three are surfaces. Stock one-dark makes panel_bg and surface_dim
-## the SAME colour (#282c34) and puts surface0 one step off it, so on a #21252b
-## canvas all three read as "nothing": the tab bar, every overlay, the selected
-## sidebar row and the sidebar divider were all within 1.10 of the background.
-## Lifting them is zero-sum — every point of separation costs the text on top —
-## so these are the smallest values that stop them disappearing.
-##
-##   panel_bg     1.10 -> 1.25  tab bar, overlay/modal/toast surface, mode bar.
-##                              Also serves as the FG on accent chips, which
-##                              stays at 5.83 here.
-##   surface_dim  1.10 -> 1.27  sidebar<->content divider and the SELECTED
-##                              SIDEBAR ROW band
-##   surface0     1.07 -> 1.22  (measured against panel_bg) inactive tab chips,
-##                              input fields, selected rows inside overlays
-##
-## Worst case across all of it: the branch name on a selected row goes
-## 4.75 -> 4.12, overlay hint text 2.32 -> 3.22. Nothing lands below 3.
-##
-## Deliberately NOT set: `text` and `subtext0` already clear 5.5:1, and `red`,
-## `green`, `yellow`, `teal`, `blue`, `mauve` are the agent-state and git colors
-## — all above 4:1 and worth keeping recognisable. `peach` and `surface1` are
-## accepted by the parser but paint nothing in any herdr surface, so they are
-## not worth carrying here.
-overlay0    = "#7a8393"
-overlay1    = "#878f9c"
-panel_bg    = "#31353c"
-surface_dim = "#32363e"
-surface0    = "#3d424b"
-
+## No contrast-repair overrides below, unlike the One Dark and GitHub Dark
+## Default eras: those existed because herdr had no bundled theme matching
+## what Ghostty rendered, so borders/surfaces were painted from an assumed
+## base color that didn't match the real terminal background underneath.
+## Gruvbox Dark Hard's background (#1d2021) IS herdr's own built-in gruvbox
+## base — same canonical palette, not an approximation — so the mismatch
+## this block used to paper over shouldn't exist here. Re-add overrides if a
+## live pane surfaces a specific surface that still reads too flat.
 [ui]
 show_agent_labels_on_pane_borders = true
 hide_tab_bar_when_single_tab = false
@@ -287,13 +257,12 @@ command = "herdr plugin action invoke right --plugin vim-herdr-navigation"
 ## than that on the Linux VM and pointlessly wide on this display.
 ##
 ## Height is the same argument turned around. At 70% this covered most of the
-## screen to show two dozen rows, so the popup read as a pane you had to
-## dismiss rather than something transient. 20 cells is roughly a screenful of
-## palette on any display and still shows most of the list at once; the rest
-## scrolls (palette.sh rebinds ^d/^u for that). Deliberately NOT sized to the
-## action count: the list grows and shrinks with the installed plugins, and a
-## palette that changes shape when you add a plugin is worse than one that
-## scrolls.
+## screen for only a handful of rows, so the popup read as a pane you had to
+## dismiss rather than something transient. 20 cells is a compact, usable
+## palette on any display; a list that grows later can scroll (palette.sh
+## rebinds ^d/^u for that). Deliberately NOT sized to the action count: the
+## list grows and shrinks with the installed plugins, and a palette that
+## changes shape when you add a plugin is worse than one that scrolls.
 ##
 ## The frame says "popup" and there is no way to change that as of herdr 0.8.0,
 ## so don't spend the afternoon again: `keys.command` has no `title` key (`herdr

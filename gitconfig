@@ -173,13 +173,13 @@
 	# A no-op escape sequence on a terminal that doesn't support it, not a
 	# broken one.
 	hyperlinks = true
-	# OneHalfDark is delta's One Dark variant — bundled from the "onehalf" theme
-	# (github.com/sonph/onehalf), itself based on Atom's One Dark. Matches every
-	# other tracked config in this repo (lazygit, Ghostty, starship, atuin,
-	# nvim, omp), all of which are One Dark. Confirmed real with `delta --list-
-	# syntax-themes | grep -i one` (delta 0.19.2) — delta ships no theme
-	# literally named "One Dark".
-	syntax-theme = OneHalfDark
+	# gruvbox-dark is a real bundled delta syntax theme — unlike GitHub Dark
+	# Default before it, this is an exact match rather than a fallback.
+	# Every other tracked config in this repo (lazygit, Ghostty, starship,
+	# atuin, herdr, btop, hunk, nvim, omp) also runs Gruvbox Dark (Hard) now
+	# (confirmed with `delta --list-syntax-themes | grep -i gruvbox`, delta
+	# 0.19.2).
+	syntax-theme = gruvbox-dark
 	# Tells delta the terminal background is dark, so it picks line-number and
 	# background colors that read against it instead of assuming a light
 	# terminal.

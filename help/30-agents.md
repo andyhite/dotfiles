@@ -97,10 +97,7 @@ of its own would run its CLI half as a herdr plugin, and every worker it
 creates as a herdr pane living in a herdr worktree workspace. The `herdr`
 agent skill that lets an agent drive its own session only arms itself when
 `HERDR_ENV=1` is set — i.e. only when that agent is actually running inside a
-herdr-managed pane, not just any terminal. And plugins like
-`douglascorrea/herdr-agent-inbox` (the agent inbox split) exist as panes
-precisely because herdr is what's already multiplexing the terminal they
-share.
+herdr-managed pane, not just any terminal.
 
     herdr                            # launch or attach to the persistent session
     herdr agent start                # start a supported interactive agent in an existing pane
@@ -121,7 +118,6 @@ often enough to be worth memorizing.
 Installed plugins (`herdr_plugins.txt`), one line each on what they add:
 
 - `paulbkim-dev/vim-herdr-navigation` — ctrl-h/j/k/l crosses into nvim splits instead of stopping at the pane edge
-- `douglascorrea/herdr-agent-inbox` — inbox plus auto tab/session naming for agent panes
 - `tdi/herdr-worktree-setup` — on worktree.created: copies .env*, mise trust, direnv allow, installs deps
 
 ## skills — the cross-agent skill CLI

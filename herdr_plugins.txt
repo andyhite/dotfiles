@@ -16,17 +16,13 @@
 # config/nvim/lua/herdr-nav.lua.
 paulbkim-dev/vim-herdr-navigation
 
-# Inbox for agent panes, plus session/tab naming — it can auto-rename tabs, so
-# it replaces iurysza/herdr-tab-smart-rename (and the andyhite fork of it that
-# patched max_tokens -> max_completion_tokens for OpenAI reasoning models).
-douglascorrea/herdr-agent-inbox
 
 # JanTvrdik/herdr-command-palette was here until the palette became
 # config/herdr/palette/palette.sh, run straight from a `type = "popup"`
 # keybinding. It has to be a keybinding rather than a plugin because fzf needs
 # a TTY and a plugin action doesn't get one — as a plugin it had to host the
 # picker in an `overlay` pane, which covers the whole canvas. Still the reason
-# most plugin actions here are deliberately left unbound: all 23 of them are
+# most plugin actions here are deliberately left unbound: all four of them are
 # one fuzzy search away rather than needing a key each.
 
 # Runs setup steps in a new worktree on worktree.created: copies .env* from the

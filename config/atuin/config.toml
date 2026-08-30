@@ -46,12 +46,12 @@ search_mode_shell_up_key_binding = "fuzzy"
 ## compact below 14 rows of available height, `full` keeps the borders and just
 ## gets cramped, so a short tmux split is the one place it looks worse.
 ##
-## The border color is deliberately absent from themes/one-dark.toml: atuin
-## builds these blocks with no border_style and has no `Border` theme meaning,
-## so the border always renders in the terminal's default foreground. That's
-## One Dark's #abb2bf via config/ghostty/config, which is why it matches
-## anyway — but it can't be dimmed to the comment grey the way a themeable
-## border could.
+## The border color is deliberately absent from
+## themes/gruvbox-dark-hard.toml: atuin builds these blocks with no
+## border_style and has no `Border` theme meaning, so the border always
+## renders in the terminal's default foreground. That's Gruvbox Dark Hard's
+## #ebdbb2 via config/ghostty/config, which is why it matches anyway — but
+## it can't be dimmed to the comment grey the way a themeable border could.
 style = "full"
 
 ## Open the search in whichever keymap the shell was in, rather than always
@@ -144,10 +144,11 @@ enabled = true
 dir = "~/.local/share/atuin/logs"
 
 [theme]
-## Resolves to themes/one-dark.toml alongside this file, keeping atuin in the
-## same One Dark as starship, herdr, nvim and Ghostty. Set `debug = true` to
-## have atuin warn about unparseable colors on startup.
-name = "one-dark"
+## Resolves to themes/gruvbox-dark-hard.toml alongside this file, keeping
+## atuin in the same Gruvbox Dark Hard as starship, herdr, nvim, delta, btop,
+## hunk, lazygit, and Ghostty. Set `debug = true` to have atuin warn about
+## unparseable colors on startup.
+name = "gruvbox-dark-hard"
 
 [daemon]
 ## History writes go through a background daemon rather than every shell

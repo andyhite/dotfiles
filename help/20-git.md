@@ -92,7 +92,7 @@ LFS transfers go over plain HTTP as normal.
 
 ## lazygit — git TUI
 
-Aliased to `lg` in zshrc. Theme matches Ghostty's One Dark palette so nested
+Aliased to `lg` in zshrc. Theme matches Ghostty's Gruvbox Dark Hard palette so nested
 TUIs agree on the accent color; `os.editPreset` is `nvim`.
 
     lg                              # open in the current repo (aliased to `lazygit`)
@@ -145,8 +145,8 @@ multi-file review stream for reading an entire changeset top to bottom,
 including agent-authored diffs that carry inline reasoning annotations.
 Reach for it over delta/difftastic when reviewing more than a couple of
 files at once, not for a single `git diff`. `~/.config/hunk/config.toml`
-sets the `one-dark-pro` theme (a real Shiki theme, unlike delta's
-approximation) and turns agent notes on by default.
+sets the `gruvbox-dark-hard` theme (an exact built-in Shiki theme id, same as delta's
+`gruvbox-dark` now) and turns agent notes on by default.
 
     hunk diff                       # review the working tree's uncommitted changes
     hunk show                       # review a single commit

@@ -1,0 +1,44 @@
+# Gruvbox Dark Hard for Atuin — matches starship, herdr's accent, nvim
+# (NvChad's own bundled `gruvbox`), delta, btop, hunk, lazygit, and Ghostty's
+# own bundled "Gruvbox Dark Hard" theme. A true match everywhere, unlike
+# GitHub Dark Default before it, which needed a best-effort approximation in
+# delta, herdr, and nvim.
+#
+# `name` must equal the filename stem and the `[theme] name` selected in
+# ../config.toml; atuin resolves a custom theme by appending `.toml` to the
+# selected name. A mismatch isn't fatal but warns under `debug = true`.
+#
+# Atuin themes set FOREGROUND colors only — its style factory only ever assigns
+# foreground_color — so Gruvbox Dark Hard's #1d2021 background is not
+# expressible here and comes from the terminal (config/ghostty/config)
+# instead.
+#
+# Colors accept `#RRGGBB`, a lowercase `palette` name, or an `@`-prefixed
+# crossterm color. Hex is used throughout so the values match the other
+# configs exactly (Ghostty's bundled ANSI palette) rather than approximating
+# to the nearest named color.
+
+[theme]
+name = "gruvbox-dark-hard"
+
+[colors]
+## Structural
+Base = "#ebdbb2"       # default text — bright fg (ANSI 15)
+Annotation = "#a89984" # de-emphasized annotations — muted fg (ANSI 7)
+Muted = "#a89984"
+Title = "#83a598"      # bright blue
+Important = "#d3869b"  # bright purple
+Guidance = "#8ec07c"   # bright aqua/cyan
+
+## Alerts
+AlertInfo = "#83a598"  # bright blue
+AlertWarn = "#fabd2f"  # bright yellow
+AlertError = "#fb4934" # bright red
+
+## Command syntax highlighting in the search results
+SyntaxCommand = "#b8bb26"  # bright green
+SyntaxFlag = "#83a598"     # bright blue
+SyntaxString = "#b8bb26"   # bright green
+SyntaxVariable = "#fb4934" # bright red
+SyntaxOperator = "#8ec07c" # bright aqua/cyan
+SyntaxComment = "#928374"  # bright black — comment grey

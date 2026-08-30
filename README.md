@@ -1,7 +1,7 @@
 # dotfiles
 
-Shell and terminal config, synced between my Mac (Ghostty) and remote dev VMs. One Dark
-theme everywhere, zsh with antidote instead of oh-my-zsh, starship for the prompt,
+Shell and terminal config, synced between my Mac (Ghostty) and remote dev VMs. Gruvbox Dark
+Hard theme everywhere, zsh with antidote instead of oh-my-zsh, starship for the prompt,
 NvChad for editing.
 
 ## Contents
@@ -19,7 +19,7 @@ NvChad for editing.
   - [Shell — carapace, fd, uv, and Linux clipboards](#shell--carapace-fd-uv-and-linux-clipboards)
   - [dotfiles-help — the `help/` corpus and `dh`](#dotfiles-help--the-help-corpus-and-dh)
   - [gh extensions — manifest beside `herdr_plugins.txt`](#gh-extensions--manifest-beside-herdr_pluginstxt)
-  - [btop — One Dark theme, and the config-rewrite trap](#btop--one-dark-theme-and-the-config-rewrite-trap)
+  - [btop — Gruvbox Dark Hard theme, and the config-rewrite trap](#btop--gruvbox-dark-hard-theme-and-the-config-rewrite-trap)
   - [Misc dev CLIs — hyperfine, sd, tealdeer, and Docker Desktop](#misc-dev-clis--hyperfine-sd-tealdeer-and-docker-desktop)
   - [Caddy — local HTTPS for internal-only dev hostnames](#caddy--local-https-for-internal-only-dev-hostnames)
   - [dnsmasq — wildcard local DNS via macOS's per-domain resolver](#dnsmasq--wildcard-local-dns-via-macoss-per-domain-resolver)
@@ -49,9 +49,9 @@ NvChad for editing.
 | `zshrc` | `~/.zshrc` | zsh config: completion, antidote plugin load, history, aliases, tool init hooks |
 | `tool-versions` | `~/.tool-versions` | mise runtime pins (node, python, go, bun, pnpm) — mise walks up from the current directory to find this, so the symlink is the global default under `$HOME`; see [mise](#mise) below |
 | `zsh_plugins.txt` | `~/.zsh_plugins.txt` | antidote's plugin list (zsh-autosuggestions, zsh-syntax-highlighting, fzf-tab, zsh-vi-mode) |
-| `config/starship.toml` | `~/.config/starship.toml` | prompt — One Dark Pro preset, hostname shown only over SSH |
+| `config/starship.toml` | `~/.config/starship.toml` | prompt — Gruvbox Dark Hard palette, hostname shown only over SSH |
 | `config/atuin/config.toml` | `~/.config/atuin/config.toml` | Atuin (shell history): overrides only — daemon, fuzzy search, full-style UI, vi keymap, tmux popup, `atuin ai`. Also the answers `atuin setup` would otherwise re-ask on every install |
-| `config/atuin/themes/one-dark.toml` | `~/.config/atuin/themes/one-dark.toml` | One Dark for Atuin; foreground colors only, background comes from Ghostty |
+| `config/atuin/themes/gruvbox-dark-hard.toml` | `~/.config/atuin/themes/gruvbox-dark-hard.toml` | Gruvbox Dark Hard for Atuin; foreground colors only, background comes from Ghostty |
 | `zshrc.local.example` | (copy, not linked) | template for machine-local secrets — never committed |
 
 ### Terminal & workspace
@@ -59,10 +59,10 @@ NvChad for editing.
 | Path | Links to | What it is |
 | --- | --- | --- |
 | `tmux.conf` | `~/.tmux.conf` | tmux config, plugins managed by TPM |
-| `config/ghostty/config` | `~/.config/ghostty/config` | Ghostty terminal: `One Dark Two` theme, shell integration — same path on macOS and Linux |
+| `config/ghostty/config` | `~/.config/ghostty/config` | Ghostty terminal: `Gruvbox Dark Hard` theme, shell integration — same path on macOS and Linux |
 | `config/hammerspoon` | `~/.hammerspoon` (macOS only) | Hammerspoon: `init.lua` binds the per-Space Ghostty show/hide toggle that replaced Ghostty's own app-wide one — see [Hammerspoon](#hammerspoon--per-space-ghostty-toggle-ghosttys-own-is-app-wide) below |
-| `config/btop` | `~/.config/btop` | btop resource monitor: One Dark theme, `save_config_on_exit = false` so btop's default full-config-rewrite-on-quit can't overwrite this file — see [btop](#btop--one-dark-theme-and-the-config-rewrite-trap) below |
-| `config/herdr/config.toml` | `~/.config/herdr/config.toml` | Herdr (agent terminal workspace manager), `one-dark` theme + accent/border overrides |
+| `config/btop` | `~/.config/btop` | btop resource monitor: Gruvbox Dark Hard theme, `save_config_on_exit = false` so btop's default full-config-rewrite-on-quit can't overwrite this file — see [btop](#btop--gruvbox-dark-hard-theme-and-the-config-rewrite-trap) below |
+| `config/herdr/config.toml` | `~/.config/herdr/config.toml` | Herdr (agent terminal workspace manager), native `gruvbox` theme + accent resynced to Ghostty's bright blue, no contrast-repair overrides needed |
 | `config/herdr/palette` | `~/.config/herdr/palette` | the `prefix+p` command palette — an fzf script run by a `type = "popup"` keybinding, plus the MIT notice of the plugin it's derived from |
 | `config/herdr/layout` | `~/.config/herdr/layout` | the `prefix+f` fold command — a `type = "shell"` keybinding that folds a row of N side-by-side panes into N/2 columns of two |
 | `herdr_plugins.txt` | (not linked — read by `install.sh`) | Herdr plugin list, one `owner/repo[@ref]` per line; `install.sh` installs/updates each one |
@@ -89,8 +89,8 @@ NvChad for editing.
 | `config/gh/config.yml` | `~/.config/gh/config.yml` | gh CLI defaults and aliases; `git_protocol: https` is deliberate — `ssh/config` maps `github.com` to the work SSH key, so an ssh remote here would silently authenticate as the wrong account |
 | `gh_extensions.txt` | (not linked — read by `install.sh`) | gh CLI extension manifest, one `owner/repo` per line; `install.sh`'s `gh` step installs new extensions and upgrades ones already present — see [gh extensions](#gh-extensions--manifest-beside-herdr_pluginstxt) |
 | `config/jj/config.toml` | `~/.config/jj/config.toml` | jj config for colocated repos — identity, pager, diff formatter; linked because jj refuses to commit without `user.name`/`user.email` |
-| `config/lazygit/config.yml` | `~/Library/Application Support/lazygit/config.yml` (macOS), `~/.config/lazygit/config.yml` (Linux) | Lazygit: One Dark theme, Nerd Font v3 icons, fuzzy filtering, and nvim integration; `zshrc` exposes it as `lg`, while the OS-specific destinations are Lazygit's native defaults |
-| `config/hunk/config.toml` | `~/.config/hunk/config.toml` | Hunk review-stream viewer: `one-dark-pro` theme (a real Shiki theme id, unlike delta's OneHalfDark approximation), line numbers, and default-on agent notes for reviewing agent-authored changesets; stays unwired from `core.pager`/difftool on purpose — see the Git section below |
+| `config/lazygit/config.yml` | `~/Library/Application Support/lazygit/config.yml` (macOS), `~/.config/lazygit/config.yml` (Linux) | Lazygit: Gruvbox Dark Hard theme, Nerd Font v3 icons, fuzzy filtering, and nvim integration; `zshrc` exposes it as `lg`, while the OS-specific destinations are Lazygit's native defaults |
+| `config/hunk/config.toml` | `~/.config/hunk/config.toml` | Hunk review-stream viewer: `gruvbox-dark-hard` theme (an exact built-in Shiki theme id, and also a real bundled delta theme now — see gitconfig's `[delta]` comment), line numbers, and default-on agent notes for reviewing agent-authored changesets; stays unwired from `core.pager`/difftool on purpose — see the Git section below |
 | `ssh/config` | `~/.ssh/config` | portable ssh identity config — per-key `Host` blocks for github.com (`IdentitiesOnly yes` so the agent can't offer the wrong key first), github.com-personal, hf.co, runpod.io, plus dstack's `Include ~/.dstack/ssh/config` (dstack injects that line into `~/.ssh/config` — a symlink into this repo — on every provision, so tracking it is the only way the tree stays clean; inert where dstack has never run); machine-specific hosts live in `~/.ssh/config.local` instead |
 | `ssh/config.local.example` | (copy, not linked) | template for `~/.ssh/config.local` — throwaway test hosts, machine-specific aliases. `ssh/config`'s first non-dstack line is `Include ~/.ssh/config.local`, because ssh takes the first value it finds for any option and this is the only way the local file can override rather than be shadowed |
 
@@ -456,13 +456,13 @@ review" commit at the tip. **delta** is the pager that finally renders those set
 `core.pager = delta || less` and `interactive.diffFilter = delta --color-only || cat`.
 The `|| less` / `|| cat` fallbacks are mandatory — git runs both through `sh -c`, so a
 missing delta on a fresh machine (or one where the tools step was declined) falls through
-instead of bricking every `git diff`/`log`/`show` and `git add -p`. Delta ships no theme
-literally named One Dark; `syntax-theme = OneHalfDark` (sonph/onehalf, based on Atom One
-Dark) is the closest bundled match and lines up with lazygit, Ghostty, starship, atuin,
-nvim, and omp. `config/lazygit/config.yml` reuses the same `[delta]` block with
-`pager: delta --dark --paging=never` — `--paging=never` is load-bearing because lazygit
-already scrolls the diff panel itself; a delta that also spawned `less` would deadlock
-the panel for input.
+instead of bricking every `git diff`/`log`/`show` and `git add -p`. `syntax-theme =
+gruvbox-dark` is a real bundled delta syntax theme — an exact match, not an
+approximation, for the same Gruvbox Dark Hard that Ghostty, starship, atuin, btop,
+herdr, hunk, lazygit, and Zed now all run. `config/lazygit/config.yml` reuses the same `[delta]` block with `pager: delta
+--dark --paging=never` — `--paging=never` is load-bearing because lazygit already
+scrolls the diff panel itself; a delta that also spawned `less` would deadlock the panel
+for input.
 
 **difftastic** is wired as `git dft` (`difftool -t difftastic`), not the default pager.
 It diffs syntax trees, which is what you want when a refactor moved or reindented code
@@ -474,8 +474,8 @@ wired into any git pager or difftool slot. It earns its place alongside delta an
 difftastic for the job neither covers well: reading an entire multi-file changeset —
 especially an agent-authored one — top to bottom in one stream, with inline
 annotations rendered beside the hunks they explain. `config/hunk/config.toml`
-(`~/.config/hunk/config.toml`) sets `theme = "one-dark-pro"` — hunk is Shiki-backed
-and actually ships a theme literally named One Dark, unlike delta above — plus
+(`~/.config/hunk/config.toml`) sets `theme = "gruvbox-dark-hard"` — hunk is
+Shiki-backed and actually ships a theme with that exact id, same as delta above — plus
 `line_numbers = true` to match delta's gutter and `agent_notes = true`, since this
 machine's diffs are read almost entirely as agent-authored changesets rather than
 opting the notes rail in per session.
@@ -577,15 +577,18 @@ note rather than failing once per line. The one extension listed today is `seach
 branch of stacked agent work means merged-branch churn is continuous rather than
 occasional.
 
-### btop — One Dark theme, and the config-rewrite trap
+### btop — Gruvbox Dark Hard theme, and the config-rewrite trap
 
 `config/btop` is linked whole to `~/.config/btop`: `btop.conf` sets `color_theme =
-"one-dark"` and `config/btop/themes/one-dark.theme` maps the same hex values as
-`config/starship.toml`'s `[palettes.one_dark]` and `config/atuin/themes/one-dark.toml`.
-`main_bg` in the theme is Ghostty's actual terminal background (`#21252b`, One Dark Two)
-rather than the theoretical One Dark background (`#282c34`) starship and atuin document —
-btop always paints its own background pixels, so matching the real terminal is what
-avoids a visible seam around the window, the same distinction `config/herdr/config.toml`'s
+"gruvbox-dark-hard"` and `config/btop/themes/gruvbox-dark-hard.theme` maps the same
+hex values as `config/starship.toml`'s `[palettes.gruvbox_dark_hard]` and
+`config/atuin/themes/gruvbox-dark-hard.toml` — Ghostty's actual rendered ANSI colors.
+btop does bundle its own `gruvbox_dark.theme`, but that's the standard/medium shade
+(`#282828` background), not the Hard variant everything else here runs, so this file
+stays a byte-exact custom match rather than switching to the bundled one. `main_bg` in
+the theme is Ghostty's actual terminal background (`#1d2021`, Gruvbox Dark Hard) — btop
+always paints its own background pixels, so matching the real terminal is what avoids a
+visible seam around the window, the same distinction `config/herdr/config.toml`'s
 contrast-repair block had to make.
 
 `btop.conf` also sets `save_config_on_exit = false`, and that one isn't taste. btop's own
@@ -1009,14 +1012,13 @@ the laptop needed any of it, since local-only meant mirror was never installed
 anywhere else. `prefix+alt+n`, `prefix+alt+c`, `prefix+alt+v` and `prefix+alt+s` are
 free again, and the palette lost ten of its thirty-three actions with it.
 
-With four plugins and thirteen registered actions between them, keybindings stopped
+With two plugins and four registered actions between them, keybindings stopped
 being a per-plugin question and became one decision: `config/herdr/palette/palette.sh`,
 bound to `prefix+p` — free because this config moved herdr's own `previous_tab` off it
 and onto `prefix+shift+tab` — builds its fzf list at run time from `herdr plugin action
 list`, so every action of every installed plugin is one fuzzy search away whether or not
 it has a key. Only the ones reached for constantly earn a `[[keys.command]]` entry;
-worktree-setup's total absence of actions stays reachable through the palette instead
-of crowding the keymap.
+worktree-setup has no actions, so it needs no keybinding.
 
 That palette started as the `JanTvrdik/herdr-command-palette` plugin and is now a script
 in this repo, for two reasons that are really one. fzf needs a TTY; a herdr plugin action
@@ -1030,12 +1032,6 @@ titles in a ragged column. Titles come first now, in a fixed column, with the pl
 trailing and dimmed. It stays visible rather than hidden in the invoke-only field
 because fzf matches against what it displays, so a hidden field can't be searched.
 
-Herdr's packed sidebar renders only the tokens named in a `[ui.sidebar.agents]`/
-`[ui.sidebar.spaces]` row — a plugin can write a custom token correctly and still be
-invisible if nothing names it. One plugin depends on this: `herdr-agent-inbox`
-contributes `$title`, `$flag`, `$age`, `$since`, and the workspace-level `$agents`/
-`$busy`. That row is named in `config/herdr/config.toml` — leaving it out would make
-the plugin look broken when it's actually just unrendered.
 
 `worktree.created` fires on a new worktree and `worktree-setup` makes the checkout
 usable — copies `.env*` from the main checkout, `mise trust`, `direnv allow`, installs
@@ -1052,9 +1048,9 @@ which shells back out to the herdr CLI instead of naming the action in config:
 
 ```toml
 [[keys.command]]
-key = "prefix+i"
+key = "ctrl+h"
 type = "shell"
-command = "herdr plugin action invoke settle --plugin herdr-agent-inbox"
+command = "herdr plugin action invoke left --plugin vim-herdr-navigation"
 ```
 
 `type` controls how the command surfaces: `shell` runs it detached in the background,

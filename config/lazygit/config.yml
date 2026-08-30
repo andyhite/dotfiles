@@ -10,33 +10,35 @@ gui:
   nerdFontsVersion: "3"
   filterMode: fuzzy
   showRandomTip: false
-  # One Dark, shared with Ghostty, starship, Herdr, Atuin, nvim, and omp.
-  # The focused border uses Ghostty's brighter terminal blue so nested TUIs
-  # agree on the active-pane accent.
+  # Gruvbox Dark Hard, shared with Ghostty, starship, herdr's accent, atuin,
+  # btop, hunk, delta, and nvim. The focused border uses Ghostty's actual
+  # rendered bright-blue ANSI slot so nested TUIs agree on the active-pane
+  # accent.
   theme:
     activeBorderColor:
-      - "#71b9f4"
+      - "#83a598"
       - bold
     inactiveBorderColor:
-      - "#5c6370"
+      - "#a89984"
     searchingActiveBorderColor:
-      - "#56b6c2"
+      - "#8ec07c"
       - bold
     optionsTextColor:
-      - "#61afef"
+      - "#83a598"
     selectedLineBgColor:
-      - "#3d424b"
+      - "#3c3836"
     inactiveViewSelectedLineBgColor:
-      - "#31353c"
+      - "#282828"
     unstagedChangesColor:
-      - "#e06c75"
+      - "#fb4934"
     defaultFgColor:
-      - "#abb2bf"
+      - "#ebdbb2"
 git:
   # Delta re-renders the diff and commit panels using the [delta] section in
-  # gitconfig: same One Dark theme, navigate keys, and hyperlinks as `git
-  # diff` on the command line. Delta reads that config directly (it walks up
-  # to the repo's .git), so nothing needs to be duplicated here.
+  # gitconfig: gruvbox-dark is a real bundled delta syntax theme (an exact
+  # match, not an approximation), navigate keys, and hyperlinks as `git diff`
+  # on the command line. Delta reads that config directly (it walks up to
+  # the repo's .git), so nothing needs to be duplicated here.
   diffRenderers:
     - # Forces color even though lazygit captures delta's output into a panel
       # instead of a real terminal — without this, delta (like git) detects a

@@ -1,26 +1,26 @@
 {
   "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/theme-schema.json",
-  "name": "dark-one-tuned",
+  "name": "gruvbox-dark-hard-tuned",
   "vars": {
-    "mono1": "#abb2bf",
-    "mono2": "#828997",
-    "mono3": "#5c6370",
-    "hue1": "#56b6c2",
-    "hue2": "#61afef",
-    "hue3": "#c678dd",
-    "hue4": "#98c379",
-    "hue5": "#e06c75",
-    "hue52": "#be5046",
-    "hue6": "#d19a66",
-    "hue62": "#e5c07b",
-    "syntaxBg": "#282c34",
-    "syntaxAccent": "#528bff",
-    "selectedBg": "#444b59",
-    "userMsgBg": "#393f4b",
-    "toolPendingBg": "#2d3e47",
-    "toolSuccessBg": "#34383f",
-    "toolErrorBg": "#423335",
-    "customMsgBg": "#3e3945"
+    "mono1": "#ebdbb2",
+    "mono2": "#a89984",
+    "mono3": "#928374",
+    "hue1": "#8ec07c",
+    "hue2": "#83a598",
+    "hue3": "#d3869b",
+    "hue4": "#b8bb26",
+    "hue5": "#fb4934",
+    "hue52": "#cc241d",
+    "hue6": "#fe8019",
+    "hue62": "#fabd2f",
+    "syntaxBg": "#1d2021",
+    "syntaxAccent": "#83a598",
+    "selectedBg": "#2d2f2d",
+    "userMsgBg": "#3c3836",
+    "toolPendingBg": "#2c3433",
+    "toolSuccessBg": "#343722",
+    "toolErrorBg": "#3e2624",
+    "customMsgBg": "#382f33"
   },
   "colors": {
     "accent": "hue62",
@@ -76,8 +76,8 @@
     "thinkingHigh": "hue3",
     "thinkingXhigh": "#e5b9ff",
     "bashMode": "hue1",
-    "statusLineBg": "#1e2227",
-    "statusLineSep": "#3e4451",
+    "statusLineBg": "#161819",
+    "statusLineSep": "#665c54",
     "statusLineModel": "hue3",
     "statusLinePath": "hue1",
     "statusLineGitClean": "hue4",
@@ -93,8 +93,8 @@
     "pythonMode": "#f0c040"
   },
   "export": {
-    "pageBg": "#1e2227",
-    "cardBg": "#282c34",
-    "infoBg": "#3e3428"
+    "pageBg": "#161819",
+    "cardBg": "#1d2021",
+    "infoBg": "#3e3823"
   }
 }

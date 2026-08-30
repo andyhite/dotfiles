@@ -1,0 +1,31 @@
+# herdr-agent-inbox configuration
+
+[title]
+# Prefer the title the AGENT ITSELF gives the session, when it records one
+# (claude-code's own session name; pi/codex don't publish one yet). Falls back
+# to the prompt-derived title below whenever no native title exists.
+prefer_agent_title = true
+
+# Which user prompt seeds the session title when there's no native one:
+#   "first" — the opening request, like ChatGPT/Claude chat titles
+#   "last"  — the most recent request; re-derived when the agent finishes a turn
+source = "first"
+
+# Produce a meaningful title by piping the prompt through a command instead of
+# showing the (truncated) raw prompt. The command receives the prompt text on
+# stdin and must print a short title on stdout.
+summarize = false
+summarize_cmd = "claude -p --model claude-haiku-4-5-20251001 'Write a 4-8 word title for this coding-agent session request. Output ONLY the title, nothing else.'"
+summarize_timeout_secs = 60
+
+[tab]
+# Rename each tab to its agent's session title automatically.
+rename_from_agent_title = false
+
+# Truncate the label to this many characters, appending `ellipsis` when cut.
+max_chars = 24
+ellipsis = "…"
+
+# Never touch a tab you named yourself: a tab is only managed while its label
+# is herdr's default (the tab number) or the last label this plugin set.
+respect_manual = true

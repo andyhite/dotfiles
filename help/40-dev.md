@@ -231,7 +231,9 @@ this repo's own config wiring it into an editor or a lint step the way
 ## nvim — neovim, configured as NvChad v2.5
 
 `config/nvim` is a full NvChad v2.5 config: `chadrc.lua` sets the base46
-theme (`onedark`); `mappings.lua` layers this repo's bindings on top of
+theme (`gruvbox` — NvChad's own bundled theme, at its standard/medium `#282828`
+background, not the Hard variant's `#1d2021` this repo otherwise runs);
+`mappings.lua` layers this repo's bindings on top of
 NvChad's own; `plugins/init.lua` wires conform.nvim, nvim-lspconfig,
 nvim-lint and a telescope override on top of NvChad's plugin set.
 
@@ -303,10 +305,12 @@ since upstream provides none.
 
 `config/zed/settings.json` sets: `disable_ai` true (agents run from the
 terminal via omp, not inside the editor), vim mode with the VSCode base
-keymap, One Dark/One Light themes matching the rest of this repo's palette,
-Geist as the UI font (from the Brewfile's `font-geist` cask) and Geist Mono
-as the buffer font (from the Brewfile's `font-geist-mono` cask),
-the material-icon-theme extension force-installed, telemetry off, and
+keymap, Gruvbox Dark Hard (one of Zed's own bundled themes, no extension
+needed — an exact match, unlike GitHub Dark before it) and One Light themes
+matching the rest of this repo's palette, Geist as the UI font (from the
+Brewfile's `font-geist` cask) and Geist Mono as the buffer font (from the
+Brewfile's `font-geist-mono` cask), the material-icon-theme extension
+force-installed, telemetry off, and
 per-language TypeScript formatting through `npx prettier` plus ESLint/
 organize-imports code actions on save.
 

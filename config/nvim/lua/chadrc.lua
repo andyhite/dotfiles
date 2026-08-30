@@ -6,7 +6,12 @@
 local M = {}
 
 M.base46 = {
-	theme = "onedark",
+	-- gruvbox is NvChad's own bundled base46 theme, but its bg (#282828) is
+	-- gruvbox's standard/medium shade, not the Hard variant's #1d2021 every
+	-- other tool here runs — NvChad ships no "hard" variant, so this is the
+	-- closest available match rather than a byte-exact one, same situation
+	-- as github_dark before it.
+	theme = "gruvbox",
 
 	-- hl_override = {
 	-- 	Comment = { italic = true },

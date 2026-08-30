@@ -148,14 +148,16 @@
   // brew bundle step is what makes this font actually present on a fresh
   // machine.
   "buffer_font_family": "Geist Mono",
-  // material-icon-theme is a Zed extension, not built in. icon_theme below
-  // names it, so it has to be force-installed or a fresh machine falls back
-  // to Zed's default icons with no error.
+  // material-icon-theme is a Zed extension, not built in, so it has to be
+  // force-installed or a fresh machine falls back to Zed's defaults with no
+  // error. Gruvbox itself needs no extension: it's one of Zed's own bundled
+  // theme families (confirmed in zed-industries/zed's assets/themes/gruvbox),
+  // unlike GitHub Dark before it, which required the github-theme extension.
   "auto_install_extensions": {
     "material-icon-theme": true
   },
   "icon_theme": {
-    "mode": "system",
+    "mode": "dark",
     "light": "Material Icon Theme",
     "dark": "Material Icon Theme"
   },
@@ -170,14 +172,16 @@
   "base_keymap": "VSCode",
   "ui_font_size": 15.0,
   "buffer_font_size": 12.0,
-  // Both themes ship with Zed itself, so a fresh machine renders correctly
-  // with zero extension installs. One Dark also matches the rest of this
-  // repo's dark theme (ghostty's One Dark Two, starship's One Dark Pro,
-  // atuin's one-dark) — Base16 Tomorrow Night was a one-off that didn't match
-  // anything else here.
+  // material-icon-theme ships with zero extension installs needed beyond
+  // auto_install_extensions above. "Gruvbox Dark Hard" is bundled with Zed
+  // itself (assets/themes/gruvbox/gruvbox.json) and matches Ghostty's
+  // "Gruvbox Dark Hard" byte-for-byte (toolbar.background #1d2021,
+  // text.accent #83a598) — an exact match, not an approximation, and no
+  // extension to force-install. Light theme is untouched (One Light is
+  // still bundled and this repo doesn't otherwise theme a light mode).
   "theme": {
-    "mode": "system",
+    "mode": "dark",
     "light": "One Light",
-    "dark": "One Dark"
+    "dark": "Gruvbox Dark Hard"
   }
 }

@@ -1242,7 +1242,7 @@ link_configs() {
     "config/atuin/config.toml:$HOME/.config/atuin/config.toml"
     # Themes live in a subdirectory atuin resolves by name; linked per-file so a
     # theme installed by any other means still shows up alongside this one.
-    "config/atuin/themes/one-dark.toml:$HOME/.config/atuin/themes/one-dark.toml"
+    "config/atuin/themes/gruvbox-dark-hard.toml:$HOME/.config/atuin/themes/gruvbox-dark-hard.toml"
     # The whole directory, not per-file — btop.conf's save_config_on_exit =
     # false (see the file itself) is what keeps this safe to link at all;
     # without it btop would rewrite btop.conf on every quit. Directory link
@@ -1278,12 +1278,13 @@ link_configs() {
     # the parent would hide them. `atuin hook install` has no omp target, so this
     # one is maintained here by hand.
     "omp/agent/extensions/atuin.ts:$HOME/.omp/agent/extensions/atuin.ts"
-    # Same per-file rule for themes. dark-one-tuned.json is omp's built-in
-    # dark-one with its block backgrounds re-based onto Ghostty's canvas:
-    # upstream hardcodes userMessageBg to #21252b, which is byte-identical to
-    # One Dark Two's `background`, so the user-message block renders invisible.
-    # Built-ins win name collisions, hence the distinct name.
-    "omp/agent/themes/dark-one-tuned.json:$HOME/.omp/agent/themes/dark-one-tuned.json"
+    # Same per-file rule for themes. gruvbox-dark-hard-tuned.json is omp's
+    # dark-one built-in re-based onto Gruvbox Dark Hard's actual palette,
+    # with its block backgrounds re-tuned against Ghostty's real canvas:
+    # upstream's dark-one hardcodes userMessageBg to a color that renders
+    # invisible against this repo's terminal background. Built-ins win name
+    # collisions, hence the distinct name.
+    "omp/agent/themes/gruvbox-dark-hard-tuned.json:$HOME/.omp/agent/themes/gruvbox-dark-hard-tuned.json"
     # Runtime pins. mise finds this by walking up from whatever directory it's
     # invoked in, so the symlink sitting at $HOME is what makes it the default
     # for everything that doesn't carry its own.

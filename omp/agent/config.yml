@@ -30,7 +30,7 @@ disabledProviders:
   - claude
 symbolPreset: nerd
 theme:
-  dark: dark-one-tuned
+  dark: gruvbox-dark-hard-tuned
   light: light-one
 setupVersion: 2
 dev:

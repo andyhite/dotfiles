@@ -5,10 +5,12 @@
 # agent-authored one, a job neither of those tools does well). This file only
 # tunes hunk's own `hunk diff` / `hunk show` / `hunk patch` sessions.
 
-# one-dark-pro is a real Shiki-backed theme id, unlike delta (OneHalfDark,
-# the closest bundled approximation — see gitconfig's [delta] comment) and
-# Ghostty's own bundled "One Dark Two". Matches every other themed tool here.
-theme = "one-dark-pro"
+# gruvbox-dark-hard is hunk's exact built-in Shiki theme id for the same
+# theme Ghostty, starship, atuin, btop, herdr, lazygit, and Zed now use —
+# unlike delta (which needed OneHalfDark for GitHub Dark Default, gruvbox-dark
+# is a real bundled delta theme now — see gitconfig's [delta] comment) and
+# NvChad (whose bundled `gruvbox` is the standard/medium shade, not Hard).
+theme = "gruvbox-dark-hard"
 
 # Line numbers in the gutter, same as gitconfig's [delta] line-numbers = true
 # and lazygit's shared delta pager — keeps the gutter consistent across every
