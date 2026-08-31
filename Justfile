@@ -194,7 +194,6 @@ help-coverage:
     # unrelated, which defeats the point of this check.
     ALIASES = {
         "git-delta": "delta",
-        "difftastic": "difft",
         "tealdeer": "tldr",
         "ripgrep": "rg",
         "neovim": "nvim",

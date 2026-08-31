@@ -72,16 +72,13 @@ brew "git-delta"
 # which is the review-fixup step that was missing.
 brew "git-absorb"
 
-# Wired as a `git difftool`, deliberately not the default pager — it's slow
-# and can't do intra-line word diff, which delta handles better for ordinary
-# changes. Its value is reviewing a refactor that moved code, where delta's
-# line-based view falls apart. Binary is `difft`.
-brew "difftastic"
-
-# Review-first terminal diff viewer for reviewing agent-authored changesets —
-# pairs with delta/difftastic above but targets the specific job of reading a
-# multi-file changeset top to bottom (agent diffs, PR review) rather than
-# git's own pager/difftool slots. Binary is `hunk`, formula is `hunk`.
+# Review-first terminal diff viewer, and this repo's git pager and difftool: it
+# owns core.pager and diff.tool in gitconfig, so `git diff`/`show`/`difftool`
+# open a multi-file review UI instead of a scrolling stream. Replaced
+# difftastic, whose structural-diff niche never justified a second on-demand
+# tool once hunk covered the everyday path. Pager mode falls back to plain text
+# for non-diff output, so the slot stays usable for a bare `git log`. Binary is
+# `hunk`, formula is `hunk`.
 brew "hunk"
 
 # lin — Linear issue tracker from the terminal (github.com/aaronkwhite/linear-cli).

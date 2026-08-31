@@ -1103,7 +1103,6 @@ install_tools_linux() {
   # is slow (a few minutes) but one-time: cargo_ensure_latest skips the
   # rebuild once a tool is installed and current.
   command -v delta >/dev/null 2>&1 || cargo_ensure_latest git-delta delta
-  command -v difft >/dev/null 2>&1 || cargo_ensure_latest difftastic difft
   command -v git-absorb >/dev/null 2>&1 || cargo_ensure_latest git-absorb
   command -v sd >/dev/null 2>&1 || cargo_ensure_latest sd
   command -v tldr >/dev/null 2>&1 || cargo_ensure_latest tealdeer tldr
@@ -1241,7 +1240,7 @@ link_configs() {
     "config/atuin/config.toml:$HOME/.config/atuin/config.toml"
     # Themes live in a subdirectory atuin resolves by name; linked per-file so a
     # theme installed by any other means still shows up alongside this one.
-    "config/atuin/themes/gruvbox-dark-hard.toml:$HOME/.config/atuin/themes/gruvbox-dark-hard.toml"
+    "config/atuin/themes/github-dark-default.toml:$HOME/.config/atuin/themes/github-dark-default.toml"
     # The whole directory, not per-file — btop.conf's save_config_on_exit =
     # false (see the file itself) is what keeps this safe to link at all;
     # without it btop would rewrite btop.conf on every quit. Directory link
@@ -1277,13 +1276,19 @@ link_configs() {
     # the parent would hide them. `atuin hook install` has no omp target, so this
     # one is maintained here by hand.
     "omp/agent/extensions/atuin.ts:$HOME/.omp/agent/extensions/atuin.ts"
-    # Same per-file rule for themes. gruvbox-dark-hard-tuned.json is omp's
-    # dark-one built-in re-based onto Gruvbox Dark Hard's actual palette,
-    # with its block backgrounds re-tuned against Ghostty's real canvas:
-    # upstream's dark-one hardcodes userMessageBg to a color that renders
-    # invisible against this repo's terminal background. Built-ins win name
-    # collisions, hence the distinct name.
-    "omp/agent/themes/gruvbox-dark-hard-tuned.json:$HOME/.omp/agent/themes/gruvbox-dark-hard-tuned.json"
+    "omp/agent/extensions/daily-budget.ts:$HOME/.omp/agent/extensions/daily-budget.ts"
+    # Weekday spend-pacing allocation the extension above reads. Declarative
+    # config, not runtime state, so it lives next to config.yml rather than
+    # in the untracked ~/.omp/agent/daily-budget-state.json ledger the
+    # extension writes at runtime.
+    "omp/agent/daily-budget.json:$HOME/.omp/agent/daily-budget.json"
+    # No theme entry here any more: omp ships `dark-github` as a BUILT-IN
+    # (packages/coding-agent/src/modes/theme/defaults/dark-github.json), and
+    # built-ins win name collisions against custom files, so re-basing a
+    # tracked custom theme onto the same palette would be a file that can
+    # never load. The previous gruvbox-dark-hard-tuned.json existed only
+    # because no built-in matched that palette at all.
+
     # Runtime pins. mise finds this by walking up from whatever directory it's
     # invoked in, so the symlink sitting at $HOME is what makes it the default
     # for everything that doesn't carry its own.
