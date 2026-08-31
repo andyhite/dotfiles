@@ -75,6 +75,7 @@ interface Ledger {
   windowStartMs?: number;
   dayBaselineStartMs?: number;
   dayBaselineUsedPct?: number;
+  weekStartMs?: number;
   carryoverUsd?: number;
   warnedDayStartMs?: number;
 }
@@ -110,6 +111,19 @@ function weekdayOf(ms: number): Weekday {
   // Names the Date→weekday-enum mapping so callers read a domain concept,
   // not a raw array index.
   return WEEKDAYS[new Date(ms).getDay()];
+}
+
+// Most recent Monday-local-midnight at or before `ms`. The cost cap's
+// carryover resets here each week (unlike the quota providers', which
+// resets whenever each provider's own rolling window happens to roll) —
+// there is no provider-reported window to key a reset off for cost, so a
+// fixed calendar week gives it one instead of accumulating forever.
+function weekStartMs(ms: number): number {
+  const d = new Date(ms);
+  d.setHours(0, 0, 0, 0);
+  const daysSinceMonday = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - daysSinceMonday);
+  return d.getTime();
 }
 
 // Cumulative allocated percentage from the window's own start through today.
@@ -317,10 +331,13 @@ function checkBudgets(config: BudgetConfig, ui: NotifyUI): void {
     const { providers, dailyCapUsd } = config.costCap;
     const entry = state["cost:combined"] ?? {};
 
-    // Settle the day that just ended before moving the baseline forward:
-    // its leftover (or overrun), on top of whatever it started with,
-    // becomes today's carryover.
-    if (entry.dayBaselineStartMs === undefined) {
+    // A new calendar week (Monday) zeroes the carryover so a rough week
+    // can't keep dragging down the next; otherwise settle the day that
+    // just ended — its leftover (or overrun), on top of whatever it
+    // started with, becomes today's carryover.
+    const currentWeekStartMs = weekStartMs(now);
+    if (entry.weekStartMs !== currentWeekStartMs) {
+      entry.weekStartMs = currentWeekStartMs;
       entry.carryoverUsd = 0;
     } else if (entry.dayBaselineStartMs !== todayStartMs) {
       const priorCap = (dailyCapUsd[weekdayOf(entry.dayBaselineStartMs)] ?? 0) + (entry.carryoverUsd ?? 0);

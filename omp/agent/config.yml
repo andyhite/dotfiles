@@ -94,7 +94,7 @@ task:
     mode: auto
 personality: none
 retry:
-  usageAwareFallback: false
+  usageAwareFallback: true
   modelFallback: true
   fallbackRevertPolicy: cooldown-expiry
   fallbackChains:
@@ -148,7 +148,7 @@ retry:
       - openai/gpt-5.6-terra:medium
       - cursor/composer-2.5
   usageReservePolicy: auto
-  usageReservePct: 10
+  usageReservePct: 5
 advisor:
   enabled: false
 interruptMode: immediate
