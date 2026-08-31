@@ -1,7 +1,7 @@
 # dotfiles
 
-Shell and terminal config, synced between my Mac (Ghostty) and remote dev VMs. Gruvbox Dark
-Hard theme everywhere, zsh with antidote instead of oh-my-zsh, starship for the prompt,
+Shell and terminal config, synced between my Mac (Ghostty) and remote dev VMs. GitHub Dark
+Default theme everywhere, zsh with antidote instead of oh-my-zsh, starship for the prompt,
 NvChad for editing.
 
 ## Contents
@@ -15,11 +15,11 @@ NvChad for editing.
   - [`make` on macOS — `gmake`, not `gnumake`](#make-on-macos--gmake-not-gnumake)
   - [Shells with no line editor — `TERM=dumb`, or no tty](#shells-with-no-line-editor--termdumb-or-no-tty)
 - [Notes by tool](#notes-by-tool)
-  - [Git — rebase-first, with delta, difftastic, hunk, and absorb](#git--rebase-first-with-delta-difftastic-hunk-and-absorb)
+  - [Git — rebase-first, with hunk, delta, and absorb](#git--rebase-first-with-hunk-delta-and-absorb)
   - [Shell — carapace, fd, uv, and Linux clipboards](#shell--carapace-fd-uv-and-linux-clipboards)
   - [dotfiles-help — the `help/` corpus and `dh`](#dotfiles-help--the-help-corpus-and-dh)
   - [gh extensions — manifest beside `herdr_plugins.txt`](#gh-extensions--manifest-beside-herdr_pluginstxt)
-  - [btop — Gruvbox Dark Hard theme, and the config-rewrite trap](#btop--gruvbox-dark-hard-theme-and-the-config-rewrite-trap)
+  - [btop — GitHub Dark Default theme, and the config-rewrite trap](#btop--github-dark-default-theme-and-the-config-rewrite-trap)
   - [Misc dev CLIs — hyperfine, sd, tealdeer, and Docker Desktop](#misc-dev-clis--hyperfine-sd-tealdeer-and-docker-desktop)
   - [Caddy — local HTTPS for internal-only dev hostnames](#caddy--local-https-for-internal-only-dev-hostnames)
   - [dnsmasq — wildcard local DNS via macOS's per-domain resolver](#dnsmasq--wildcard-local-dns-via-macoss-per-domain-resolver)
@@ -49,9 +49,9 @@ NvChad for editing.
 | `zshrc` | `~/.zshrc` | zsh config: completion, antidote plugin load, history, aliases, tool init hooks |
 | `tool-versions` | `~/.tool-versions` | mise runtime pins (node, python, go, bun, pnpm) — mise walks up from the current directory to find this, so the symlink is the global default under `$HOME`; see [mise](#mise) below |
 | `zsh_plugins.txt` | `~/.zsh_plugins.txt` | antidote's plugin list (zsh-autosuggestions, zsh-syntax-highlighting, fzf-tab, zsh-vi-mode) |
-| `config/starship.toml` | `~/.config/starship.toml` | prompt — Gruvbox Dark Hard palette, hostname shown only over SSH |
+| `config/starship.toml` | `~/.config/starship.toml` | prompt — GitHub Dark Default palette, hostname shown only over SSH |
 | `config/atuin/config.toml` | `~/.config/atuin/config.toml` | Atuin (shell history): overrides only — daemon, fuzzy search, full-style UI, vi keymap, tmux popup, `atuin ai`. Also the answers `atuin setup` would otherwise re-ask on every install |
-| `config/atuin/themes/gruvbox-dark-hard.toml` | `~/.config/atuin/themes/gruvbox-dark-hard.toml` | Gruvbox Dark Hard for Atuin; foreground colors only, background comes from Ghostty |
+| `config/atuin/themes/github-dark-default.toml` | `~/.config/atuin/themes/github-dark-default.toml` | GitHub Dark Default for Atuin; foreground colors only, background comes from Ghostty |
 | `zshrc.local.example` | (copy, not linked) | template for machine-local secrets — never committed |
 
 ### Terminal & workspace
@@ -59,10 +59,10 @@ NvChad for editing.
 | Path | Links to | What it is |
 | --- | --- | --- |
 | `tmux.conf` | `~/.tmux.conf` | tmux config, plugins managed by TPM |
-| `config/ghostty/config` | `~/.config/ghostty/config` | Ghostty terminal: `Gruvbox Dark Hard` theme, shell integration — same path on macOS and Linux |
+| `config/ghostty/config` | `~/.config/ghostty/config` | Ghostty terminal: `GitHub Dark Default` theme, shell integration — same path on macOS and Linux |
 | `config/hammerspoon` | `~/.hammerspoon` (macOS only) | Hammerspoon: `init.lua` binds the per-Space Ghostty show/hide toggle that replaced Ghostty's own app-wide one — see [Hammerspoon](#hammerspoon--per-space-ghostty-toggle-ghosttys-own-is-app-wide) below |
-| `config/btop` | `~/.config/btop` | btop resource monitor: Gruvbox Dark Hard theme, `save_config_on_exit = false` so btop's default full-config-rewrite-on-quit can't overwrite this file — see [btop](#btop--gruvbox-dark-hard-theme-and-the-config-rewrite-trap) below |
-| `config/herdr/config.toml` | `~/.config/herdr/config.toml` | Herdr (agent terminal workspace manager), native `gruvbox` theme + accent resynced to Ghostty's bright blue, no contrast-repair overrides needed |
+| `config/btop` | `~/.config/btop` | btop resource monitor: GitHub Dark Default theme, `save_config_on_exit = false` so btop's default full-config-rewrite-on-quit can't overwrite this file — see [btop](#btop--github-dark-default-theme-and-the-config-rewrite-trap) below |
+| `config/herdr/config.toml` | `~/.config/herdr/config.toml` | Herdr (agent terminal workspace manager), native theme resynced to Ghostty's accent blue, no contrast-repair overrides needed |
 | `config/herdr/palette` | `~/.config/herdr/palette` | the `prefix+p` command palette — an fzf script run by a `type = "popup"` keybinding, plus the MIT notice of the plugin it's derived from |
 | `config/herdr/layout` | `~/.config/herdr/layout` | the `prefix+f` fold command — a `type = "shell"` keybinding that folds a row of N side-by-side panes into N/2 columns of two |
 | `herdr_plugins.txt` | (not linked — read by `install.sh`) | Herdr plugin list, one `owner/repo[@ref]` per line; `install.sh` installs/updates each one |
@@ -83,13 +83,13 @@ NvChad for editing.
 
 | Path | Links to | What it is |
 | --- | --- | --- |
-| `gitconfig` | `~/.gitconfig` | tracked git identity, LFS/xet filter wiring, rebase-first defaults, delta pager + difftastic difftool, and `git absorb`; anything that varies per machine layers in through `gitconfig.local.example` below |
+| `gitconfig` | `~/.gitconfig` | tracked git identity, LFS/xet filter wiring, rebase-first defaults, hunk pager + hunk difftool (delta retained for `add -p`), and `git absorb`; anything that varies per machine layers in through `gitconfig.local.example` below |
 | `gitconfig.local.example` | (copy, not linked) | template for `~/.gitconfig.local` — work identity via `includeIf "gitdir:…"`, private-registry credentials. `gitconfig`'s trailing `[include]` applies last, so anything set here wins over every default in the tracked file |
 | `config/git/ignore` | `~/.config/git/ignore` | global gitignore — git's own default `core.excludesFile` location when that setting is unset, so machine-tool droppings (`.DS_Store`, `.idea/`) never have to live in a project's own `.gitignore` |
 | `config/gh/config.yml` | `~/.config/gh/config.yml` | gh CLI defaults and aliases; `git_protocol: https` is deliberate — `ssh/config` maps `github.com` to the work SSH key, so an ssh remote here would silently authenticate as the wrong account |
 | `gh_extensions.txt` | (not linked — read by `install.sh`) | gh CLI extension manifest, one `owner/repo` per line; `install.sh`'s `gh` step installs new extensions and upgrades ones already present — see [gh extensions](#gh-extensions--manifest-beside-herdr_pluginstxt) |
-| `config/lazygit/config.yml` | `~/Library/Application Support/lazygit/config.yml` (macOS), `~/.config/lazygit/config.yml` (Linux) | Lazygit: Gruvbox Dark Hard theme, Nerd Font v3 icons, fuzzy filtering, and nvim integration; `zshrc` exposes it as `lg`, while the OS-specific destinations are Lazygit's native defaults |
-| `config/hunk/config.toml` | `~/.config/hunk/config.toml` | Hunk review-stream viewer: `gruvbox-dark-hard` theme (an exact built-in Shiki theme id, and also a real bundled delta theme now — see gitconfig's `[delta]` comment), line numbers, and default-on agent notes for reviewing agent-authored changesets; stays unwired from `core.pager`/difftool on purpose — see the Git section below |
+| `config/lazygit/config.yml` | `~/Library/Application Support/lazygit/config.yml` (macOS), `~/.config/lazygit/config.yml` (Linux) | Lazygit: GitHub Dark Default theme, Nerd Font v3 icons, fuzzy filtering, and nvim integration; `zshrc` exposes it as `lg`, while the OS-specific destinations are Lazygit's native defaults |
+| `config/hunk/config.toml` | `~/.config/hunk/config.toml` | Hunk review-stream viewer: `github-dark-default` theme (an exact built-in Shiki theme id), line numbers, and default-on agent notes for reviewing agent-authored changesets; wired as both `core.pager` and `diff.tool` — see the Git section below |
 | `ssh/config` | `~/.ssh/config` | portable ssh identity config — per-key `Host` blocks for github.com (`IdentitiesOnly yes` so the agent can't offer the wrong key first), github.com-personal, hf.co, runpod.io, plus dstack's `Include ~/.dstack/ssh/config` (dstack injects that line into `~/.ssh/config` — a symlink into this repo — on every provision, so tracking it is the only way the tree stays clean; inert where dstack has never run); machine-specific hosts live in `~/.ssh/config.local` instead |
 | `ssh/config.local.example` | (copy, not linked) | template for `~/.ssh/config.local` — throwaway test hosts, machine-specific aliases. `ssh/config`'s first non-dstack line is `Include ~/.ssh/config.local`, because ssh takes the first value it finds for any option and this is the only way the local file can override rather than be shadowed |
 
@@ -99,6 +99,8 @@ NvChad for editing.
 | --- | --- | --- |
 | `omp/agent/config.yml` | `~/.omp/agent/config.yml` | [omp](https://omp.sh) coding agent settings — besides this file, `AGENTS.md`, and `rules/output-style.md` below, the rest of `~/.omp/agent` is databases, sessions, and a secrets key |
 | `omp/agent/extensions/atuin.ts` | `~/.omp/agent/extensions/atuin.ts` | records omp's `bash` commands into Atuin history as `--author pi` (a `KNOWN_AGENTS` name, so `$all-user` hides them), with omp's intent string as `--intent`. Hand-maintained: `atuin hook install` has no omp target |
+| `omp/agent/extensions/daily-budget.ts` | `~/.omp/agent/extensions/daily-budget.ts` | weekday spend-pacing warnings layered on top of `retry.usageAwareFallback` — shells out to `omp usage --json` on a timer and warns (never falls back — that stays `usageAwareFallback`'s job) once real usage outruns the cumulative allocation in `daily-budget.json` through today's weekday |
+| `omp/agent/daily-budget.json` | `~/.omp/agent/daily-budget.json` | per-weekday percentage allocation of each tracked provider's 7-day quota, read by the extension above; the runtime ledger it writes (`daily-budget-state.json`) is untracked state, not this file |
 | `omp/agent/rules/output-style.md` | `~/.omp/agent/rules/output-style.md` | `alwaysApply: true` rule that shapes every omp response for an ADHD reader — answer first, numbered steps, one next action, no preamble or recap |
 | `omp/agent/AGENTS.md` | `~/.omp/agent/AGENTS.md` | omp's native global context file (highest-priority discovery provider — shadows every other tool's user-level context). Holds the same ADHD output-style guidance as `rules/output-style.md` above, since it's a personal preference rather than an omp-specific one; `config/claude/CLAUDE.md` below symlinks straight to this file, so it's the one source of truth |
 | `omp_plugins.txt` | (not linked — read by `install.sh`) | omp plugin manifest, one `<install-source> <plugin-name>` per line; `install.sh` runs `omp plugin install <source>` for each, and skips one that's link-installed for local development |
@@ -153,7 +155,7 @@ The steps, in order — the order is load-bearing, which is why `--only` exists 
 reordering doesn't:
 
 1. **Installs/updates the tools this config drives**: starship, zoxide, atuin,
-   fzf, eza, bat, direnv, tmux, lazygit, delta, difftastic, hunk, git-absorb,
+   fzf, eza, bat, direnv, tmux, lazygit, delta, hunk, git-absorb,
    fd, carapace, gitleaks, pre-commit, just, uv, antidote, TPM, the Geist Mono
    Nerd Font, neovim, ripgrep, tree-sitter-cli, mise, omp, claude, prime-agent,
    btop, herdr,
@@ -213,7 +215,7 @@ reordering doesn't:
      that's happened.
    - Linux-only: `fd-find` installs as `fdfind`, so `ensure_fd_shim_linux` symlinks
      `~/.local/bin/fd` — telescope and fzf shell out to the literal name `fd`, not a
-     shell alias. delta, difftastic, git-absorb, sd, tealdeer, hyperfine, and lin
+     shell alias. delta, git-absorb, sd, tealdeer, hyperfine, and lin
      fall back to `cargo install` where apt has no package (and, for `lin`, where
      macOS has no tap bottle for the target arch). hunk (npm package `hunkdiff`)
      installs the same mise-first-`npm`-then-plain-`npm` way as markdownlint-cli2,
@@ -446,7 +448,7 @@ interactive one does.
 
 ## Notes by tool
 
-### Git — rebase-first, with delta, difftastic, hunk, and absorb
+### Git — rebase-first, with hunk, delta, and absorb
 
 `gitconfig` is deliberately rebase-oriented (`pull.rebase`, `rebase.autoStash`,
 `rebase.autoSquash`, `rebase.updateRefs`, `rerere.enabled`, `rerere.autoupdate`) so
@@ -456,25 +458,31 @@ review" commit at the tip. **delta** is the pager that finally renders those set
 The `|| less` / `|| cat` fallbacks are mandatory — git runs both through `sh -c`, so a
 missing delta on a fresh machine (or one where the tools step was declined) falls through
 instead of bricking every `git diff`/`log`/`show` and `git add -p`. `syntax-theme =
-gruvbox-dark` is a real bundled delta syntax theme — an exact match, not an
-approximation, for the same Gruvbox Dark Hard that Ghostty, starship, atuin, btop,
-herdr, hunk, lazygit, and Zed now all run. `config/lazygit/config.yml` reuses the same `[delta]` block with `pager: delta
+none` disables delta's own syntax highlighting: `delta --list-syntax-themes` ships
+only a light `GitHub` entry and no dark one, so there is no bundled delta theme that
+matches GitHub Dark Default — delta is the one surface in this repo that cannot match
+the palette at all, rather than approximating it. `config/lazygit/config.yml` reuses the same `[delta]` block with `pager: delta
 --dark --paging=never` — `--paging=never` is load-bearing because lazygit already
 scrolls the diff panel itself; a delta that also spawned `less` would deadlock the panel
 for input.
 
-**difftastic** is wired as `git dft` (`difftool -t difftastic`), not the default pager.
-It diffs syntax trees, which is what you want when a refactor moved or reindented code
-and a line-based view reads as a wholesale rewrite; it is deliberately not on every
-`git diff` because it is slower on large diffs and has no intra-line word diff.
+**hunk** owns `core.pager` and `diff.tool`. It sniffs stdin: a patch-like diff opens
+the full-screen review UI, anything else (a `git log --oneline`, a non-diff `git show`)
+falls through to a plain-text pager resolved from `HUNK_TEXT_PAGER`, then `PAGER`,
+then `less -R` — a value that resolves back to hunk is skipped so git can't recurse
+into its own pager. The `|| less` fallback on `core.pager` is still load-bearing
+alongside that sniffing fallback: it covers a machine where the `hunk` binary itself
+is missing, which the stdin-based fallback can't help with since hunk has to already
+be running to sniff anything. `git review` (`!hunk diff`) reads a whole changeset in
+one stream instead of git's per-file difftool pairing.
 
-**hunk** is a standalone review-stream diff viewer (`hunk diff` / `hunk show`), not
-wired into any git pager or difftool slot. It earns its place alongside delta and
-difftastic for the job neither covers well: reading an entire multi-file changeset —
-especially an agent-authored one — top to bottom in one stream, with inline
-annotations rendered beside the hunks they explain. `config/hunk/config.toml`
-(`~/.config/hunk/config.toml`) sets `theme = "gruvbox-dark-hard"` — hunk is
-Shiki-backed and actually ships a theme with that exact id, same as delta above — plus
+**delta** keeps exactly two jobs a full-screen TUI can't do: `interactive.diffFilter =
+delta --color-only || cat` for `git add -p`, which parses delta's output line-for-line
+to know what got staged, and lazygit's `diffRenderers.command = delta --dark
+--paging=never`, which renders into a panel lazygit itself owns rather than a
+terminal delta would have to take over. `config/hunk/config.toml`
+(`~/.config/hunk/config.toml`) sets `theme = "github-dark-default"` — hunk is
+Shiki-backed and actually ships a theme with that exact id — plus
 `line_numbers = true` to match delta's gutter and `agent_notes = true`, since this
 machine's diffs are read almost entirely as agent-authored changesets rather than
 opting the notes rail in per session.
@@ -567,16 +575,15 @@ note rather than failing once per line. The one extension listed today is `seach
 branch of stacked agent work means merged-branch churn is continuous rather than
 occasional.
 
-### btop — Gruvbox Dark Hard theme, and the config-rewrite trap
+### btop — GitHub Dark Default theme, and the config-rewrite trap
 
 `config/btop` is linked whole to `~/.config/btop`: `btop.conf` sets `color_theme =
-"gruvbox-dark-hard"` and `config/btop/themes/gruvbox-dark-hard.theme` maps the same
-hex values as `config/starship.toml`'s `[palettes.gruvbox_dark_hard]` and
-`config/atuin/themes/gruvbox-dark-hard.toml` — Ghostty's actual rendered ANSI colors.
-btop does bundle its own `gruvbox_dark.theme`, but that's the standard/medium shade
-(`#282828` background), not the Hard variant everything else here runs, so this file
-stays a byte-exact custom match rather than switching to the bundled one. `main_bg` in
-the theme is Ghostty's actual terminal background (`#1d2021`, Gruvbox Dark Hard) — btop
+"github-dark-default"` and `config/btop/themes/github-dark-default.theme` maps the same
+hex values as `config/starship.toml`'s `[palettes.github_dark_default]` and
+`config/atuin/themes/github-dark-default.toml` — Ghostty's actual rendered ANSI colors.
+btop bundles 41 themes, none of them a GitHub theme, so a custom file is the only way to
+run this palette here — there's no bundled candidate to fall back to instead. `main_bg` in
+the theme is Ghostty's actual terminal background (`#0d1117`, GitHub Dark Default) — btop
 always paints its own background pixels, so matching the real terminal is what avoids a
 visible seam around the window, the same distinction `config/herdr/config.toml`'s
 contrast-repair block had to make.
@@ -1062,7 +1069,7 @@ Homebrew core formula and no apt package, so the Brewfile pulls the author's own
 fallback above, just a tap instead of a curl installer. Linux gets it via `cargo install
 lincli` in `install.sh`'s Linux branch (see the [general dev CLIs
 bullet](#bootstrap-a-new-machine) above); the crate name (`lincli`) and the binary name
-(`lin`) differ, same shape as `git-delta`/`delta` and `difftastic`/`difft` elsewhere in
+(`lin`) differ, same shape as `git-delta`/`delta` and `tealdeer`/`tldr` elsewhere in
 that list. No config file is tracked for it — `lin auth login` (interactive) or the
 `LINEAR_API_KEY` environment variable authenticates it per machine, same as any other
 credential this repo deliberately keeps out of tracked content.

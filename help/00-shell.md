@@ -130,11 +130,11 @@ works in `emacs` mode, this is why — check `for m in emacs viins vicmd; do bin
 done` to see where a binding actually landed, and rebind it from `zvm_after_init_commands`
 rather than from `zshrc` directly.
 
-## starship — the prompt, Gruvbox Dark Hard palette via config/starship.toml
+## starship — the prompt, GitHub Dark Default palette via config/starship.toml
 
-Cross-shell prompt, configured entirely by `config/starship.toml`: the `gruvbox_dark_hard`
-palette (matching Ghostty, atuin, herdr, btop, hunk, delta, and lazygit; nvim runs the
-closest bundled match), OS/user components, git branch/status, per-language version
+Cross-shell prompt, configured entirely by `config/starship.toml`: the `github_dark_default`
+palette (matching Ghostty, atuin, herdr, btop, hunk, and lazygit; nvim runs the
+same palette exactly, via its own hand-written base46 theme), OS/user components, git branch/status, per-language version
 segments, a docker-context segment, and a right-aligned time/battery block. `zshrc`
 skips `starship init` outright in a shell with no
 line editor (`TERM=dumb`, non-interactive, no tty) — starship refuses to render there anyway
@@ -313,9 +313,9 @@ starts, so a `kill -9`'d tmux server or a reboot comes back with your panes inta
 also means a session you *meant* to leave closed reappears on the next tmux start unless you
 kill it again.
 
-## ghostty — the terminal, config/ghostty/config, Gruvbox Dark Hard theme
+## ghostty — the terminal, config/ghostty/config, GitHub Dark Default theme
 
-`config/ghostty/config` sets the `Gruvbox Dark Hard` theme, Geist Mono Nerd Font at 14pt, 10px
+`config/ghostty/config` sets the `GitHub Dark Default` theme, Geist Mono Nerd Font at 14pt, 10px
 window padding, and `shell-integration = detect` with `shell-integration-features =
 cursor,sudo,title,ssh-env,ssh-terminfo` — the last of which is what keeps a plain `ssh` to a
 box with no `xterm-ghostty` terminfo entry from breaking `nvim` and anything else that opens a

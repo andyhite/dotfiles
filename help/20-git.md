@@ -92,7 +92,7 @@ LFS transfers go over plain HTTP as normal.
 
 ## lazygit — git TUI
 
-Aliased to `lg` in zshrc. Theme matches Ghostty's Gruvbox Dark Hard palette so nested
+Aliased to `lg` in zshrc. Theme matches Ghostty's GitHub Dark Default palette so nested
 TUIs agree on the accent color; `os.editPreset` is `nvim`.
 
     lg                              # open in the current repo (aliased to `lazygit`)
@@ -108,49 +108,49 @@ TUIs agree on the accent color; `os.editPreset` is `nvim`.
     <tab>                           # cycle branches/commits/stash/status panels
     ?                               # context-sensitive keybinding help for the current panel
 
-## delta — the git pager
+## delta — inline diff coloring for add -p and lazygit
 
-Wired via `core.pager` (a `.gitconfig.local`-friendly hook, falling back
-to `|| less` so a machine without delta on PATH still has a working pager).
+No longer the pager or difftool — `core.pager` and `diff.tool` both point at
+hunk now (see the `hunk` section below). delta keeps exactly two jobs a
+full-screen TUI cannot do: `interactive.diffFilter` for `git add -p`, which
+parses delta's `--color-only` output line-for-line to know what got staged,
+and lazygit's `diffRenderers.command`, which renders into a captured panel
+lazygit owns rather than a terminal delta would have to take over. `syntax-theme`
+is `none` — delta only ships a light `GitHub` theme via
+`delta --list-syntax-themes`, no dark one, so `none` falls back to the
+terminal's own foreground color plus delta's plus/minus backgrounds instead
+of clashing with either surface's colors.
 
-    git log                         # rendered through delta instead of raw diff text
-    git diff                        # side-by-side view, syntax highlighting, line numbers
+    git add -p                      # interactive hunk staging, colored through delta --color-only
+    lg                              # lazygit's diff panel renders through delta --dark --paging=never
     delta old_file new_file         # compare two files directly, outside git
     delta --show-config             # display the currently active delta settings
-    n                                # jump to the next file in the diff (navigate = true)
-    N                                # jump to the previous file
-    q                                # quit the pager
 
-Gotcha: delta only replaces the *pager* — `git diff` output piped to another
-program (a CI log, `| cat`) skips delta entirely and prints plain diff text.
+Gotcha: delta only renders inside these two slots now — a plain `git diff`
+or `git log` goes through hunk's pager, not delta.
 
-## difft — structural diff
+## hunk — review-first terminal diff viewer, now the git pager and difftool
 
-Wired as `git dft`, a `difftool -t difftastic` alias — deliberately NOT
-the default pager. It's slower than delta and does no intra-line word diff,
-so day-to-day `git diff` stays on delta; reach for `difft` specifically when
-a change moved or reindented code and a line-based diff would just show a
-wall of red/green noise.
+`core.pager` and `diff.tool` both resolve to hunk. Hunk sniffs stdin: a
+patch-like stream opens the full-screen review UI, anything else (a `git
+log --oneline`, a plain-text `git show` of a non-diff object) falls through
+to a plain-text pager resolved from `HUNK_TEXT_PAGER`, then `PAGER`, then
+`less -R` — a value that resolves back to hunk itself is skipped so git
+can't recurse into its own pager. `core.pager`'s trailing `|| less` guard
+still matters even with that fallback: it only covers a machine where the
+`hunk` binary itself is missing, which the stdin-sniffing fallback can't
+help with since hunk has to already be running to sniff anything.
+`~/.config/hunk/config.toml` sets the `github-dark-default` theme (an exact
+built-in Shiki theme id) and turns agent notes on by default.
 
-    git dft                         # diff the working tree against HEAD, structurally
-    git dft main                    # diff against another ref
-    git dft --staged                # diff staged changes structurally
-    difft old.rs new.rs             # diff two files directly, outside git
-    difft --display side-by-side old.rs new.rs  # force side-by-side rendering
-
-## hunk — review-first terminal diff viewer
-
-Not wired into any git slot (no pager, no difftool) — it's a standalone
-multi-file review stream for reading an entire changeset top to bottom,
-including agent-authored diffs that carry inline reasoning annotations.
-Reach for it over delta/difftastic when reviewing more than a couple of
-files at once, not for a single `git diff`. `~/.config/hunk/config.toml`
-sets the `gruvbox-dark-hard` theme (an exact built-in Shiki theme id, same as delta's
-`gruvbox-dark` now) and turns agent notes on by default.
-
-    hunk diff                       # review the working tree's uncommitted changes
-    hunk show                       # review a single commit
-    hunk show main..HEAD            # review a range of commits
+    git diff                        # opens hunk's review UI via core.pager
+    git show                        # same, for a single commit
+    git review                      # alias for `hunk diff` — a whole changeset in one stream
+    git difftool                    # git-driven, one hunk invocation per changed file
+    hunk diff                       # review the working tree's uncommitted changes directly
+    hunk show                       # review a single commit directly
+    hunk show main..HEAD            # review a range of commits directly
+    git diff --no-index a b | hunk patch -   # review a patch from stdin or a file
     [ / ]                           # jump to the previous/next hunk in the stream
     1 / 2 / 0                       # force side-by-side / stacked / auto layout
 

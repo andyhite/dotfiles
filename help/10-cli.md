@@ -95,8 +95,8 @@ useful to have on PATH for ad-hoc YAML work, not because anything here depends o
 
 A `top`/`htop` replacement with per-core CPU graphs, memory/swap/disk/network panels, and a
 searchable, sortable, killable process tree, all mouse- and keyboard-driven. `config/btop`
-sets the Gruvbox Dark Hard theme (matching Ghostty, atuin, herdr, hunk, delta, and
-lazygit; nvim runs the closest bundled match) and pins
+sets the GitHub Dark Default theme (matching Ghostty, atuin, herdr, hunk, and
+lazygit; nvim runs the same palette exactly, via its own base46 theme) and pins
 `save_config_on_exit = false` — btop's own default rewrites its entire config file on
 every quit, which would otherwise overwrite this one; see the README's btop section for
 why.

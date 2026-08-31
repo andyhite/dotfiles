@@ -60,9 +60,9 @@ Four edits:
 4. A `## <name> — <tagline>` section in the right `help/*.md`. The parser depends on the
    em-dash separator, 4-space-indented command examples, and the command name in the heading
    being what you TYPE — which is why `just help-coverage` carries an explicit alias map
-   for the six Brewfile names that differ (`git-delta`/`delta`, `difftastic`/`difft`,
-   `tealdeer`/`tldr`, `ripgrep`/`rg`, `neovim`/`nvim`, `1password-cli`/`op`) and an exempt
-   set for casks that install an app rather than a command.
+   for the five Brewfile names that differ (`git-delta`/`delta`, `tealdeer`/`tldr`,
+   `ripgrep`/`rg`, `neovim`/`nvim`, `1password-cli`/`op`) and an exempt set for casks
+   that install an app rather than a command.
 
 ## Secrets
 

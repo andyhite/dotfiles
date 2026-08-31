@@ -123,7 +123,7 @@ put `cargo` there). Not mise-managed: cargo has to exist before any
 cargo-installed tool can be built, so on Linux it doubles as a bootstrap
 dependency, not just a dev tool — `install.sh` falls back to
 `cargo install --locked` for any tool with no apt package (delta,
-difftastic, git-absorb, sd, tealdeer, hyperfine, fd; see `cargo` below
+git-absorb, sd, tealdeer, hyperfine, fd; see `cargo` below
 for the commands that come with either install path).
 
     rustc --version                      # confirm the compiler version — works on both platforms
@@ -231,8 +231,11 @@ this repo's own config wiring it into an editor or a lint step the way
 ## nvim — neovim, configured as NvChad v2.5
 
 `config/nvim` is a full NvChad v2.5 config: `chadrc.lua` sets the base46
-theme (`gruvbox` — NvChad's own bundled theme, at its standard/medium `#282828`
-background, not the Hard variant's `#1d2021` this repo otherwise runs);
+theme (`github_dark_default`, tracked in this repo at
+`config/nvim/lua/themes/github_dark_default.lua` and resolved through base46's
+`themes.<name>` fallback — hand-written because base46 bundles only the legacy
+GitHub Dark palette (`#24292E`), not Dark Default's `#0d1117`, so nvim runs an
+exact match rather than an approximation);
 `mappings.lua` layers this repo's bindings on top of
 NvChad's own; `plugins/init.lua` wires conform.nvim, nvim-lspconfig,
 nvim-lint and a telescope override on top of NvChad's plugin set.
@@ -305,8 +308,10 @@ since upstream provides none.
 
 `config/zed/settings.json` sets: `disable_ai` true (agents run from the
 terminal via omp, not inside the editor), vim mode with the VSCode base
-keymap, Gruvbox Dark Hard (one of Zed's own bundled themes, no extension
-needed — an exact match, unlike GitHub Dark before it) and One Light themes
+keymap, GitHub Dark Default (via the `github-dark-default` extension,
+force-installed through `auto_install_extensions` — the more obviously
+named `github-theme` extension has no "Default" variant, so it's the wrong
+one) and One Light themes
 matching the rest of this repo's palette, Geist as the UI font (from the
 Brewfile's `font-geist` cask) and Geist Mono as the buffer font (from the
 Brewfile's `font-geist-mono` cask), the material-icon-theme extension
