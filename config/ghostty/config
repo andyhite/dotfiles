@@ -6,8 +6,8 @@ font-size = 14
 shell-integration = detect
 shell-integration-features = cursor,sudo,title,ssh-env,ssh-terminfo
 
-window-padding-x = 10
-window-padding-y = 10
+window-padding-x = 0
+window-padding-y = 0
 
 # macOS session restoration reopens last session's windows on relaunch
 # (following the system "Close windows when quitting an application"
