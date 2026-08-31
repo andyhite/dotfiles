@@ -78,21 +78,25 @@ the machine-local file — not in a comment, an example, or a commit message.
 ## omp model routing
 
 `omp/agent/config.yml` is shared by every machine, so `modelRoles` and
-`retry.fallbackChains` may only name omp's built-in providers — `anthropic`,
-`openai`, `openai-codex`, `cursor` — plus `anthropic-api`, a second Anthropic
-identity every machine running this config is required to define locally
-(billed by API key, distinct from the subscription OAuth login behind the
-bare `anthropic` id; see `omp/agent/models.yml.example`). CI enforces both
-halves of that rule. A built-in provider the machine can't authenticate is
-skipped silently; any other custom provider id warns once per role at every
-startup on every machine that doesn't define it. Machine-specific providers
-go in `~/.omp/agent/models.yml`, whose tracked template stays inert
-(`providers: {}` — trimming it to pure comments parses as null and omp
-rejects that on launch). A machine that should only ever bill API accounts
-needs no `config.yml` divergence at all: define `anthropic-api`, export its
-API keys, and simply never authenticate the subscription providers there —
-unresolvable built-in ids drop out of every role's fallback order on their
-own.
+`retry.fallbackChains` in it deliberately name only `anthropic` and
+`cursor` — the two built-in provider ids every machine is expected to
+authenticate — not `openai`/`openai-codex`, which not every machine does.
+CI enforces that only omp's built-in ids appear at all. A built-in id the
+machine can't authenticate is skipped silently; a custom provider id in the
+shared config would warn once per role at every startup on any machine that
+doesn't define it, which is exactly why custom providers never go there.
+
+A machine's own routing lives outside the shared file, in two untracked
+copies `install.sh` creates from tracked templates: `~/.omp/agent/models.yml`
+(credentials and custom provider ids — trial models, self-hosted endpoints,
+a second identity for an existing account) and
+`~/.omp/agent/config.local.yml` (a `modelRoles`/`retry.fallbackChains`
+overlay `zshrc` loads via `PI_CONFIG_FILES`, deep-merged on top of the
+shared config). Both ship inert (`providers: {}` and `{}`) because omp
+validates each file's root as an object — a copy trimmed to pure comments
+parses as null, which is a startup warning for `models.yml` and a hard
+startup error for `config.local.yml`. See `omp/agent/models.yml.example`
+and `omp/agent/config.local.yml.example` for the patterns.
 
 ## install.sh step order is load-bearing
 

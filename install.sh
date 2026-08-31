@@ -1425,17 +1425,19 @@ link_configs() {
   # next person, and drifts if the location ever changes.
   local examples=(
     zshrc.local.example gitconfig.local.example ssh/config.local.example
-    omp/agent/models.yml.example dstack/server/config.yml.example
+    omp/agent/models.yml.example omp/agent/config.local.yml.example
+    dstack/server/config.yml.example
   )
 
   local example target
   for example in "${examples[@]}"; do
     # ssh's lives in a subdirectory on both sides; the rest are dotfiles at
-    # $HOME. omp's lands beside the config.yml symlink, which is already
-    # where omp looks for it. It ships inert but deliberately not empty: the
-    # active line is a literal `providers: {}`, because omp validates the
-    # file's root as an object and a copy trimmed to pure comments parses as
-    # null and warns on every startup.
+    # $HOME. omp's land beside the config.yml symlink, which is already
+    # where omp looks for both: models.yml ships inert but deliberately not
+    # empty (`providers: {}`), and config.local.yml.example the same way
+    # (`{}`) — omp validates each file's root as an object, and a copy
+    # trimmed to pure comments parses as null and fails startup instead of
+    # warning, since PI_CONFIG_FILES treats a bad overlay as a hard error.
     case "$example" in
       ssh/*)          target="$HOME/.ssh/${example#ssh/}"; target="${target%.example}" ;;
       omp/agent/*)    target="$HOME/.omp/agent/${example#omp/agent/}"; target="${target%.example}" ;;

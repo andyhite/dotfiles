@@ -114,6 +114,14 @@ fi
 # below so it can set inputs they read (PNPM_HOME, build flags, …).
 [ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
 
+# omp's own per-machine overlay is separate from the block above: install.sh
+# copies omp/agent/config.local.yml.example to this path on every machine
+# (never committed), so a machine can override modelRoles/retry.fallbackChains
+# on top of the shared, tracked omp/agent/config.yml without editing it. Guard
+# on existence rather than exporting unconditionally — PI_CONFIG_FILES
+# pointing at a missing file is a hard error for omp, not a silent skip.
+[ -f "$HOME/.omp/agent/config.local.yml" ] && export PI_CONFIG_FILES="$HOME/.omp/agent/config.local.yml"
+
 # ── Editor ───────────────────────────────────────────────────────────────────
 # nvim when it's installed, vim as the fallback. No $SSH_CONNECTION check: this
 # file runs on whichever box the shell is on — including one you've SSH'd into —

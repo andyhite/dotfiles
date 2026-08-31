@@ -1,0 +1,50 @@
+# Copied by install.sh to ~/.omp/agent/config.local.yml — never committed.
+# zshrc exports PI_CONFIG_FILES pointing at that copy, which omp layers as a
+# CLI config overlay on top of the shared, tracked ~/.omp/agent/config.yml
+# (symlinked from dotfiles' omp/agent/config.yml). The overlay is a deep
+# merge of settings objects: only the keys present here override anything —
+# every other setting, including untouched modelRoles/fallbackChains entries,
+# still comes from the shared config.yml.
+#
+# This is the file a machine edits to run its own model routing — trial a
+# model only it has a key for, add a fallback tier the shared config doesn't
+# carry, point a role at a custom provider from
+# ~/.omp/agent/models.yml.example — without touching the tracked config.yml
+# that every machine shares. The tracked file carries a deliberately thin
+# default (anthropic primary, cursor as the one shared fallback tier — no
+# openai/openai-codex, since not every machine authenticates those); this
+# file is where a machine that does adds them back in.
+#
+# It has to stay a valid object even with nothing overridden: omp validates
+# the overlay's root as an object, and PI_CONFIG_FILES pointing at a missing
+# or unparsable file is a hard startup error (not skipped like an
+# unauthenticated built-in provider). The active `{}` below is what keeps a
+# fresh copy inert without being empty.
+
+{}
+
+# ── Example: trial a model on a provider only this machine authenticates ────
+# fireworks is one of omp's own built-in providers — authenticate it with
+# `/login fireworks` (or a stored/env API key) and reference it directly, no
+# models.yml entry needed. A genuinely custom provider (self-hosted, or a
+# second identity for an account with its own subscription) does need one —
+# see omp/agent/models.yml.example. Either way, comment what a role's
+# override replaces so reverting is a one-line diff away.
+#
+# modelRoles:
+#   task: fireworks/kimi-k2.7-code:medium      # was anthropic/claude-sonnet-5:low — trial
+#   smol: fireworks/minimax-m2.7:low           # was anthropic/claude-haiku-4-5:low
+
+# ── Example: add a fallback tier the shared config doesn't carry ────────────
+# Whole chains replace, not merge, per role — the merge is a deep merge of
+# YAML mappings, and a YAML list is a leaf value, not a mapping, so listing a
+# role here replaces the shared config.yml's list for that role entirely
+# rather than appending to it. This machine authenticates `openai`, so it
+# puts it ahead of the shared cursor-only tier — anthropic (primary, from
+# modelRoles) -> openai -> cursor:
+#
+# retry:
+#   fallbackChains:
+#     default:
+#       - openai/gpt-5.6-terra:medium
+#       - cursor/composer-2.5

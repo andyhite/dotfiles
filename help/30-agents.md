@@ -27,11 +27,15 @@ never re-downloads it, so `omp update` (or `--check` first) is how you
 actually get a new release. Machine-local model providers (API keys, custom
 endpoints) go in `~/.omp/agent/models.yml`, never in the tracked
 `omp/agent/config.yml` — CI greps the tracked config and only allows built-in
-provider ids there. Global user context lives in `omp/agent/AGENTS.md`
-(native discovery, highest priority — `disabledProviders` in `config.yml`
-turns off the `claude`/`gemini`/etc. discovery providers so it's the only
-user-level file omp reads), and `~/.claude/CLAUDE.md` below is a symlink
-straight to it rather than a second copy.
+provider ids there. A machine's own `modelRoles`/`retry.fallbackChains`
+overrides go in `~/.omp/agent/config.local.yml` instead, loaded via
+`PI_CONFIG_FILES` (set in `zshrc`) as a config overlay on top of the shared
+file — see the README's omp section for both templates. Global user context
+lives in `omp/agent/AGENTS.md` (native discovery, highest priority —
+`disabledProviders` in `config.yml` turns off the `claude`/`gemini`/etc.
+discovery providers so it's the only user-level file omp reads), and
+`~/.claude/CLAUDE.md` below is a symlink straight to it rather than a
+second copy.
 
 ## claude — Claude Code
 

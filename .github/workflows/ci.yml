@@ -100,6 +100,12 @@ jobs:
           test -f "$HOME/.omp/agent/models.yml"
           test ! -L "$HOME/.omp/agent/models.yml"
 
+          # Same never-linked rule, for the per-machine model-routing overlay
+          # PI_CONFIG_FILES points at — a missing file there is a hard omp
+          # startup error, not a silent skip.
+          test -f "$HOME/.omp/agent/config.local.yml"
+          test ! -L "$HOME/.omp/agent/config.local.yml"
+
           # Same never-linked rule as models.yml above, for the dstack backend
           # credentials template.
           test -f "$HOME/.dstack/server/config.yml"

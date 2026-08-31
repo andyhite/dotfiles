@@ -52,23 +52,22 @@ zsh-syntax:
       zsh -n "$f" && echo "ok  $f"
     done
 
-# omp parses models.yml at startup, and it validates the root as an object —
-# so this checks more than syntax. A template edited down to pure comments
-# parses as null, which omp rejects with a validation warning on every single
-# launch; the mapping assertion is what keeps the shipped copy inert rather
-# than broken.
+# omp parses models.yml and config.local.yml.example at startup, and it
+# validates each root as an object — so this checks more than syntax. A
+# template edited down to pure comments parses as null, which omp rejects
+# with a validation warning (models.yml) or a hard startup error
+# (config.local.yml.example, loaded via PI_CONFIG_FILES) on every single
+# launch; the mapping assertions are what keep the shipped copies inert
+# rather than broken.
 #
 # The routing assertion guards the shared config: omp validates every
 # fallback-chain entry against the model catalog, so a built-in provider is
 # fine on a machine that cannot authenticate it — the entry is just skipped —
 # while a custom models.yml provider id warns once per role at every startup
-# on every machine that doesn't define it (observed on the andyhite-fab VM
-# before it had one). Tracked routing may therefore only name omp's built-in
-# providers, plus `anthropic-api`: every machine this config runs on defines
-# that one locally (see omp/agent/models.yml.example) as a second Anthropic
-# identity billed by API key instead of the subscription OAuth login behind
-# the built-in `anthropic` id — that's what lets one fallback chain list both
-# as distinct tiers.
+# on every machine that doesn't define it. Tracked routing may therefore only
+# name omp's built-in providers; a machine's own provider ids and model
+# routing overrides belong in ~/.omp/agent/models.yml and
+# ~/.omp/agent/config.local.yml (see both `*.example` templates), never here.
 [doc("Assert the tracked omp YAML parses and names built-in providers only")]
 templates:
     #!/usr/bin/env bash
@@ -83,11 +82,16 @@ templates:
     assert not d.get("providers"), f"{f}: must ship with no active providers"
     print(f"ok  {f}")
 
-    # Built-in ids, plus anthropic-api: not an omp built-in, but a custom
-    # provider every machine running this config is required to define
-    # locally (unlike an ad hoc custom id, which would warn on any machine
-    # that hasn't defined it).
-    builtin = {"anthropic", "openai", "openai-codex", "cursor", "anthropic-api"}
+    f = "omp/agent/config.local.yml.example"
+    d = yaml.safe_load(open(f))
+    assert isinstance(d, dict), f"{f}: root must be a mapping, got {type(d).__name__}"
+    assert not d, f"{f}: must ship with no active overrides"
+    print(f"ok  {f}")
+
+    # Built-in ids only: a machine's own provider ids belong in
+    # ~/.omp/agent/models.yml, referenced only from that machine's
+    # ~/.omp/agent/config.local.yml overlay, never from the shared config.
+    builtin = {"anthropic", "openai", "openai-codex", "cursor"}
     f = "omp/agent/config.yml"
     d = yaml.safe_load(open(f))
 

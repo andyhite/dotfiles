@@ -359,12 +359,12 @@ whenever it writes something new, so the next shell rebuilds once.
 
 ### The `*.local` templates
 
-Five tracked templates, one convention: `zshrc.local.example`, `gitconfig.local.example`,
-`ssh/config.local.example`, `omp/agent/models.yml.example`, and
-`dstack/server/config.yml.example` are copied — never linked — to their targets at mode 600
-the first time `install.sh` runs, and left alone on every run after that, so a filled-in
-file is never clobbered. Each one holds real secrets or per-machine values that have no
-business in a public repo.
+Six tracked templates, one convention: `zshrc.local.example`, `gitconfig.local.example`,
+`ssh/config.local.example`, `omp/agent/models.yml.example`,
+`omp/agent/config.local.yml.example`, and `dstack/server/config.yml.example` are copied —
+never linked — to their targets at mode 600 the first time `install.sh` runs, and left
+alone on every run after that, so a filled-in file is never clobbered. Each one holds real
+secrets or per-machine values that have no business in a public repo.
 
 The two config templates exist because of how their tracked file reads the copy back, not
 just as a place to dump overrides:
@@ -382,12 +382,14 @@ just as a place to dump overrides:
 `zshrc.local.example` needs no such trick — `zshrc` just sources `~/.zshrc.local` near
 the top, before the tool blocks that read values like `AWS_PROFILE`.
 
-`models.yml` doesn't land at `~/.*.local` like the first three — it has to sit in
-`~/.omp/agent/` where omp looks for it. It's also the one template that ships inert rather
-than empty — it carries a literal `providers: {}`, because omp validates the file's root as
-an object and a copy trimmed to pure comments parses as null and warns on every startup.
-See [the omp section](#omp--one-tracked-config-two-machines-different-accounts) for what
-goes in it.
+`models.yml` and `config.local.yml` don't land at `~/.*.local` like the first three —
+they sit in `~/.omp/agent/`, beside the `config.yml` symlink, where omp looks for both.
+They're also the two templates that ship inert rather than empty — `providers: {}` and
+`{}` respectively — because omp validates each file's root as an object, and a copy
+trimmed to pure comments parses as null: a validation warning for `models.yml`, a hard
+startup error for `config.local.yml` (loaded via `PI_CONFIG_FILES`, which `zshrc` exports
+once the file exists). See [the omp section](#omp--one-tracked-config-two-machines-different-accounts)
+for what goes in each.
 
 `dstack/server/config.yml.example` follows the same mirrored-path convention as
 `omp/agent/models.yml.example`, landing at `~/.dstack/server/config.yml` — the rest of
@@ -710,29 +712,28 @@ build instead of shipping.
 ### omp — one tracked config, two machines, different accounts
 
 `omp/agent/config.yml` is symlinked to `~/.omp/agent/config.yml` and shared by every
-machine, and the model routing in it is identical everywhere: same `modelRoles`, same
-`retry.fallbackChains`. Every role names five provider ids in try order — two Anthropic
-identities, two OpenAI identities, and Cursor:
+machine. `modelRoles` and `retry.fallbackChains` in it name only the two built-in
+provider ids every machine is expected to authenticate — `anthropic` (subscription
+primary, from `modelRoles`) and `cursor` (subscription, employer-billed on both
+machines) — as one thin fallback tier:
 
 ```yaml
 default:
-  - anthropic/claude-sonnet-5         # modelRoles primary — subscription
-  - openai-codex/gpt-5.6-terra:medium # subscription
-  - anthropic-api/claude-sonnet-5     # API key
-  - openai/gpt-5.6-terra:medium       # API key
-  - cursor/composer-2.5               # subscription, employer-billed on both machines
+  - anthropic/claude-sonnet-5   # modelRoles primary — subscription
+  - cursor/composer-2.5         # fallback chain — subscription, shared by every machine
 ```
 
-The Mac authenticates all five, in that order: personal subscriptions first, personal API
-keys as overflow once subscription usage is exhausted. A work box authenticates only the
-last three and never logs into the subscription providers at all, so its effective order
-collapses to `anthropic-api -> openai -> cursor` — with no `config.yml` difference behind
-that, only different accounts on each machine.
+`openai` and `openai-codex` are deliberately absent from the tracked file: not every
+machine authenticates them, and unlike an unresolvable built-in id (skipped silently —
+omp validates every fallback-chain entry against its model catalog, not against
+credentials), a chain that leaned on them for its only real fallback tier would leave a
+machine with none at all the moment `cursor` also failed. A machine that wants more tiers
+adds them locally instead of thinning the shared default for everyone.
 
-**Which account pays — an auth question.** The provider name doesn't change: `anthropic`
-is `anthropic` everywhere, reached with a subscription OAuth token wherever one is logged
-in. omp resolves credentials in a fixed order, and a stored OAuth session beats every
-environment variable:
+**Which account pays — an auth question, not a routing one.** The provider name doesn't
+change: `anthropic` is `anthropic` everywhere, reached with a subscription OAuth token
+wherever one is logged in. omp resolves credentials in a fixed order, and a stored OAuth
+session beats every environment variable:
 
 ```
 1  --api-key (runtime)          5  provider env var, incl. .env files
@@ -741,86 +742,70 @@ environment variable:
 4  login-sourced stored key
 ```
 
-So exporting `ANTHROPIC_API_KEY` on a box that has ever run `/login anthropic` does
-nothing for the bare `anthropic` id — the subscription keeps paying, silently, and
-nothing warns you.
+So exporting `OPENAI_API_KEY` on a box that has ever run `/login openai-codex` does
+nothing for the bare `openai-codex` id — the subscription keeps paying, silently, and
+nothing warns you. Pinning a built-in id's credential (`providers.openai.apiKey` in
+`~/.omp/agent/models.yml`) replaces the one credential that id resolves to; it works when
+nothing else on the machine needs that id's other credential at the same time. Two
+credit tiers for the same upstream account, both wanted as distinct ordered fallback
+tiers, need two distinct provider ids instead — see `omp/agent/models.yml.example` for
+that pattern (self-hosted or trial providers use it too).
 
-**Anthropic needs a second provider id, not a credential swap.** A `models.yml`
-`providers.anthropic.apiKey` override replaces the one credential `anthropic` resolves
-to; it can't hold a subscription and an API key concurrently for the same id. Since the
-chain wants both as distinct, ordered tiers, the API-key account gets its own id —
-`anthropic-api` — with its own full model catalog, because a custom provider id doesn't
-inherit the built-in one:
+**A machine's own model routing lives in `~/.omp/agent/config.local.yml`, not
+`config.yml`.** `omp/agent/config.local.yml.example` is copied there by `install.sh` on
+every machine (never committed), and `zshrc` exports `PI_CONFIG_FILES` pointing at it so
+omp layers it as a CLI config overlay on top of the shared `config.yml` — a deep merge of
+settings objects, so only the keys a machine actually sets override anything. This is
+where a machine that authenticates `openai` adds it back in as a real fallback tier,
+ahead of the shared `cursor`-only chain:
 
 ```yaml
-# ~/.omp/agent/models.yml
-providers:
-  anthropic-api:
-    baseUrl: https://api.anthropic.com
-    api: anthropic-messages
-    auth: none
-    headers:
-      x-api-key: "!sh -c '. \"$HOME/.omp/agent/.env\"; printf %s \"$ANTHROPIC_API_KEY\"'"
-    models:
-      - id: claude-sonnet-5
-        name: Claude Sonnet 5 (API)
-        reasoning: true
-        input: [text, image]
-        contextWindow: 1000000
-        maxTokens: 128000
-      # ...one entry per model referenced from config.yml
+# ~/.omp/agent/config.local.yml
+retry:
+  fallbackChains:
+    default:
+      - openai/gpt-5.6-terra:medium
+      - cursor/composer-2.5
 ```
 
-`auth: none` skips the normal credential lookup so the explicit header authenticates
-instead. API keys use `x-api-key`; `Authorization: Bearer` is for OAuth/WIF tokens, and on
-omp 17.2.13 the plain `apiKey` field produced bearer-auth 401s in fresh interactive
-sessions where print mode succeeded — the internal cause is unconfirmed, so the header
-form is deliberate. The `!` resolver sources the dotenv file itself: command resolvers do
-not inherit values loaded by omp's own dotenv loader, so `!printenv ANTHROPIC_API_KEY`
-resolves to nothing for a key that lives only in `~/.omp/agent/.env`. OpenAI's API tier
-needs no override at all — the built-in `openai` id already means "API key", separate
-from the subscription `openai-codex` id, so a plain `export OPENAI_API_KEY` is enough as
-long as that box has never run `/login openai`.
+A whole chain replaces per role rather than merging — a YAML list is a leaf value, not a
+mapping, so a deep merge overwrites it outright — which is exactly what's wanted here:
+`anthropic` (primary, from `modelRoles`) falls through to this machine's own
+`openai -> cursor`, not to the tracked file's bare `cursor`. It's also where a machine
+trials a model only it has a key for, e.g. pointing `task`/`smol` at a different
+provider's models via `modelRoles`, or references a custom provider from its own
+`models.yml`.
 
-Secrets go in `~/.omp/agent/.env`, not `~/.zshrc.local`: omp loads that dotenv file
-itself, so the keys are present no matter how omp is launched, while `~/.zshrc.local`
-only reaches processes started from a login shell.
+It has to ship as a valid object even with nothing overridden: `PI_CONFIG_FILES` pointing
+at a missing or unparsable file is a hard omp startup error, not a silent skip the way an
+unauthenticated built-in provider is — unlike `models.yml`'s validation-warning failure
+mode, a bad overlay here refuses to start at all. The shipped copy carries a literal `{}`
+for exactly that reason.
 
-**Why a custom provider id in a shared chain is normally forbidden, and why this one is
-allowed.** omp validates every fallback-chain entry against its model catalog, not
+**Why a custom provider id is normally forbidden in the shared chains, and stays out of
+them entirely.** omp validates every fallback-chain entry against its model catalog, not
 against credentials: an unresolvable *built-in* id (no credential) is skipped silently,
-but an unresolvable *custom* id (missing from `models.yml` entirely) warns once per role
-at every startup:
+but an unresolvable *custom* id (missing from that machine's `models.yml`) warns once per
+role at every startup:
 
 ```
-Warning: Fallback chain for role 'default' references unknown model: anthropic-api/claude-sonnet-5
+Warning: Fallback chain for role 'default' references unknown model: fireworks/kimi-k2.7-code
 ```
 
-That is why the Justfile's routing check allows built-in ids plus `anthropic-api`
-specifically, and nothing else: every machine that runs this config is required to define
-`anthropic-api` locally — even a fresh personal machine — so that warning never fires. A
-one-off custom id doesn't carry that guarantee and has no business in the tracked chains.
-
-**Reducing a machine to API tiers only needs no `config.yml` change.** A work VM that must
-only ever bill an employer's API accounts doesn't get a different `config.yml` — it gets a
-different `~/.omp/agent/models.yml` and a different set of authenticated providers.
-Define `anthropic-api` there (the same block, an employer key), export
-`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` in its `~/.omp/agent/.env`, and never run `/login
-anthropic` or `/login openai-codex` on that box. With both subscription ids permanently
-unresolvable there, every role's fallback order collapses on its own — no separate config,
-no warning, because "no credential" and "no such provider" are different failure modes and
-only the second one is noisy. Cursor is unaffected either way: it's the one tier both
-machines are meant to share, billed to the same employer-provided account on both.
+That is why the Justfile's routing check allows only omp's built-in ids in `config.yml`
+and nothing else — a custom id has no guarantee every machine defines it, so it belongs
+in that machine's own `config.local.yml` overlay instead, where an undefined reference
+only warns on the one machine that added it.
 
 `~/.omp/agent/models.yml` is created from `omp/agent/models.yml.example` on every machine,
-so the mechanism is discoverable even where a given machine only uses part of it. The
-shipped copy is inert but not empty — it carries a literal `providers: {}`, because omp
-validates the root as an object and a file trimmed to pure comments parses as null and
-prints a validation warning on every startup.
+so the mechanism is discoverable even where a given machine only uses part of it. Both it
+and `config.local.yml` ship inert but not empty — `providers: {}` and `{}` respectively —
+because omp validates each file's root as an object and a copy trimmed to pure comments
+parses as null.
 
 That leaves nothing per-machine in `config.yml` at all, which is the point: one tracked
-file, every machine, and the only difference is which providers each one has bothered to
-authenticate.
+file with a deliberately thin default, every machine, and the only differences are which
+providers each one has authenticated and what it chose to layer on top locally.
 
 ### omp compaction — a fold is priced in cache, not tokens
 

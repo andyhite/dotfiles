@@ -2,8 +2,6 @@ providers:
   webSearchOrder:
     []
   memoryModel: online
-  maxInFlightRequests:
-    openai-codex: 8
 modelRoles:
   default: anthropic/claude-sonnet-5:medium
   plan: anthropic/claude-opus-5:high
@@ -17,9 +15,6 @@ modelRoles:
   advisor: anthropic/claude-sonnet-5:medium
 modelProviderOrder:
   - anthropic
-  - openai-codex
-  - anthropic-api
-  - openai
   - cursor
 disabledProviders:
   - amazon-bedrock
@@ -95,53 +90,24 @@ retry:
   fallbackRevertPolicy: cooldown-expiry
   fallbackChains:
     default:
-      - openai-codex/gpt-5.6-terra:medium
-      - anthropic-api/claude-sonnet-5
-      - openai/gpt-5.6-terra:medium
       - cursor/composer-2.5
     plan:
-      - openai-codex/gpt-5.6-sol:high
-      - anthropic-api/claude-opus-5:high
-      - openai/gpt-5.6:high
       - cursor/composer-2.5
     slow:
-      - openai-codex/gpt-5.6-sol:xhigh
-      - anthropic-api/claude-opus-5:max
-      - openai/gpt-5.6-sol:xhigh
       - cursor/composer-2.5
     task:
-      - openai-codex/gpt-5.6-terra:medium
-      - anthropic-api/claude-sonnet-5
-      - openai/gpt-5.6-terra:medium
       - cursor/composer-2.5
     smol:
-      - openai-codex/gpt-5.6-luna:low
-      - anthropic-api/claude-haiku-4-5
-      - openai/gpt-5.6-luna:low
       - cursor/composer-2.5
     commit:
-      - openai-codex/gpt-5.4-mini:minimal
-      - anthropic-api/claude-haiku-4-5:minimal
-      - openai/gpt-5.4-mini:minimal
       - cursor/composer-2.5
     tiny:
-      - openai-codex/gpt-5.4-mini:minimal
-      - anthropic-api/claude-haiku-4-5:minimal
-      - openai/gpt-5.4-mini:minimal
       - cursor/composer-2.5
     vision:
-      - openai-codex/gpt-5.6-terra:medium
-      - anthropic-api/claude-sonnet-5
-      - openai/gpt-5.6-terra:medium
+      []
     designer:
-      - openai-codex/gpt-5.6-sol:high
-      - anthropic-api/claude-opus-5:high
-      - openai/gpt-5.6-sol:high
       - cursor/composer-2.5
     advisor:
-      - openai-codex/gpt-5.6-terra:medium
-      - anthropic-api/claude-sonnet-5
-      - openai/gpt-5.6-terra:medium
       - cursor/composer-2.5
   usageReservePolicy: confirm
   usageReservePct: 5
