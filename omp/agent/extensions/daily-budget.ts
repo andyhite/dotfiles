@@ -12,12 +12,20 @@
  * plus optional per-provider overrides:
  *
  * - `usage`: a %-of-window allocation for quota-window providers (Claude,
- *   Codex — anything `omp usage --json` reports a rolling window for). Which
- *   providers get paced is discovered fresh from that report every check,
- *   never a static list — an unauthenticated/unconfigured provider simply
- *   never appears and is never paced. `usage.allocationPct` is the default
- *   schedule for any reported provider; `usage.providers[id].allocationPct`
- *   overrides it for one provider.
+ *   Codex — anything `omp usage --json` reports a rolling window for).
+ *   Which providers get paced is discovered fresh from that report every
+ *   check, never a static list — an unauthenticated/unconfigured provider
+ *   simply never appears and is never paced. `usage.allocationPct` is the
+ *   default schedule for any reported provider. `usage.providers[key]`
+ *   defines a *track* — not necessarily one per provider id: `provider`
+ *   picks which report to read (default: the key itself), `limitId`/
+ *   `windowId` pick which of that report's limits to pace when the default
+ *   match (`window.id === windowId && scope.shared === true`) doesn't fit
+ *   (Cursor's own-model bundle reports a `monthly`, non-`shared` limit),
+ *   and `deriveDailyFromWindow` synthesizes an even weekday split from the
+ *   matched limit's own window length instead of requiring a hand-authored
+ *   one (Cursor's monthly reset has no natural workweek shape the way
+ *   Claude/Codex's 7-day windows do).
  * - `cost`: a $ cap for pay-per-token providers (no quota window at all).
  *   Every provider *not* covered by `usage`'s discovered set is a cost
  *   provider by construction — nothing needs listing for its spend to count.
@@ -25,6 +33,14 @@
  *   `cost.dailyCapUsd` (matching the "should all contribute to the spend the
  *   budget is evaluated against" requirement); `cost.providers[id]` pulls
  *   that one provider out of the pool and gives it its own separate cap.
+ *   `cost.reportSources[key]` is the third case: real $ spend that a usage
+ *   report already tallies directly (`amount.used`, unit "usd") but that
+ *   the session-log scan can't isolate — Cursor's pay-per-token overage
+ *   shares its provider id with its own-model bundle, so the log's bare
+ *   `provider` field can't tell them apart. It always pools into
+ *   `cost:combined` at full weight, with no cap of its own — monitoring,
+ *   not pacing: the wall it eventually hits (Cursor's own $20/mo cap) isn't
+ *   one this extension enforces.
  *
  * Both categories track a same-day carryover: an under-spent day banks its
  * leftover allowance forward, an over-spent day borrows against tomorrow's,
@@ -37,8 +53,13 @@
  * There is no documented extension API to read a provider's live usage
  * report in-process (`pi.registerProvider`'s `usage.fetchUsage` only lets you
  * *supply* one), so this shells out to `omp usage --json` — the same data
- * the CLI and the statusline `usage` segment already show — on a timer
- * rather than on every turn, to keep it off the network's critical path.
+ * the CLI and the statusline `usage` segment already show. It refreshes on
+ * `turn_end` (so the widget reflects what an agent turn just spent) and
+ * falls back to a self-rescheduling `checkIntervalMs` idle timer — reset
+ * after every refresh, turn-triggered or not — so a session sitting idle
+ * still catches usage from `omp usage --json` itself moving (rolling
+ * window resets, spend from another concurrent session) without polling
+ * on a fixed wall-clock grid while turns are active.
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@oh-my-pi/pi-coding-agent";
@@ -56,16 +77,62 @@ type Weekday = (typeof WEEKDAYS)[number];
 type WeekdayMap = Record<Weekday, number>;
 
 // A provider-specific schedule that supersedes its category's global
-// default. For `usage` this only changes which allocationPct paces that one
-// provider — it is always tracked individually regardless. For `cost` it
+// default. For `usage` this changes which allocationPct paces the track and,
+// optionally, which of the provider's several reported limits it paces
+// against — it is always tracked individually regardless. For `cost` it
 // additionally pulls the provider out of the shared pool: its spend counts
 // against `dailyCapUsd` here instead of the pooled default.
+//
+// The default match (`window.id === config.windowId && scope.shared ===
+// true`) fits Anthropic/Codex-style rolling quota windows, but Cursor's
+// own-model bundle reports a `monthly`-scoped limit with no `shared` flag
+// at all — `limitId` pins it explicitly, and `windowId` widens the match
+// to a different window id than the global default when `limitId` isn't
+// precise enough on its own. A config key need not equal the provider id:
+// `provider` names which report to read, so a provider could in principle
+// be split into several independently paced tracks, though today only
+// Cursor needs even one (its pay-per-token overage is tracked separately,
+// via `cost.reportSources` below, not as a second usage track).
 interface UsageProviderOverride {
-  allocationPct: WeekdayMap;
+  provider?: string;
+  limitId?: string;
+  windowId?: string;
+  // Skips `allocationPct` and instead synthesizes a schedule from the
+  // matched limit's own reported window: `100 / <days in the window>` per
+  // day, or — with `deriveWeekdaysOnly` — `100 / <weekdays in the
+  // window>` on Mon-Fri only and 0 on Sat/Sun, so a monthly cap doesn't
+  // need a hand-authored weekday split, and can still sit idle on
+  // weekends the same way the workweek-shaped Anthropic/Codex schedules
+  // do below.
+  deriveDailyFromWindow?: boolean;
+  deriveWeekdaysOnly?: boolean;
+  allocationPct?: WeekdayMap;
 }
 
 interface CostProviderOverride {
   dailyCapUsd: WeekdayMap;
+}
+
+// A provider limit that already reports its own cumulative $ figure
+// (`amount.used`/`amount.limit`, unit "usd") rather than something
+// reconstructable from local session logs — Cursor's per-token overage is
+// account-wide and split across sibling limits (own-model bundle vs API
+// overage) that the session log's bare `provider` field can't tell apart.
+// Its today's-delta gets added straight into the pooled `cost:combined`
+// total alongside session-log-derived spend, at full weight, with no cap
+// of its own — it is monitoring, not pacing: the $20/mo wall it eventually
+// hits is Cursor's own, not one this extension enforces.
+interface CostReportSource {
+  provider?: string; // defaults to the config key
+  limitId: string;
+}
+
+// A rendered widget segment, kept alongside its sort key (the provider id
+// or cost-bucket label) so the final line can be sorted alphabetically —
+// with "API" pinned last — without re-parsing the ANSI-colored text.
+interface BudgetSegment {
+  label: string;
+  text: string;
 }
 
 interface BudgetConfig {
@@ -80,13 +147,15 @@ interface BudgetConfig {
   cost?: {
     dailyCapUsd: WeekdayMap;
     providers?: Record<string, CostProviderOverride>;
+    reportSources?: Record<string, CostReportSource>;
   };
 }
 
 interface UsageLimit {
+  id?: string;
   scope?: { provider?: string; shared?: boolean };
   window?: { id?: string; resetsAt?: number; durationMs?: number };
-  amount?: { usedFraction?: number };
+  amount?: { usedFraction?: number; used?: number; limit?: number; unit?: string };
 }
 
 interface UsageReport {
@@ -106,6 +175,7 @@ interface Ledger {
   windowStartMs?: number;
   dayBaselineStartMs?: number;
   dayBaselineUsedPct?: number;
+  dayBaselineUsedUsd?: number;
   weekStartMs?: number;
   carryoverUsd?: number;
   warnedDayStartMs?: number;
@@ -174,6 +244,44 @@ function cumulativeAllocationPct(allocationPct: WeekdayMap, windowStartMs: numbe
   return total;
 }
 
+// One calendar month before `ms`, same day-of-month (clamped into a
+// shorter target month, e.g. Mar 31 -> Feb 28). Cursor's `monthly` limits
+// report only `resetsAt`, no `durationMs` the way Anthropic/Codex's rolling
+// windows do, so there is no arithmetic window length to subtract; the
+// billing cycle is a real calendar month, so date-arithmetic is the only
+// way to recover its start.
+function monthBeforeMs(ms: number): number {
+  const d = new Date(ms);
+  const day = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() - 1);
+  const daysInTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, daysInTargetMonth));
+  return d.getTime();
+}
+
+// A schedule derived from the matched limit's own reported window — every
+// day an equal share of 100%, or (`weekdaysOnly`) every Mon-Fri an equal
+// share and 0 on Sat/Sun — for `deriveDailyFromWindow` tracks, so a $ or
+// request cap that only resets monthly doesn't need a hand-authored
+// weekday split, and can still sit idle on weekends the same way the
+// workweek-shaped Anthropic/Codex schedules do.
+function deriveFlatDailyAllocation(windowStartMs: number, resetsAtMs: number, weekdaysOnly: boolean): WeekdayMap {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const totalDays = Math.max(1, Math.round((resetsAtMs - windowStartMs) / dayMs));
+  if (!weekdaysOnly) {
+    const pct = 100 / totalDays;
+    return { sun: pct, mon: pct, tue: pct, wed: pct, thu: pct, fri: pct, sat: pct };
+  }
+  let weekdayCount = 0;
+  for (let i = 0; i < totalDays; i++) {
+    const wd = weekdayOf(windowStartMs + i * dayMs);
+    if (wd !== "sat" && wd !== "sun") weekdayCount++;
+  }
+  const pct = 100 / Math.max(1, weekdayCount);
+  return { sun: 0, mon: pct, tue: pct, wed: pct, thu: pct, fri: pct, sat: 0 };
+}
+
 function fetchUsageReports(): UsageReport[] {
   const raw = execFileSync("omp", ["usage", "--json"], {
     encoding: "utf8",
@@ -184,6 +292,48 @@ function fetchUsageReports(): UsageReport[] {
   // the cast itself.
   const parsed = JSON.parse(raw) as { reports?: UsageReport[] };
   return parsed.reports ?? [];
+}
+
+// Today's $ delta for each `cost.reportSources` entry, keyed by config key
+// (e.g. "cursor-api") — for the pooled cost total to add alongside
+// session-log-derived spend. Baseline-delta, the same technique the usage
+// tracks above use for their %, because a report only ever gives a live
+// cumulative snapshot (`amount.used`), never an arbitrary-range query the
+// way the session-log scan can: there is no way to ask "how much did this
+// specific Cursor sub-limit spend between last Tuesday and Thursday",
+// only "how much more has `used` grown since the last time this ran". A
+// day boundary or the underlying window rolling both reset the baseline to
+// the live value (delta 0 for that day) the same way the usage loop does.
+// State is kept under `cost-report:<key>` so it can't collide with a
+// same-named usage track or cost bucket.
+function reportSourceSpendToday(
+  reports: UsageReport[],
+  sources: Record<string, CostReportSource>,
+  state: DailyState,
+  now: number,
+  todayStartMs: number,
+): Record<string, number> {
+  const spend: Record<string, number> = {};
+  for (const [key, source] of Object.entries(sources)) {
+    const report = reports.find((r) => r.provider === (source.provider ?? key));
+    const limit = report?.limits?.find((l) => l.id === source.limitId);
+    const usedUsd = limit?.amount?.used;
+    const resetsAt = limit?.window?.resetsAt;
+    if (usedUsd === undefined || resetsAt === undefined) continue; // not authenticated/reporting right now
+    const windowStartMs =
+      limit?.window?.durationMs !== undefined ? resetsAt - limit.window.durationMs : monthBeforeMs(resetsAt);
+
+    const stateKey = `cost-report:${key}`;
+    const entry = state[stateKey] ?? {};
+    if (entry.windowStartMs !== windowStartMs || entry.dayBaselineStartMs !== todayStartMs) {
+      entry.windowStartMs = windowStartMs;
+      entry.dayBaselineStartMs = todayStartMs;
+      entry.dayBaselineUsedUsd = usedUsd;
+    }
+    spend[key] = Math.max(0, usedUsd - (entry.dayBaselineUsedUsd ?? usedUsd));
+    state[stateKey] = entry;
+  }
+  return spend;
 }
 
 const SESSIONS_DIR = join(homedir(), ".omp", "agent", "sessions");
@@ -274,11 +424,28 @@ const ANSI = {
   reset: "\x1b[0m",
   dim: "\x1b[2m",
   green: "\x1b[32m",
+  yellow: "\x1b[33m",
   red: "\x1b[31m",
 } as const;
 
 function colorize(code: string, text: string): string {
   return `${code}${text}${ANSI.reset}`;
+}
+
+// Red/yellow/green tiering shared by every rendered status number. A track
+// can be over pace today (spending faster than its allocation) or simply
+// running low on the underlying window regardless of today's pace — e.g.
+// 95% of a 7d quota already burned shows "0/0%" today (nothing left to
+// allocate, so today's own pace check trivially passes) which would read as
+// healthy if colored on pace alone, without also checking how much of the
+// window remains. `red` covers the "act now" cases (over pace, or the
+// window itself is nearly exhausted); `yellow` is "watch this" headroom
+// below that; anything else is healthy — callers colorize their own
+// numbers with the returned code rather than render a separate icon.
+function statusColor(remainingPct: number, forceCritical: boolean): string {
+  if (forceCritical || remainingPct <= 10) return ANSI.red;
+  if (remainingPct <= 25) return ANSI.yellow;
+  return ANSI.green;
 }
 
 // eslint-disable-next-line no-control-regex
@@ -314,7 +481,7 @@ function evaluateCostBucket(
   now: number,
   todayStartMs: number,
   ui: NotifyUI,
-  segments: string[],
+  segments: BudgetSegment[],
 ): void {
   const entry = state[key] ?? {};
 
@@ -348,8 +515,9 @@ function evaluateCostBucket(
   }
   state[key] = entry;
 
-  const status = overCap ? colorize(ANSI.red, "!") : colorize(ANSI.green, "\u2713");
-  segments.push(`${label} $${spentToday.toFixed(2)}/$${effectiveCapToday.toFixed(2)} ${status}`);
+  const remainingCapPct = effectiveCapToday > 0 ? ((effectiveCapToday - spentToday) / effectiveCapToday) * 100 : 100;
+  const color = statusColor(remainingCapPct, overCap);
+  segments.push({ label, text: `${label} ${colorize(color, `$${spentToday.toFixed(2)}/$${effectiveCapToday.toFixed(2)}`)}` });
 }
 
 function checkBudgets(config: BudgetConfig, ui: NotifyUI): void {
@@ -364,23 +532,58 @@ function checkBudgets(config: BudgetConfig, ui: NotifyUI): void {
   const state = loadState();
   const now = Date.now();
   const todayStartMs = new Date(now).setHours(0, 0, 0, 0);
-  const segments: string[] = [];
+  const segments: BudgetSegment[] = [];
 
   // Quota-window providers are whichever ones `omp usage --json` actually
   // reports right now — never a static list — so an unauthenticated or
-  // unconfigured provider is never paced and never shown.
-  for (const report of reports) {
-    const providerId = report.provider;
-    const limit = report.limits?.find((l) => l.window?.id === config.windowId && l.scope?.shared === true);
+  // unconfigured provider is never paced and never shown. Each entry in
+  // `config.usage.providers` is a *track*, not necessarily a provider id: it
+  // names which provider report to read (`provider`, defaulting to the key
+  // itself) and, optionally, which specific limit within that report
+  // (`limitId`/`windowId`) — that split is what lets one provider like
+  // Cursor pace two independent limits (its own-model bundle and its
+  // pay-per-token overage) as two separate lines. Any reporting provider
+  // not claimed by a track this way still gets auto-discovered below under
+  // the default match, unchanged from before this split existed.
+  const overrides = config.usage.providers ?? {};
+  const claimedProviderIds = new Set(Object.entries(overrides).map(([key, o]) => o.provider ?? key));
+  const tracks: Array<{ key: string; report: UsageReport | undefined; override: UsageProviderOverride | undefined }> =
+    [
+      ...Object.entries(overrides).map(([key, override]) => ({
+        key,
+        report: reports.find((r) => r.provider === (override.provider ?? key)),
+        override,
+      })),
+      ...reports
+        .filter((r) => !claimedProviderIds.has(r.provider))
+        .map((report) => ({ key: report.provider, report, override: undefined })),
+    ];
+
+  for (const { key, report, override } of tracks) {
+    if (!report) continue; // track configured for a provider that isn't authenticated/reporting right now
+
+    const limit = override?.limitId
+      ? report.limits?.find((l) => l.id === override.limitId)
+      : override?.windowId
+        ? report.limits?.find((l) => l.window?.id === override.windowId)
+        : report.limits?.find((l) => l.window?.id === config.windowId && l.scope?.shared === true);
     const usedFraction = limit?.amount?.usedFraction;
     const resetsAt = limit?.window?.resetsAt;
-    const durationMs = limit?.window?.durationMs;
-    // Authenticated, but this provider doesn't report `config.windowId` as a
-    // shared window (e.g. it only exposes a 5h window) — nothing to pace.
-    if (usedFraction === undefined || resetsAt === undefined || durationMs === undefined) continue;
+    // Anthropic/Codex-style rolling windows report their own length; Cursor's
+    // `monthly` limits report only `resetsAt`, so fall back to one calendar
+    // month before it.
+    const windowStartMs =
+      resetsAt === undefined
+        ? undefined
+        : (limit?.window?.durationMs !== undefined ? resetsAt - limit.window.durationMs : monthBeforeMs(resetsAt));
+    // Authenticated, but the matched limit doesn't exist or carries no
+    // usable window (e.g. the default match found nothing because this
+    // provider only exposes a 5h window) — nothing to pace.
+    if (usedFraction === undefined || resetsAt === undefined || windowStartMs === undefined) continue;
 
-    const allocationPct = config.usage.providers?.[providerId]?.allocationPct ?? config.usage.allocationPct;
-    const windowStartMs = resetsAt - durationMs;
+    const allocationPct = override?.deriveDailyFromWindow
+      ? deriveFlatDailyAllocation(windowStartMs, resetsAt, override.deriveWeekdaysOnly ?? false)
+      : (override?.allocationPct ?? config.usage.allocationPct);
     const usedPct = usedFraction * 100;
 
     // Reset the day's usage baseline whenever the window rolls (the
@@ -390,7 +593,7 @@ function checkBudgets(config: BudgetConfig, ui: NotifyUI): void {
     // "today's base allocation +/- whatever rolled forward": an under-pace
     // day leaves usedPct behind the cumulative target, which shows up as
     // extra headroom today; an over-pace day does the opposite.
-    const entry = state[providerId] ?? {};
+    const entry = state[key] ?? {};
     if (entry.windowStartMs !== windowStartMs || entry.dayBaselineStartMs !== todayStartMs) {
       entry.windowStartMs = windowStartMs;
       entry.dayBaselineStartMs = todayStartMs;
@@ -405,7 +608,7 @@ function checkBudgets(config: BudgetConfig, ui: NotifyUI): void {
     if (overPace) {
       if (entry.warnedDayStartMs !== todayStartMs) {
         ui.notify(
-          `${providerId}: ${todaysUsedPct.toFixed(0)}% used today, ` +
+          `${key}: ${todaysUsedPct.toFixed(0)}% used today, ` +
             `${todaysAllocatedPct.toFixed(0)}% allocated (incl. carryover)`,
           "warning",
         );
@@ -414,14 +617,17 @@ function checkBudgets(config: BudgetConfig, ui: NotifyUI): void {
     } else {
       delete entry.warnedDayStartMs;
     }
-    state[providerId] = entry;
+    state[key] = entry;
 
-    const status = overPace ? colorize(ANSI.red, "!") : colorize(ANSI.green, "\u2713");
-    segments.push(`${providerId} ${todaysUsedPct.toFixed(0)}/${todaysAllocatedPct.toFixed(0)}% ${status}`);
+    const color = statusColor(100 - usedPct, overPace);
+    segments.push({
+      label: key,
+      text: `${key} ${colorize(ANSI.dim, `(${usedPct.toFixed(0)}%)`)} ${colorize(color, `${todaysUsedPct.toFixed(0)}/${todaysAllocatedPct.toFixed(0)}%`)}`,
+    });
   }
 
   if (config.cost) {
-    const { dailyCapUsd, providers: overrides = {} } = config.cost;
+    const { dailyCapUsd, providers: overrides = {}, reportSources = {} } = config.cost;
     // Every provider `usage` is actively pacing this check reports a
     // notional cost too (subscription plans still log a would-be $ figure),
     // which is not real per-token spend — exclude those ids so the pool
@@ -439,15 +645,23 @@ function checkBudgets(config: BudgetConfig, ui: NotifyUI): void {
     };
 
     // One sweep of today's session logs covers every bucket below — the
-    // pooled default and each override just read different keys/sums out of
-    // it rather than each re-scanning independently.
+    // pooled default and each override just read different keys/sums out
+    // of it rather than each re-scanning independently. `reportSources`
+    // (e.g. Cursor's API-overage sub-limit) adds today's $ delta on top —
+    // its config key is never a real provider id, so it can't collide with
+    // `quotaProviderIds`/`overrideIds` and always pools in — but it can
+    // only ever contribute *today's* number, never the carryover math
+    // below, which needs an arbitrary-range query a live report snapshot
+    // can't answer (see `reportSourceSpendToday`).
     const todaysTotals = sumCostByProviderInRange(todayStartMs, now + 1);
+    const todaysReportSpend = reportSourceSpendToday(reports, reportSources, state, now, todayStartMs);
+    const reportSpendTotal = Object.values(todaysReportSpend).reduce((sum, v) => sum + v, 0);
 
     evaluateCostBucket(
       "cost:combined",
       "API",
       dailyCapUsd,
-      poolSpend(todaysTotals),
+      poolSpend(todaysTotals) + reportSpendTotal,
       (startMs, endMs) => poolSpend(sumCostByProviderInRange(startMs, endMs)),
       state,
       now,
@@ -476,12 +690,20 @@ function checkBudgets(config: BudgetConfig, ui: NotifyUI): void {
   if (widgetHidden) return;
   if (segments.length === 0) {
     // Nothing discovered from `omp usage --json` and no cost accrued —
-    // nothing to pace, so show nothing rather than a bare "Budget (7d)"
-    // label.
+    // nothing to pace, so show an empty widget rather than an empty bar.
     ui.setWidget("daily-budget", [], { placement: "aboveEditor" });
     return;
   }
-  const line = `${colorize(ANSI.dim, `Budget (${config.windowId})`)}  ${segments.join("   ")}`;
+  // Alphabetical by provider label reads faster than insertion order (usage
+  // tracks first, then cost buckets) once there are several — except the
+  // pooled "API" cost bucket, which stays last since it summarizes every
+  // other pay-per-token provider rather than naming one of its own.
+  const ordered = [...segments].sort((a, b) => {
+    if (a.label === "API") return 1;
+    if (b.label === "API") return -1;
+    return a.label.localeCompare(b.label);
+  });
+  const line = ordered.map((s) => s.text).join(` ${colorize(ANSI.dim, "/")} `);
   ui.setWidget("daily-budget", [rightAlign(line)], { placement: "aboveEditor" });
 }
 
@@ -490,9 +712,27 @@ export default function dailyBudgetExtension(pi: ExtensionAPI) {
     const config = loadConfig();
     if (!config) return;
 
-    checkBudgets(config, ctx.ui);
-    const timer = ctx.setInterval(() => checkBudgets(config, ctx.ui), config.checkIntervalMs);
-    pi.on("session_shutdown", () => ctx.clearTimer(timer));
+    // `idleTimer` is a self-rescheduling `setTimeout`, not `setInterval`: every
+    // refresh — whether triggered by `turn_end` or by the idle timer itself —
+    // clears and re-arms it, so the fallback interval always measures time
+    // since the *last* refresh rather than firing on a fixed wall-clock grid
+    // that could double up right after a turn-triggered check. Primed with an
+    // immediately-cleared timer (rather than a `ReturnType<typeof ...>`
+    // annotation) so `idleTimer`'s type is inferred from `ctx.setTimeout`
+    // itself.
+    let idleTimer = ctx.setTimeout(() => {}, 0);
+    ctx.clearTimer(idleTimer);
+    const refresh = () => {
+      checkBudgets(config, ctx.ui);
+      ctx.clearTimer(idleTimer);
+      idleTimer = ctx.setTimeout(refresh, config.checkIntervalMs);
+    };
+
+    refresh();
+    pi.on("turn_end", () => refresh());
+    pi.on("session_shutdown", () => {
+      if (idleTimer) ctx.clearTimer(idleTimer);
+    });
   });
 
   pi.registerCommand("budget", {

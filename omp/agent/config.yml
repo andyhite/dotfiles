@@ -19,10 +19,6 @@ modelProviderOrder:
 disabledProviders:
   - amazon-bedrock
   - bedrock-mantle
-  - codex
-  - cursor
-  - gemini
-  - claude
 symbolPreset: nerd
 theme:
   dark: dark-github

@@ -1,15 +1,22 @@
 {
   "windowId": "7d",
-  "checkIntervalMs": 60000,
+  "checkIntervalMs": 300000,
   "usage": {
     "allocationPct": {
       "tue": 20,
       "wed": 20,
       "thu": 20,
       "fri": 20,
-      "sat": 2,
-      "sun": 3,
+      "sat": 0,
+      "sun": 0,
       "mon": 15
+    },
+    "providers": {
+      "cursor": {
+        "limitId": "cursor:usd:individual-auto",
+        "deriveDailyFromWindow": true,
+        "deriveWeekdaysOnly": true
+      }
     }
   },
   "cost": {
@@ -21,6 +28,12 @@
       "fri": 250,
       "sat": 0,
       "sun": 0
+    },
+    "reportSources": {
+      "cursor-api": {
+        "provider": "cursor",
+        "limitId": "cursor:usd:individual-api"
+      }
     }
   }
 }
