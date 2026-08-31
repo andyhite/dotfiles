@@ -367,3 +367,31 @@ height = 20
 key = "prefix+f"
 type = "shell"
 command = "$HOME/.config/herdr/layout/fold-columns.sh"
+
+## ticket-worktree (config/herdr/plugins/ticket-worktree) — prompts for a
+## Jira/Linear ticket URL, creates a `ticket/<key>` branch + worktree from
+## it in the BACKGROUND (no focus switch by default — see its config.toml),
+## starts an omp agent in the new worktree's root pane, and queues
+## "Work on <KEY> — <url>" in that agent's input WITHOUT submitting it.
+##
+## A local plugin linked with `herdr plugin link config/herdr/plugins/
+## ticket-worktree` rather than installed from `herdr_plugins.txt` — it lives
+## in this repo "for now" per its own README note, same status as
+## command-palette before it got its own repo.
+##
+## `type = "shell"` dispatching straight to `herdr plugin pane open`, not
+## `herdr plugin action invoke <id>` like the plugin bindings above: reading
+## a ticket URL needs a real TTY, and a plugin ACTION runs on the server
+## with none (the constraint palette.sh documents for fzf). The manifest's
+## own `modal` pane entrypoint is already declared `placement = "popup"`, so
+## opening it gets a session-modal terminal directly — no popup sizing here,
+## it lives in the manifest instead.
+##
+## prefix+t — free in both this config and herdr's own defaults. Doesn't
+## reuse the prefix+alt+<letter> plugin-layer convention above because this
+## isn't paralleling an existing local action's letter; "t" for "ticket"
+## reads clearly on its own.
+[[keys.command]]
+key = "prefix+t"
+type = "shell"
+command = "herdr plugin pane open --plugin andyhite.ticket-worktree --entrypoint modal"

@@ -1,0 +1,17 @@
+id = "andyhite.ticket-worktree"
+name = "Ticket Worktree"
+version = "0.1.0"
+min_herdr_version = "0.8.0"
+description = "Create a branch + worktree from a Jira/Linear ticket URL and queue it as an unsubmitted prompt for a new omp agent"
+platforms = ["linux", "macos"]
+
+# The whole plugin is this one popup. See modal.sh for why a manifest pane
+# rather than an action: an action runs on the server with no TTY, and
+# reading a ticket URL needs one.
+[[panes]]
+id = "modal"
+title = "New ticket worktree"
+placement = "popup"
+width = 70
+height = 8
+command = ["bash", "modal.sh"]
