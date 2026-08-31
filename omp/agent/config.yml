@@ -7,9 +7,9 @@ modelRoles:
   plan: anthropic/claude-opus-5:high
   slow: anthropic/claude-opus-5:max
   task: anthropic/claude-sonnet-5:low
-  smol: openai/gpt-5.4-mini:low
-  commit: openai/gpt-5.4-mini:low
-  tiny: openai/gpt-5.4-mini:low
+  smol: anthropic/claude-haiku-4-5:low
+  commit: anthropic/claude-haiku-4-5:minimal
+  tiny: anthropic/claude-haiku-4-5:minimal
   vision: anthropic/claude-sonnet-5:medium
   designer: anthropic/claude-opus-5:high
   advisor: anthropic/claude-sonnet-5:medium
@@ -98,11 +98,11 @@ retry:
     task:
       - cursor/composer-2.5
     smol:
-      - anthropic/claude-haiku-4-5:low
+      - cursor/composer-2.5
     commit:
-      - anthropic/claude-haiku-4-5:minimal
+      - cursor/composer-2.5
     tiny:
-      - anthropic/claude-haiku-4-5:minimal
+      - cursor/composer-2.5
     vision:
       []
     designer:
