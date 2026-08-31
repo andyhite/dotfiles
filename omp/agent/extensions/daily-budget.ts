@@ -8,15 +8,31 @@
  * until the reserve threshold, so a heavy Monday can quietly burn the whole
  * 7-day window before Friday.
  *
- * `daily-budget.json` allocates a percentage of that 7-day window to each
- * weekday, and a $ cap to each weekday for the pay-per-token providers that
- * have no quota window at all. Both track a same-day carryover: an
- * under-spent day banks its leftover allowance forward, an over-spent day
- * borrows against tomorrow's, so the displayed "today" number is the day's
- * own budget plus whatever rolled forward from prior days. This extension
- * does not fall back or block anything — that stays `usageAwareFallback`'s
- * job — it only warns once actual usage overruns today's effective
- * allowance, so the fallback/quota wall stops being a surprise.
+ * `daily-budget.json` has two independent categories, each a global default
+ * plus optional per-provider overrides:
+ *
+ * - `usage`: a %-of-window allocation for quota-window providers (Claude,
+ *   Codex — anything `omp usage --json` reports a rolling window for). Which
+ *   providers get paced is discovered fresh from that report every check,
+ *   never a static list — an unauthenticated/unconfigured provider simply
+ *   never appears and is never paced. `usage.allocationPct` is the default
+ *   schedule for any reported provider; `usage.providers[id].allocationPct`
+ *   overrides it for one provider.
+ * - `cost`: a $ cap for pay-per-token providers (no quota window at all).
+ *   Every provider *not* covered by `usage`'s discovered set is a cost
+ *   provider by construction — nothing needs listing for its spend to count.
+ *   By default every such provider's spend is pooled against one shared
+ *   `cost.dailyCapUsd` (matching the "should all contribute to the spend the
+ *   budget is evaluated against" requirement); `cost.providers[id]` pulls
+ *   that one provider out of the pool and gives it its own separate cap.
+ *
+ * Both categories track a same-day carryover: an under-spent day banks its
+ * leftover allowance forward, an over-spent day borrows against tomorrow's,
+ * so the displayed "today" number is the day's own budget plus whatever
+ * rolled forward from prior days. This extension does not fall back or
+ * block anything — that stays `usageAwareFallback`'s job — it only warns
+ * once actual usage overruns today's effective allowance, so the
+ * fallback/quota wall stops being a surprise.
  *
  * There is no documented extension API to read a provider's live usage
  * report in-process (`pi.registerProvider`'s `usage.fetchUsage` only lets you
@@ -37,20 +53,34 @@ const STATE_PATH = join(homedir(), ".omp", "agent", "daily-budget-state.json");
 const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 type Weekday = (typeof WEEKDAYS)[number];
 
-interface BudgetConfig {
-  providers: string[];
-  windowId: string; // must match a reported limit's `window.id` (e.g. "7d")
-  checkIntervalMs: number;
-  allocationPct: Record<Weekday, number>;
-  costCap?: CostCapConfig;
+type WeekdayMap = Record<Weekday, number>;
+
+// A provider-specific schedule that supersedes its category's global
+// default. For `usage` this only changes which allocationPct paces that one
+// provider — it is always tracked individually regardless. For `cost` it
+// additionally pulls the provider out of the shared pool: its spend counts
+// against `dailyCapUsd` here instead of the pooled default.
+interface UsageProviderOverride {
+  allocationPct: WeekdayMap;
 }
 
-// API-billed providers (pay-per-token, no rolling quota window from `omp
-// usage --json`) get a per-weekday $ cap instead of a %-of-window
-// allocation — there is no window to allocate a percentage of.
-interface CostCapConfig {
-  providers: string[];
-  dailyCapUsd: Record<Weekday, number>;
+interface CostProviderOverride {
+  dailyCapUsd: WeekdayMap;
+}
+
+interface BudgetConfig {
+  windowId: string; // must match a reported limit's `window.id` (e.g. "7d")
+  checkIntervalMs: number;
+  usage: {
+    allocationPct: WeekdayMap;
+    providers?: Record<string, UsageProviderOverride>;
+  };
+  // Optional: a machine with no pay-per-token provider authenticated simply
+  // never accrues cost, so there is nothing to cap.
+  cost?: {
+    dailyCapUsd: WeekdayMap;
+    providers?: Record<string, CostProviderOverride>;
+  };
 }
 
 interface UsageLimit {
@@ -64,13 +94,14 @@ interface UsageReport {
   limits?: UsageLimit[];
 }
 
-// Per-provider ledger, keyed by provider id (quota providers) or
-// "cost:combined" (the pooled cost cap). Quota providers carry their own
-// cumulative-usage report, so their carryover is derived on read (see
-// `checkBudgets`) rather than stored — only the day boundary needs
-// remembering. Cost has no such report, so its carryover is computed and
-// stored explicitly when a day rolls over. `warnedDayStartMs` dedupes the
-// overrun notification to once per local calendar day.
+// Per-bucket ledger. Quota providers are keyed by their bare provider id and
+// carry their own cumulative-usage report, so their carryover is derived on
+// read (see `checkBudgets`) rather than stored — only the day boundary needs
+// remembering. Cost buckets ("cost:combined" for the shared pool,
+// "cost:<providerId>" for an override) have no such report, so their
+// carryover is computed and stored explicitly when a day rolls over.
+// `warnedDayStartMs` dedupes the overrun notification to once per local
+// calendar day.
 interface Ledger {
   windowStartMs?: number;
   dayBaselineStartMs?: number;
@@ -130,13 +161,15 @@ function weekStartMs(ms: number): number {
 // Walking real calendar days rather than assuming a Monday start: the
 // provider's window is rolling (it resets N days after it last reset, not on
 // a fixed calendar boundary), so "day 1" is whatever weekday the window
-// happened to start on.
-function cumulativeAllocationPct(config: BudgetConfig, windowStartMs: number, nowMs: number): number {
+// happened to start on. Takes the resolved allocationPct map directly
+// (global default or a provider's override) rather than the whole config, so
+// callers don't re-resolve which one applies.
+function cumulativeAllocationPct(allocationPct: WeekdayMap, windowStartMs: number, nowMs: number): number {
   const dayMs = 24 * 60 * 60 * 1000;
   const daysElapsed = Math.max(1, Math.floor((nowMs - windowStartMs) / dayMs) + 1);
   let total = 0;
   for (let i = 0; i < daysElapsed; i++) {
-    total += config.allocationPct[weekdayOf(windowStartMs + i * dayMs)] ?? 0;
+    total += allocationPct[weekdayOf(windowStartMs + i * dayMs)] ?? 0;
   }
   return total;
 }
@@ -171,9 +204,16 @@ interface SessionMessageEntry {
 // documented extension API that reports historical spend across sessions. A
 // file whose mtime predates the range start cannot contain a message
 // timestamped inside it, so most files are skipped without being opened.
-function sumCostByProviderInRange(providers: string[], startMs: number, endMs: number): Record<string, number> {
+//
+// Unfiltered by design: every provider that ever billed a message shows up
+// in the result, keyed by its own id, so the caller — not this scan — draws
+// the line between "quota provider whose notional cost doesn't count" and
+// "real pay-per-token spend". `omp` logs a notional cost for every message
+// including subscription providers' (Claude/Codex), so a naive full sum
+// would double-count spend already paced by `usage`; callers must exclude
+// each check's discovered quota-provider ids from the total themselves.
+function sumCostByProviderInRange(startMs: number, endMs: number): Record<string, number> {
   const totals: Record<string, number> = {};
-  for (const providerId of providers) totals[providerId] = 0;
   if (!existsSync(SESSIONS_DIR)) return totals;
 
   let projectDirs: string[];
@@ -210,7 +250,6 @@ function sumCostByProviderInRange(providers: string[], startMs: number, endMs: n
             entry.type !== "message" ||
             message?.role !== "assistant" ||
             message.provider === undefined ||
-            !providers.includes(message.provider) ||
             message.timestamp === undefined ||
             message.timestamp < startMs ||
             message.timestamp >= endMs
@@ -260,6 +299,59 @@ function rightAlign(line: string): string {
 // hidden, so muting the widget never silences the thing it's warning about.
 let widgetHidden = false;
 
+// Settles carryover, checks today's spend against today's effective cap
+// (weekday cap + carryover), notifies once per day on overrun, persists the
+// ledger entry, and appends the rendered segment. Shared by the pooled
+// default cost bucket and every per-provider cost override — the only
+// difference between them is which spend function and cap schedule feed in.
+function evaluateCostBucket(
+  key: string,
+  label: string,
+  dailyCapUsd: WeekdayMap,
+  spentToday: number,
+  priorSpend: (startMs: number, endMs: number) => number,
+  state: DailyState,
+  now: number,
+  todayStartMs: number,
+  ui: NotifyUI,
+  segments: string[],
+): void {
+  const entry = state[key] ?? {};
+
+  // A new calendar week (Monday) zeroes the carryover so a rough week
+  // can't keep dragging down the next; otherwise settle the day that just
+  // ended — its leftover (or overrun), on top of whatever it started with,
+  // becomes today's carryover.
+  const currentWeekStartMs = weekStartMs(now);
+  if (entry.weekStartMs !== currentWeekStartMs) {
+    entry.weekStartMs = currentWeekStartMs;
+    entry.carryoverUsd = 0;
+  } else if (entry.dayBaselineStartMs !== todayStartMs) {
+    const priorCap = (dailyCapUsd[weekdayOf(entry.dayBaselineStartMs)] ?? 0) + (entry.carryoverUsd ?? 0);
+    entry.carryoverUsd = priorCap - priorSpend(entry.dayBaselineStartMs, todayStartMs);
+  }
+  entry.dayBaselineStartMs = todayStartMs;
+
+  const effectiveCapToday = (dailyCapUsd[weekdayOf(now)] ?? 0) + (entry.carryoverUsd ?? 0);
+  const overCap = spentToday > effectiveCapToday;
+
+  if (overCap) {
+    if (entry.warnedDayStartMs !== todayStartMs) {
+      ui.notify(
+        `${label} cost: $${spentToday.toFixed(2)} of $${effectiveCapToday.toFixed(2)} today's budget used (incl. carryover)`,
+        "warning",
+      );
+      entry.warnedDayStartMs = todayStartMs;
+    }
+  } else {
+    delete entry.warnedDayStartMs;
+  }
+  state[key] = entry;
+
+  const status = overCap ? colorize(ANSI.red, "!") : colorize(ANSI.green, "\u2713");
+  segments.push(`${label} $${spentToday.toFixed(2)}/$${effectiveCapToday.toFixed(2)} ${status}`);
+}
+
 function checkBudgets(config: BudgetConfig, ui: NotifyUI): void {
   let reports: UsageReport[];
   try {
@@ -274,19 +366,20 @@ function checkBudgets(config: BudgetConfig, ui: NotifyUI): void {
   const todayStartMs = new Date(now).setHours(0, 0, 0, 0);
   const segments: string[] = [];
 
-  for (const providerId of config.providers) {
-    const report = reports.find((r) => r.provider === providerId);
-    const limit = report?.limits?.find(
-      (l) => l.window?.id === config.windowId && l.scope?.shared === true,
-    );
+  // Quota-window providers are whichever ones `omp usage --json` actually
+  // reports right now — never a static list — so an unauthenticated or
+  // unconfigured provider is never paced and never shown.
+  for (const report of reports) {
+    const providerId = report.provider;
+    const limit = report.limits?.find((l) => l.window?.id === config.windowId && l.scope?.shared === true);
     const usedFraction = limit?.amount?.usedFraction;
     const resetsAt = limit?.window?.resetsAt;
     const durationMs = limit?.window?.durationMs;
-    if (usedFraction === undefined || resetsAt === undefined || durationMs === undefined) {
-      segments.push(`${providerId} n/a`);
-      continue;
-    }
+    // Authenticated, but this provider doesn't report `config.windowId` as a
+    // shared window (e.g. it only exposes a 5h window) — nothing to pace.
+    if (usedFraction === undefined || resetsAt === undefined || durationMs === undefined) continue;
 
+    const allocationPct = config.usage.providers?.[providerId]?.allocationPct ?? config.usage.allocationPct;
     const windowStartMs = resetsAt - durationMs;
     const usedPct = usedFraction * 100;
 
@@ -306,7 +399,7 @@ function checkBudgets(config: BudgetConfig, ui: NotifyUI): void {
 
     const baseline = entry.dayBaselineUsedPct ?? usedPct;
     const todaysUsedPct = usedPct - baseline;
-    const todaysAllocatedPct = cumulativeAllocationPct(config, windowStartMs, now) - baseline;
+    const todaysAllocatedPct = cumulativeAllocationPct(allocationPct, windowStartMs, now) - baseline;
     const overPace = todaysUsedPct > todaysAllocatedPct;
 
     if (overPace) {
@@ -327,50 +420,67 @@ function checkBudgets(config: BudgetConfig, ui: NotifyUI): void {
     segments.push(`${providerId} ${todaysUsedPct.toFixed(0)}/${todaysAllocatedPct.toFixed(0)}% ${status}`);
   }
 
-  if (config.costCap) {
-    const { providers, dailyCapUsd } = config.costCap;
-    const entry = state["cost:combined"] ?? {};
+  if (config.cost) {
+    const { dailyCapUsd, providers: overrides = {} } = config.cost;
+    // Every provider `usage` is actively pacing this check reports a
+    // notional cost too (subscription plans still log a would-be $ figure),
+    // which is not real per-token spend — exclude those ids so the pool
+    // isn't double-counting quota-paced usage as cash spend.
+    const quotaProviderIds = new Set(reports.map((r) => r.provider));
+    const overrideIds = new Set(Object.keys(overrides));
 
-    // A new calendar week (Monday) zeroes the carryover so a rough week
-    // can't keep dragging down the next; otherwise settle the day that
-    // just ended — its leftover (or overrun), on top of whatever it
-    // started with, becomes today's carryover.
-    const currentWeekStartMs = weekStartMs(now);
-    if (entry.weekStartMs !== currentWeekStartMs) {
-      entry.weekStartMs = currentWeekStartMs;
-      entry.carryoverUsd = 0;
-    } else if (entry.dayBaselineStartMs !== todayStartMs) {
-      const priorCap = (dailyCapUsd[weekdayOf(entry.dayBaselineStartMs)] ?? 0) + (entry.carryoverUsd ?? 0);
-      const priorTotals = sumCostByProviderInRange(providers, entry.dayBaselineStartMs, todayStartMs);
-      const priorSpend = Object.values(priorTotals).reduce((sum, cost) => sum + cost, 0);
-      entry.carryoverUsd = priorCap - priorSpend;
-    }
-    entry.dayBaselineStartMs = todayStartMs;
-
-    const totals = sumCostByProviderInRange(providers, todayStartMs, now + 1);
-    const spentToday = Object.values(totals).reduce((sum, cost) => sum + cost, 0);
-    const effectiveCapToday = (dailyCapUsd[weekdayOf(now)] ?? 0) + (entry.carryoverUsd ?? 0);
-    const overCap = spentToday > effectiveCapToday;
-
-    if (overCap) {
-      if (entry.warnedDayStartMs !== todayStartMs) {
-        ui.notify(
-          `API cost: $${spentToday.toFixed(2)} of $${effectiveCapToday.toFixed(2)} today's budget used (incl. carryover)`,
-          "warning",
-        );
-        entry.warnedDayStartMs = todayStartMs;
+    const poolSpend = (totals: Record<string, number>) => {
+      let sum = 0;
+      for (const [providerId, cost] of Object.entries(totals)) {
+        if (quotaProviderIds.has(providerId) || overrideIds.has(providerId)) continue;
+        sum += cost;
       }
-    } else {
-      delete entry.warnedDayStartMs;
-    }
-    state["cost:combined"] = entry;
+      return sum;
+    };
 
-    const costStatus = overCap ? colorize(ANSI.red, "!") : colorize(ANSI.green, "\u2713");
-    segments.push(`API $${spentToday.toFixed(2)}/$${effectiveCapToday.toFixed(2)} ${costStatus}`);
+    // One sweep of today's session logs covers every bucket below — the
+    // pooled default and each override just read different keys/sums out of
+    // it rather than each re-scanning independently.
+    const todaysTotals = sumCostByProviderInRange(todayStartMs, now + 1);
+
+    evaluateCostBucket(
+      "cost:combined",
+      "API",
+      dailyCapUsd,
+      poolSpend(todaysTotals),
+      (startMs, endMs) => poolSpend(sumCostByProviderInRange(startMs, endMs)),
+      state,
+      now,
+      todayStartMs,
+      ui,
+      segments,
+    );
+
+    for (const [providerId, override] of Object.entries(overrides)) {
+      evaluateCostBucket(
+        `cost:${providerId}`,
+        providerId,
+        override.dailyCapUsd,
+        todaysTotals[providerId] ?? 0,
+        (startMs, endMs) => sumCostByProviderInRange(startMs, endMs)[providerId] ?? 0,
+        state,
+        now,
+        todayStartMs,
+        ui,
+        segments,
+      );
+    }
   }
 
   writeFileSync(STATE_PATH, JSON.stringify(state, null, 2));
   if (widgetHidden) return;
+  if (segments.length === 0) {
+    // Nothing discovered from `omp usage --json` and no cost accrued —
+    // nothing to pace, so show nothing rather than a bare "Budget (7d)"
+    // label.
+    ui.setWidget("daily-budget", [], { placement: "aboveEditor" });
+    return;
+  }
   const line = `${colorize(ANSI.dim, `Budget (${config.windowId})`)}  ${segments.join("   ")}`;
   ui.setWidget("daily-budget", [rightAlign(line)], { placement: "aboveEditor" });
 }

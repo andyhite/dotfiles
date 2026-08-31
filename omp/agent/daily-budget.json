@@ -1,18 +1,18 @@
 {
-  "providers": ["anthropic", "openai-codex"],
   "windowId": "7d",
   "checkIntervalMs": 60000,
-  "allocationPct": {
-    "tue": 20,
-    "wed": 20,
-    "thu": 20,
-    "fri": 20,
-    "sat": 2,
-    "sun": 3,
-    "mon": 15
+  "usage": {
+    "allocationPct": {
+      "tue": 20,
+      "wed": 20,
+      "thu": 20,
+      "fri": 20,
+      "sat": 2,
+      "sun": 3,
+      "mon": 15
+    }
   },
-  "costCap": {
-    "providers": ["anthropic-api", "openai"],
+  "cost": {
     "dailyCapUsd": {
       "mon": 250,
       "tue": 250,
