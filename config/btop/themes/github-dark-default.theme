@@ -1,0 +1,111 @@
+# GitHub Dark Default for btop — matches starship, atuin, herdr, nvim (via a
+# custom NvChad theme), hunk, lazygit, and Ghostty's own bundled "GitHub Dark
+# Default" theme. Hex values are the same palette as
+# config/starship.toml's [palettes.github_dark_default] and
+# config/atuin/themes/github-dark-default.toml — Ghostty's actual rendered ANSI
+# colors. btop bundles 41 themes and none of them is a GitHub theme at all, so
+# a custom file is the only option here, not a shade mismatch to correct.
+#
+# main_bg is Ghostty's actual terminal background (#0d1117, GitHub Dark
+# Default) — btop always paints its own background pixels rather than leaving
+# terminal cells transparent, so matching the real terminal is what makes it
+# look native instead of leaving a visible seam around the window. This is
+# the same distinction config/herdr/config.toml's contrast-repair block used
+# to have to make the hard way.
+
+# Main background
+theme[main_bg]="#0d1117"
+
+# Main text color
+theme[main_fg]="#e6edf3"
+
+# Title color for boxes
+theme[title]="#58a6ff"
+
+# Highlight color for keyboard shortcuts
+theme[hi_fg]="#bc8cff"
+
+# Background color of selected item in processes box
+theme[selected_bg]="#58a6ff"
+
+# Foreground color of selected item in processes box
+theme[selected_fg]="#0d1117"
+
+# Color of inactive/disabled text
+theme[inactive_fg]="#6e7681"
+
+# Color of text appearing on top of graphs, i.e uptime and current network graph scaling
+theme[graph_text]="#e6edf3"
+
+# Background color of the percentage meters
+theme[meter_bg]="#21262d"
+
+# Misc colors for processes box including mini cpu graphs, details memory graph and details status text
+theme[proc_misc]="#39c5cf"
+
+# Cpu box outline color
+theme[cpu_box]="#58a6ff"
+
+# Memory/disks box outline color
+theme[mem_box]="#3fb950"
+
+# Net up/down box outline color
+theme[net_box]="#ff7b72"
+
+# Processes box outline color
+theme[proc_box]="#bc8cff"
+
+# Box divider line and small boxes line color
+theme[div_line]="#21262d"
+
+# Temperature graph colors — green/yellow/red reads as cool/warm/hot
+# regardless of theme, so this keeps that convention instead of forcing it
+# into the palette's blue/purple axis.
+theme[temp_start]="#3fb950"
+theme[temp_mid]="#d29922"
+theme[temp_end]="#ff7b72"
+
+# CPU graph colors — same low/mid/high convention as temperature, since
+# "red at the top" is the one thing every btop user already expects.
+theme[cpu_start]="#3fb950"
+theme[cpu_mid]="#d29922"
+theme[cpu_end]="#ff7b72"
+
+# Mem/Disk free meter — blue-to-green: more free is the "good" direction
+theme[free_start]="#58a6ff"
+theme[free_mid]="#39c5cf"
+theme[free_end]="#3fb950"
+
+# Mem/Disk cached meter
+theme[cached_start]="#39c5cf"
+theme[cached_mid]="#58a6ff"
+theme[cached_end]="#bc8cff"
+
+# Mem/Disk available meter
+theme[available_start]="#3fb950"
+theme[available_mid]="#39c5cf"
+theme[available_end]="#58a6ff"
+
+# Mem/Disk used meter — mirrors the cpu/temp convention: more used trends red
+theme[used_start]="#3fb950"
+theme[used_mid]="#d29922"
+theme[used_end]="#ff7b72"
+
+# Download graph colors — cool family, paired against upload's warm family
+# below so the two directions are visually distinct at a glance
+theme[download_start]="#58a6ff"
+theme[download_mid]="#39c5cf"
+theme[download_end]="#3fb950"
+
+# Upload graph colors — warm family. The palette has no orange, so this
+# climbs yellow to bright yellow to red instead.
+theme[upload_start]="#d29922"
+theme[upload_mid]="#e3b341"
+theme[upload_end]="#ff7b72"
+
+# Process box color gradient for threads, mem and cpu usage — fades from
+# active green toward the same comment-grey inactive_fg uses, so a process
+# reads as idle the same way dimmed UI text does everywhere else in this repo
+theme[process_start]="#3fb950"
+theme[process_mid]="#58a6ff"
+theme[process_end]="#6e7681"

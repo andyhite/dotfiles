@@ -140,72 +140,82 @@
 	# already satisfied above.
 	untrackedCache = true
 
-# ── Delta (diff & log pager) ─────────────────────────────────────────────────
-# Delta re-renders diff/log/show output — syntax highlighting, better hunk
-# headers, and (via navigate below) file-to-file jumping — instead of the
-# plain-text `less` these all rendered through before this section existed.
+# ── Hunk (diff & log pager) ──────────────────────────────────────────────────
+# Hunk renders diff/log/show in a review-first TUI — multi-file sidebar,
+# split/stack layouts, and inline agent annotations — instead of a scrolling
+# stream. Pager mode sniffs stdin: patch-like content opens the review UI,
+# anything else (a bare `git log`, `git config --list`) streams to a plain-text
+# pager instead, so this slot stays usable for non-diff output.
 [core]
-	# Routes diff/log/show through delta, configured below, instead of plain
-	# less. The `|| less` fallback is mandatory: git runs this through `sh -c`,
-	# so a missing delta — a fresh machine, or one where the tools step was
-	# declined — exits 127 and `sh` falls through to less instead. An unguarded
-	# `core.pager = delta` would make every `git diff`/`log`/`show` fail
-	# outright and turn `git add -p` unusable — a bootstrap script bricking git
-	# on the very box it's bootstrapping.
-	pager = delta || less
+	# The `|| less` fallback is mandatory and is NOT redundant with hunk's own
+	# plain-text fallback: that one picks a pager by CONTENT type, this one
+	# covers a MISSING BINARY. git runs the value through `sh -c`, so an
+	# unguarded `hunk pager` on a fresh machine (or one where the tools step was
+	# declined) exits 127 and bricks every `git diff`/`log`/`show` on the very
+	# box the bootstrap script is provisioning. Two words survive `sh -c` fine.
+	#
+	# Hunk resolves its own text pager from HUNK_TEXT_PAGER, then PAGER, then
+	# `less -R`, and ignores a value that resolves back to hunk so git can never
+	# recurse into `hunk pager` itself.
+	pager = hunk pager || less
 [interactive]
-	# Colors `git add -p`/`git add -i` hunk prompts through delta too, so
-	# interactive staging looks like every other diff here. `--color-only` stops
-	# delta from reflowing hunks the way it does for a plain diff view — add -p
-	# parses that output and needs it to still line up 1:1 with what git
-	# generated. Same sh -c fallback as core.pager above: `|| cat` keeps add -p
-	# usable without delta installed instead of failing outright.
+	# Delta, not hunk, and deliberately so: `add -p` parses this filter's output
+	# and needs it to line up 1:1 with what git generated, so the filter has to
+	# be a line-oriented stream editor. Hunk is a full-screen TUI with no
+	# `--color-only` equivalent (it rejects the flag outright), so it cannot
+	# fill this slot at all — this is one of exactly two places delta survives.
+	# `--color-only` stops delta from reflowing hunks the way it does for a
+	# plain diff view. Same sh -c fallback as core.pager above: `|| cat` keeps
+	# add -p usable without delta installed instead of failing outright.
 	diffFilter = delta --color-only || cat
+# Delta's remaining blast radius is just the `add -p` filter above and
+# lazygit's diff panel (config/lazygit/config.yml) — both places hunk provably
+# cannot go. Everything here is scoped to those two surfaces; delta no longer
+# renders an ordinary `git diff`.
 [delta]
-	# Adds n/N keybindings to jump to the next/previous file in a multi-file
-	# diff, instead of scrolling through every hunk by hand.
-	navigate = true
 	# Shows line numbers in the gutter of each hunk instead of delta's default
-	# of none.
+	# of none, matching hunk's own `line_numbers = true`.
 	line-numbers = true
-	# Ghostty, this repo's tracked terminal, supports OSC 8 — file paths in a
-	# delta diff become clickable links to open the file, instead of dead text.
-	# A no-op escape sequence on a terminal that doesn't support it, not a
-	# broken one.
-	hyperlinks = true
-	# gruvbox-dark is a real bundled delta syntax theme — unlike GitHub Dark
-	# Default before it, this is an exact match rather than a fallback.
-	# Every other tracked config in this repo (lazygit, Ghostty, starship,
-	# atuin, herdr, btop, hunk, nvim, omp) also runs Gruvbox Dark (Hard) now
-	# (confirmed with `delta --list-syntax-themes | grep -i gruvbox`, delta
-	# 0.19.2).
-	syntax-theme = gruvbox-dark
+	# There is no dark GitHub syntax theme in delta's bundle — `delta
+	# --list-syntax-themes` ships only a LIGHT `GitHub`. Rather than pick a
+	# wrong-palette approximation for the two surfaces delta still owns,
+	# `none` disables syntax highlighting entirely so delta renders with the
+	# terminal's own foreground and its plus/minus backgrounds only. Nothing
+	# clashes, which matters more here than highlighting does: `add -p` prompts
+	# and one lazygit panel are not where code gets read.
+	syntax-theme = none
 	# Tells delta the terminal background is dark, so it picks line-number and
 	# background colors that read against it instead of assuming a light
 	# terminal.
 	dark = true
 
-# ── Difftastic (on-demand difftool) ──────────────────────────────────────────
-# Difftastic diffs syntax trees, not lines, so it's the tool for reviewing a
-# refactor that moved or reindented code — where a line-based diff reads as a
-# wholesale rewrite even though little actually changed. Deliberately NOT the
-# default pager above: it's slow on large diffs and has no intra-line word
-# diff, both fine trade-offs for an on-demand `git dft` but not for every `git
-# diff`/`log`.
-[difftool "difftastic"]
-	cmd = difft "$LOCAL" "$REMOTE"
+# `navigate` and `hyperlinks` are gone with delta's pager role: n/N file
+# jumping and OSC 8 clickable paths only ever applied to a full-screen delta
+# diff, and hunk covers both natively in the pager slot now.
+
+# ── Hunk difftool ────────────────────────────────────────────────────────────
+# `diff.tool` was previously unset — difftastic was reachable only through an
+# explicit `-t difftastic`, so this slot was free. Difftool is pair-oriented:
+# git invokes the command once per file with temporary paths, which is why
+# `hunk diff` remains the better entry point for a whole changeset in one
+# stream. This exists for the cases where git itself drives the pairing
+# (`git difftool <range>`, `git difftool --staged`).
+[diff]
+	tool = hunk
+[difftool "hunk"]
+	cmd = hunk difftool "$LOCAL" "$REMOTE" "$MERGED"
 [difftool]
-	# Runs straight into the difftool instead of asking "y/n" per file — `git
-	# dft` is already an explicit, deliberate command, not one that needs a
-	# second confirmation.
+	# Runs straight into the difftool instead of asking "y/n" per file — a
+	# `git difftool` invocation is already explicit and deliberate, not one that
+	# needs a second confirmation on every file in the range.
 	prompt = false
 
 # ── Aliases ──────────────────────────────────────────────────────────────────
 [alias]
-	# Reach for this over plain `git diff` when reviewing a refactor that moved
-	# or reindented code, where difftastic's structural diff stays readable and
-	# a line-based diff would just look like a rewrite.
-	dft = difftool -t difftastic
+	# Opens the whole changeset in one hunk stream rather than git's per-file
+	# difftool pairing — the review-first path, and the one to reach for when
+	# reading more than a couple of files at once.
+	review = "!hunk diff"
 	# `--and-rebase` assigns each hunk in the worktree to the commit that last
 	# touched those lines and autosquashes immediately. Fits this config
 	# specifically: pull.rebase, rebase.autoStash, and rerere.enabled +

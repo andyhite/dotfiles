@@ -38,8 +38,8 @@ $battery\
 [](mono4))\
 $line_break$character"""
 
-# Sets the palette to "gruvbox_dark_hard".
-palette = 'gruvbox_dark_hard'
+# Sets the palette to "github_dark_default".
+palette = 'github_dark_default'
 
 # Default (500ms) is too tight whenever Spotlight's mdworker_shared is
 # reindexing — not just right after a reboot, any bulk reindex (e.g. after
@@ -47,34 +47,34 @@ palette = 'gruvbox_dark_hard'
 # git_status's `git` calls miss it and starship prints a WARN.
 command_timeout = 2000
 
-# Sets the colors of the "gruvbox_dark_hard" palette. Hex values come from
-# Ghostty's own bundled "Gruvbox Dark Hard" theme resource (the 16-color ANSI
-# palette actually rendered on this terminal). Segment backgrounds use the
-# neutral ANSI 1-6 colors, not the bright ANSI 9-14 ones: gruvbox's bright
-# row is tuned for a handful of emphasized glyphs against a dark background,
-# not for painting whole powerline blocks — using it for every segment made
-# the bar read as neon. The bright variants stay in reserve for the few
-# small accents (battery-critical, error/replace-mode icons) that should
-# still pop.
-[palettes.gruvbox_dark_hard]
-mono0 = '#ebdbb2' # terminal white — bright fg (ANSI 15).
-mono1 = '#ebdbb2' # syntax_fg.
-mono2 = '#a89984' # ANSI white — muted fg.
-mono3 = '#928374' # ANSI bright black — comment grey.
-mono4 = '#3c3836' # gruvbox bg1 — raised-panel bg, not page bg.
-color_red0 = '#cc241d' # neutral red — segment backgrounds.
-color_red1 = '#fb4934' # bright red — reserved for battery-critical fg.
-color_green = '#98971a' # neutral green — segment backgrounds.
-color_yellow = '#d79921' # neutral yellow — segment backgrounds.
-color_blue = '#83a598' # bright blue — same accent used everywhere else.
-color_purple = '#b16286' # neutral purple — segment/icon backgrounds.
-color_cyan = '#689d6a' # neutral aqua — segment backgrounds.
-color_orange = '#d65d0e' # neutral orange — segment backgrounds.
-syntax_fg = '#ebdbb2'
-syntax_bg = '#1d2021'
-color_bg2 = '#665c54' # gruvbox bg3 — one step past mono4 on the same surface ladder.
-syntax_gutter = '#928374'
-syntax_accent = '#83a598' # same bright blue as the accent used everywhere else.
+# Sets the colors of the "github_dark_default" palette. Hex values come from
+# Ghostty's own bundled "GitHub Dark Default" theme resource (the 16-color
+# ANSI palette actually rendered on this terminal). Segment backgrounds use
+# the neutral ANSI 1-6 colors, not the bright ANSI 9-14 ones: this theme's
+# bright row is tuned for a handful of emphasized glyphs against a dark
+# background, not for painting whole powerline blocks — using it for every
+# segment made the bar read as neon. The bright variants stay in reserve for
+# the few small accents (battery-critical, error/replace-mode icons) that
+# should still pop.
+[palettes.github_dark_default]
+mono0 = '#ffffff' # terminal white — bright fg (ANSI 15).
+mono1 = '#e6edf3' # syntax_fg.
+mono2 = '#b1bac4' # ANSI white — muted fg.
+mono3 = '#6e7681' # ANSI bright black — comment grey.
+mono4 = '#161b22' # raised-panel bg, not page bg.
+color_red0 = '#ff7b72' # neutral red — segment backgrounds.
+color_red1 = '#ffa198' # bright red — reserved for battery-critical fg.
+color_green = '#3fb950' # neutral green — segment backgrounds.
+color_yellow = '#d29922' # neutral yellow — segment backgrounds.
+color_blue = '#58a6ff' # normal blue — same accent used everywhere else.
+color_purple = '#bc8cff' # neutral purple — segment/icon backgrounds.
+color_cyan = '#39c5cf' # neutral cyan — segment backgrounds.
+color_orange = '#d29922' # neutral orange — segment backgrounds (theme has no distinct orange; reuses warning yellow).
+syntax_fg = '#e6edf3'
+syntax_bg = '#0d1117'
+color_bg2 = '#21262d' # one step past mono4 on the same surface ladder.
+syntax_gutter = '#6e7681'
+syntax_accent = '#58a6ff' # same accent blue used everywhere else.
 
 # Module that displays the current OS.
 [os]

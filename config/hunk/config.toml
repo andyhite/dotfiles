@@ -1,20 +1,22 @@
-# hunk (npm hunkdiff, brew formula `hunk`) is a standalone review-stream diff
-# viewer — not wired into git's core.pager or a difftool slot the way delta
-# and difftastic are (see gitconfig and help/20-git.md for why: it earns its
-# keep reading a whole multi-file changeset top to bottom, especially an
-# agent-authored one, a job neither of those tools does well). This file only
-# tunes hunk's own `hunk diff` / `hunk show` / `hunk patch` sessions.
+# hunk (npm hunkdiff, brew formula `hunk`) is this machine's git pager and
+# difftool: gitconfig points core.pager at `hunk pager || less` and diff.tool at
+# `hunk`, so `git diff` / `git show` / `git difftool` all open the review UI
+# here, and the `git review` alias (`!hunk diff`) covers a whole changeset in
+# one stream. Settings below therefore apply to ordinary git diffing, not just
+# to direct `hunk diff` / `hunk show` / `hunk patch` invocations.
 
-# gruvbox-dark-hard is hunk's exact built-in Shiki theme id for the same
-# theme Ghostty, starship, atuin, btop, herdr, lazygit, and Zed now use —
-# unlike delta (which needed OneHalfDark for GitHub Dark Default, gruvbox-dark
-# is a real bundled delta theme now — see gitconfig's [delta] comment) and
-# NvChad (whose bundled `gruvbox` is the standard/medium shade, not Hard).
-theme = "gruvbox-dark-hard"
+# github-dark-default is hunk's exact built-in Shiki theme id, matching
+# Ghostty, starship, atuin, btop, herdr, lazygit, Zed, and omp. delta cannot
+# match it at all — no dark GitHub syntax theme exists in delta's bundle, so
+# it runs `syntax-theme = none` in the two surfaces it still owns (`add -p`,
+# lazygit's panel). NvChad needs a hand-written custom theme because base46
+# bundles only the legacy GitHub Dark palette (`#24292E`), not Dark Default's
+# `#0d1117`.
+theme = "github-dark-default"
 
-# Line numbers in the gutter, same as gitconfig's [delta] line-numbers = true
-# and lazygit's shared delta pager — keeps the gutter consistent across every
-# diff view this machine renders.
+# Line numbers in the gutter, matching gitconfig's [delta] line-numbers = true
+# so the two surfaces delta still owns (`add -p`, lazygit's panel) keep the same
+# gutter as every diff hunk renders.
 line_numbers = true
 
 # This machine's diffs are read almost entirely as agent-authored changesets

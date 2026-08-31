@@ -6,12 +6,13 @@
 local M = {}
 
 M.base46 = {
-	-- gruvbox is NvChad's own bundled base46 theme, but its bg (#282828) is
-	-- gruvbox's standard/medium shade, not the Hard variant's #1d2021 every
-	-- other tool here runs — NvChad ships no "hard" variant, so this is the
-	-- closest available match rather than a byte-exact one, same situation
-	-- as github_dark before it.
-	theme = "gruvbox",
+	-- Tracked at lua/themes/github_dark_default.lua, an exact match to Ghostty's
+	-- bundled "GitHub Dark Default" theme (bg #0d1117). base46 resolves a theme name
+	-- by trying base46.themes.<name> first and falling back to themes.<name>, which
+	-- is how this repo's own theme file gets picked up here -- it exists because
+	-- base46's bundled github_dark is the legacy GitHub Dark palette (bg #24292E),
+	-- not Dark Default.
+	theme = "github_dark_default",
 
 	-- hl_override = {
 	-- 	Comment = { italic = true },

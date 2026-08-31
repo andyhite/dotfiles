@@ -5,35 +5,95 @@ onboarding = false
 delivery = "herdr"
 
 [theme]
-## herdr's own bundled gruvbox theme (built-ins: catppuccin, terminal,
+## herdr ships no bundled GitHub theme (built-ins: catppuccin, terminal,
 ## tokyo-night, dracula, nord, gruvbox, one-dark, solarized, kanagawa,
-## rose-pine, vesper — checked via `herdr --default-config`) is a true match
-## for the first time in this file's history: every other tracked config
-## (Ghostty, delta, btop, hunk, NvChad, Zed) also runs Gruvbox Dark Hard now,
-## so there's no approximation to document here.
-name = "gruvbox"
+## rose-pine, vesper — checked via `herdr --default-config`, which also
+## confirms "terminal" is a valid built-in name). Rather than approximate
+## GitHub Dark Default with the nearest bundled dark theme, `name =
+## "terminal"` tells herdr to inherit whatever Ghostty actually renders —
+## and Ghostty now renders GitHub Dark Default, so herdr's base becomes an
+## exact match by construction instead of an approximation that could drift
+## if either config changes independently.
+name = "terminal"
 auto_switch = false
 
-## Herdr's own accent, resynced to Ghostty's bright-blue ANSI slot
-## (`palette = 12=#83a598`) now that config/ghostty/config runs Gruvbox Dark
-## Hard. Gruvbox's *normal* blue (palette 4, #458588) is too dark/desaturated
-## to read well as a UI accent against a #1d2021 canvas; the bright slot is
-## the same hue, lifted for legibility.
+## Herdr's own accent, set to the same `#58a6ff` Ghostty renders as ANSI 4
+## (normal blue) under GitHub Dark Default. Gruvbox-era reasoning doesn't
+## carry over: that palette's normal blue (#458588) was too dark/desaturated
+## to read as a UI accent against gruvbox's #1d2021 canvas, forcing use of
+## the bright slot instead. GitHub Dark Default's normal blue is already
+## bright enough to read clearly against `#0d1117`, so the normal-row value
+## is used directly — and it's the same value Zed's and lazygit's accents
+## resolve to.
 ##
 ## There is also a `[ui] accent` key documented in `herdr --default-config`. It's
 ## the same knob: when both are set theme.custom wins and ui.accent paints
 ## nothing, so only one belongs in this file.
 [theme.custom]
-accent = "#83a598"
+accent = "#58a6ff"
 
-## No contrast-repair overrides below, unlike the One Dark and GitHub Dark
-## Default eras: those existed because herdr had no bundled theme matching
-## what Ghostty rendered, so borders/surfaces were painted from an assumed
-## base color that didn't match the real terminal background underneath.
-## Gruvbox Dark Hard's background (#1d2021) IS herdr's own built-in gruvbox
-## base — same canonical palette, not an approximation — so the mismatch
-## this block used to paper over shouldn't exist here. Re-add overrides if a
-## live pane surfaces a specific surface that still reads too flat.
+## Structural tokens that `name = "terminal"` CANNOT get right, and the reason
+## the "no overrides needed" claim that used to sit here was wrong.
+##
+## herdr's theme model is Catppuccin-shaped: a surface/overlay elevation ladder
+## (surface0/1, surface_dim, overlay0/1) on top of a base. A terminal palette
+## carries 16 ANSI colors plus fg/bg and no elevation ladder at all, so herdr
+## has to derive those tiers from ANSI slots — and it lands on the wrong ones.
+## Probing one token at a time with a bold color and reading the live UI gives
+## the real map, which is NOT what the token names suggest:
+##
+##   panel_bg       tab bar background
+##   sidebar_bg     whole sidebar background
+##   active_row_bg  selected workspace / agent row background
+##   surface0       primary text in sidebar rows — but subtext0 overrides it
+##   subtext0       primary text in sidebar rows (this is the one that wins)
+##   text           primary text of the SELECTED sidebar row only
+##   surface_dim    sidebar border
+##   overlay0       inactive pane border AND title, secondary sidebar row text
+##   overlay1       the "+" new-tab icon, and nothing else
+##   accent         active pane border and title, active tab bg, "Inbox" label
+##   selection_bg   unused
+##   surface1       unused
+##
+## `overlay0` is the important one, and it is a genuine CONFLICT: one token
+## paints both a border and body text, which want opposite brightness. Under
+## `name = "terminal"` it resolves to #b2bac3 — ANSI 7, normal white, recovered
+## by solving the screen capture's glyph blend — so every inactive pane was
+## outlined in near-white, louder than the code inside it.
+##
+## GitHub's border.default (#30363d) fixes the border and DESTROYS the text:
+## 1.68:1 against this sidebar, which is invisible. #6e7681 is Primer's own
+## fg.subtle and resolves the conflict from both directions — 4.47:1 against
+## the sidebar, so the secondary text and inactive pane titles stay readable,
+## while carrying only 0.37x the luminance of the white it replaces. Do not
+## push it darker without checking the text, and do not assume a border token
+## here is border-only.
+overlay0 = "#6e7681"
+
+## The sidebar rail derives to the same #0d1117 as the panes, so it reads as
+## more canvas instead of a rail. These are GitHub's canvas.inset and
+## canvas.subtle: the rail recedes below the panes, the selected row sits one
+## step above the recess rather than being marked by brightness alone, and the
+## tab bar reads as its own raised strip instead of merging into the panes.
+sidebar_bg = "#010409"
+active_row_bg = "#161b22"
+panel_bg = "#161b22"
+
+## The sidebar's own border, and the one place border.default DOES belong: it
+## is pure chrome with no text role, so it can take the quiet value overlay0
+## can't. Same hex as the pane borders elsewhere in this repo, so the rail and
+## the splits are separated by one consistent line color.
+surface_dim = "#30363d"
+
+## Deliberately unset. selection_bg and surface1 paint nothing observable.
+## surface0 is shadowed by subtext0, so setting it would be a value that never
+## renders. text and subtext0 are left to the `terminal` base because sidebar
+## body text should track the terminal foreground. So are the ANSI-named tokens
+## (red/green/yellow/blue/teal/mauve/peach) — that is the half this base gets
+## RIGHT for free, resolving straight to Ghostty's ANSI row, which is already
+## GitHub Dark Default, so overriding them would add a second copy of the same
+## hex that could drift.
+
 [ui]
 show_agent_labels_on_pane_borders = true
 hide_tab_bar_when_single_tab = false

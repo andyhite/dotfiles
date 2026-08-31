@@ -10,35 +10,38 @@ gui:
   nerdFontsVersion: "3"
   filterMode: fuzzy
   showRandomTip: false
-  # Gruvbox Dark Hard, shared with Ghostty, starship, herdr's accent, atuin,
-  # btop, hunk, delta, and nvim. The focused border uses Ghostty's actual
-  # rendered bright-blue ANSI slot so nested TUIs agree on the active-pane
-  # accent.
+  # GitHub Dark Default, shared with Ghostty, starship, herdr's accent, atuin,
+  # btop, hunk, delta, and nvim. The focused border uses `#58a6ff` — ANSI 4,
+  # the theme's normal blue — the same accent value Ghostty renders and
+  # nested TUIs (Zed, herdr) agree on for the active-pane accent.
   theme:
     activeBorderColor:
-      - "#83a598"
+      - "#58a6ff"
       - bold
     inactiveBorderColor:
-      - "#a89984"
+      - "#b1bac4"
     searchingActiveBorderColor:
-      - "#8ec07c"
+      - "#3fb950"
       - bold
     optionsTextColor:
-      - "#83a598"
+      - "#58a6ff"
     selectedLineBgColor:
-      - "#3c3836"
+      - "#161b22"
     inactiveViewSelectedLineBgColor:
-      - "#282828"
+      - "#21262d"
     unstagedChangesColor:
-      - "#fb4934"
+      - "#ff7b72"
     defaultFgColor:
-      - "#ebdbb2"
+      - "#e6edf3"
 git:
-  # Delta re-renders the diff and commit panels using the [delta] section in
-  # gitconfig: gruvbox-dark is a real bundled delta syntax theme (an exact
-  # match, not an approximation), navigate keys, and hyperlinks as `git diff`
-  # on the command line. Delta reads that config directly (it walks up to
-  # the repo's .git), so nothing needs to be duplicated here.
+  # Delta, not hunk, and this is one of only two places delta survives (the
+  # other is gitconfig's `add -p` diffFilter). Lazygit captures a renderer's
+  # stdout into a scrollable panel, so the renderer has to be a stream filter;
+  # hunk is a full-screen TUI and would fight lazygit for raw terminal input
+  # rather than render into the panel. Delta reads gitconfig's [delta] section
+  # directly (it walks up to the repo's .git), so nothing is duplicated here —
+  # including `syntax-theme = none`, which is why this panel shows plus/minus
+  # backgrounds against the terminal foreground rather than a syntax palette.
   diffRenderers:
     - # Forces color even though lazygit captures delta's output into a panel
       # instead of a real terminal — without this, delta (like git) detects a
@@ -48,7 +51,7 @@ git:
       # itself, and a delta that also pages internally (spawns its own `less`)
       # fights it for raw terminal input — deadlocking the panel instead of just
       # failing loudly. `--dark` picks delta's dark palette; everything else
-      # (theme, navigate, line-numbers, hyperlinks) comes from gitconfig's
+      # (syntax-theme, line-numbers) comes from gitconfig's
       # [delta] section. Deliberately no `|| less` fallback like gitconfig's
       # core.pager: lazygit shells this differently, and a missing delta
       # degrades to an error inside one panel instead of breaking every git

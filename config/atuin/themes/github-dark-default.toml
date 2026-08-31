@@ -1,0 +1,47 @@
+# GitHub Dark Default for Atuin. Exact matches: Ghostty (bundles this theme by
+# name), hunk (Shiki ships theme id `github-dark-default`), Zed (via the
+# `github-dark-default` extension) and omp (built-in `dark-github`). Everything
+# else that takes raw hex — this file, plus btop, starship, and lazygit — is
+# hand-mapped onto the same palette instead. delta can't be pointed at it at
+# all and runs with `syntax-theme = none`; NvChad needs a hand-written custom
+# theme because base46 only bundles the legacy `#24292E` GitHub Dark, not
+# Dark Default.
+#
+# `name` must equal the filename stem and the `[theme] name` selected in
+# ../config.toml; atuin resolves a custom theme by appending `.toml` to the
+# selected name. A mismatch isn't fatal but warns under `debug = true`.
+#
+# Atuin themes set FOREGROUND colors only — its style factory only ever assigns
+# foreground_color — so GitHub Dark Default's #0d1117 background is not
+# expressible here and comes from the terminal (config/ghostty/config)
+# instead.
+#
+# Colors accept `#RRGGBB`, a lowercase `palette` name, or an `@`-prefixed
+# crossterm color. Hex is used throughout so the values match the other
+# configs exactly (Ghostty's bundled ANSI palette) rather than approximating
+# to the nearest named color.
+
+[theme]
+name = "github-dark-default"
+
+[colors]
+## Structural
+Base = "#e6edf3"       # default text — default fg
+Annotation = "#b1bac4" # de-emphasized annotations — muted fg (ANSI 7)
+Muted = "#b1bac4"
+Title = "#79c0ff"      # bright blue
+Important = "#d2a8ff"  # bright purple
+Guidance = "#56d4dd"   # bright aqua/cyan
+
+## Alerts
+AlertInfo = "#79c0ff"  # bright blue
+AlertWarn = "#e3b341"  # bright yellow
+AlertError = "#ffa198" # bright red
+
+## Command syntax highlighting in the search results
+SyntaxCommand = "#56d364"  # bright green
+SyntaxFlag = "#79c0ff"     # bright blue
+SyntaxString = "#56d364"   # bright green
+SyntaxVariable = "#ffa198" # bright red
+SyntaxOperator = "#56d4dd" # bright aqua/cyan
+SyntaxComment = "#6e7681"  # bright black — comment grey

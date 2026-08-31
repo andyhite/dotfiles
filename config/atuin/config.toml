@@ -47,10 +47,10 @@ search_mode_shell_up_key_binding = "fuzzy"
 ## gets cramped, so a short tmux split is the one place it looks worse.
 ##
 ## The border color is deliberately absent from
-## themes/gruvbox-dark-hard.toml: atuin builds these blocks with no
+## themes/github-dark-default.toml: atuin builds these blocks with no
 ## border_style and has no `Border` theme meaning, so the border always
-## renders in the terminal's default foreground. That's Gruvbox Dark Hard's
-## #ebdbb2 via config/ghostty/config, which is why it matches anyway — but
+## renders in the terminal's default foreground. That's GitHub Dark Default's
+## #e6edf3 via config/ghostty/config, which is why it matches anyway — but
 ## it can't be dimmed to the comment grey the way a themeable border could.
 style = "full"
 
@@ -144,11 +144,11 @@ enabled = true
 dir = "~/.local/share/atuin/logs"
 
 [theme]
-## Resolves to themes/gruvbox-dark-hard.toml alongside this file, keeping
-## atuin in the same Gruvbox Dark Hard as starship, herdr, nvim, delta, btop,
-## hunk, lazygit, and Ghostty. Set `debug = true` to have atuin warn about
+## Resolves to themes/github-dark-default.toml alongside this file, keeping
+## atuin in the same GitHub Dark Default as starship, herdr, nvim, btop, hunk,
+## lazygit, and Ghostty. Set `debug = true` to have atuin warn about
 ## unparseable colors on startup.
-name = "gruvbox-dark-hard"
+name = "github-dark-default"
 
 [daemon]
 ## History writes go through a background daemon rather than every shell

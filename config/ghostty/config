@@ -1,4 +1,4 @@
-theme = Gruvbox Dark Hard
+theme = GitHub Dark Default
 
 font-family = GeistMono Nerd Font
 font-size = 14
@@ -8,6 +8,14 @@ shell-integration-features = cursor,sudo,title,ssh-env,ssh-terminfo
 
 window-padding-x = 10
 window-padding-y = 10
+
+# macOS session restoration reopens last session's windows on relaunch
+# (following the system "Close windows when quitting an application"
+# setting) at their old working directories via a `--working-directory`
+# launch argument -- caused a duplicate-process race after a manual
+# kill+relaunch, since the restore relaunch and the manual one could both
+# spawn a Ghostty process. `never` always starts fresh instead.
+window-save-state = never
 
 # Default discrete (physical mouse wheel) multiplier is 3 lines per click,
 # which makes nvim/shells scroll way too far per notch. Trackpad (precision)
