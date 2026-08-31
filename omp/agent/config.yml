@@ -29,8 +29,12 @@ disabledProviders:
   - gemini
   - claude
 symbolPreset: nerd
+# dark-github is an omp built-in theme (Primer hex), so it needs no tracked
+# custom theme file — built-ins win name collisions against custom ones.
+# That's why the previous custom gruvbox-dark-hard-tuned.json is dropped
+# rather than re-based onto the new palette.
 theme:
-  dark: gruvbox-dark-hard-tuned
+  dark: dark-github
   light: light-one
 setupVersion: 2
 dev:
