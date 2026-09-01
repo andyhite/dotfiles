@@ -181,32 +181,6 @@ packages:
   # skills directory into that tree.
   - { name: skill/herdr,        all: { via: skill, id: herdrdev/herdr } }
   - { name: skill/i-have-adhd,  all: { via: skill, id: ayghri/i-have-adhd } }
-  # The mattpocock/skills bundle — 25 skills, installed as a group.
-  - { name: skill/ask-matt,                        all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/code-review,                     all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/codebase-design,                 all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/diagnosing-bugs,                 all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/domain-modeling,                 all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/grill-me,                        all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/grill-with-docs,                 all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/grilling,                        all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/handoff,                         all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/implement,                       all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/improve-codebase-architecture,   all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/prototype,                       all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/research,                        all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/resolving-merge-conflicts,       all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/setup-matt-pocock-skills,        all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/tdd,                             all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/teach,                           all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/to-questionnaire,                all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/to-spec,                         all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/to-tickets,                      all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/triage,                          all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/wait-what,                       all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/wayfinder,                       all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/wizard,                          all: { via: skill, id: mattpocock/skills } }
-  - { name: skill/writing-for-agents,              all: { via: skill, id: mattpocock/skills } }
   # Apple HIG-based UI review, used for macOS/Tauri design work.
   - { name: skill/apple-design, all: { via: skill, id: dickwu/apple-design-skill } }
   # Strunk's 1918 Elements of Style, applied whenever the agent writes prose
