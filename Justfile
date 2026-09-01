@@ -182,6 +182,10 @@ smoke:
       --exclude scripts,externals --override-data "$data"
     echo "ok  idempotent apply, chezmoi verify clean"
 
+[doc("Apply this repo's tree onto the real machine. Set CHEZMOI_VERBOSE=1 for raw installer output")]
+apply:
+    chezmoi apply --source "$PWD"
+
 # Replaces the old --host driver. The remote pulls from origin, not this
 # working copy: a run that silently installs the previous commit is the
 # failure mode here that looks like success.
