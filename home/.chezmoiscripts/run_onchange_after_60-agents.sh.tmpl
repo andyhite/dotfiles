@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 {{ template "output.sh.tmpl" . }}
-heading "herdr / omp / gh / skills"
 
 # ── herdr plugins ────────────────────────────────────────────────────────
+heading "herdr plugins"
+
 # A `local:` id is a path relative to the repo working tree, resolved and
 # link-installed rather than fetched from GitHub — that's how a plugin still
 # being developed in this repo stays live instead of frozen at install time.
@@ -27,17 +28,24 @@ else
 fi
 
 # ── omp plugins ──────────────────────────────────────────────────────────
+heading "omp plugins"
 if command -v omp >/dev/null 2>&1; then
-  :
+  count=0
 {{ range $.packages -}}
 {{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
 {{-   if $spec }}{{ if eq $spec.via "omp" }}
+  count=$((count + 1))
   run_quiet {{ .name | squote }} omp plugin install {{ (index $spec "id") | squote }} && updated {{ .name | squote }}
 {{ end }}{{ end }}
 {{- end }}
+  [ "$count" -gt 0 ] || ok "omp plugins" "none configured yet"
+else
+  skipped "omp" "not on PATH — skipping omp plugins"
 fi
 
 # ── gh extensions ────────────────────────────────────────────────────────
+heading "gh extensions"
+
 # `gh extension install` and `gh extension upgrade` are different commands —
 # neither upserts — so an already-installed extension has to be detected
 # first.
@@ -59,6 +67,8 @@ else
 fi
 
 # ── cross-agent skills ───────────────────────────────────────────────────
+heading "skills"
+
 # `npx skills add` keeps one canonical copy of each skill in ~/.agents/skills
 # and symlinks every agent it detects at that tree. Re-adding an installed
 # skill is how the CLI updates one, so this runs every time. npx's own
