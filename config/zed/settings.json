@@ -65,6 +65,10 @@
   "file_types": {
     "markdown": [
       "*.mdx"
+    ],
+    "Go Text Template": [
+      "*.tmpl",
+      "*.gotmpl"
     ]
   },
   "ensure_final_newline_on_save": true,
