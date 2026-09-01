@@ -38,6 +38,10 @@ packages:
   - { name: jq,         all: { via: mise } }
   - { name: shellcheck, all: { via: mise } }
   - { name: shfmt,      all: { via: mise } }
+  # .markdownlint.yaml is the shared rule config nvim's own "markdownlint"
+  # linter (dot_config/nvim's lint.lua) reads too — `just fix-md` and nvim
+  # agree on the same rules.
+  - { name: markdownlint-cli2, all: { via: mise } }
   - { name: uv,         all: { via: mise } }
   - { name: pre-commit, all: { via: mise } }
   - { name: just,       all: { via: mise } }

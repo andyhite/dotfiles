@@ -136,7 +136,7 @@ applied state entirely.
 | `home/.chezmoiexternal.toml` | not applied — chezmoi reads it directly | antidote's git-repo clone (`~/.antidote`) and, Linux only, the Geist Mono Nerd Font release archive (macOS gets the same font from a cask instead) |
 | `Justfile` | not applied — invoked by `just` and CI | single source of truth for every check — `.github/workflows/ci.yml` calls its recipes instead of duplicating them; see [Justfile and CI](#justfile-and-ci) |
 | `.pre-commit-config.yaml` | not applied — read by `pre-commit` | gitleaks plus the local `just leakguard` hook; `run_once_after_90-repo-hooks.sh.tmpl` runs `pre-commit install` on apply so a fresh clone gets both |
-| `.markdownlint.yaml` | not applied — read by nvim's `markdownlint` linter | shared markdown lint rules: MD013 (line-length) and MD041 (require a top-level heading) off, since neither matches this repo's own conventions |
+| `.markdownlint.yaml` | not applied — read by nvim's `markdownlint` linter and `just fix-md` | shared markdown lint rules: MD013 (line-length) and MD041 (require a top-level heading) off, since neither matches this repo's own conventions |
 
 ## Bootstrap a new machine
 

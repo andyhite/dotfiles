@@ -141,6 +141,13 @@ brewfile:
     @chezmoi execute-template --source "$PWD" --override-data '{"chezmoi":{"os":"darwin"}}' \
       < home/.chezmoiscripts/run_onchange_after_20-brew-bundle.sh.tmpl
 
+# Not part of `check`: it rewrites files, and `check` only ever reports.
+# .markdownlint.yaml at the repo root is the shared rule config with nvim's
+# own "markdownlint" linter — MD013/MD041 off, everything else on.
+[doc("Auto-fix markdown lint issues across the repo")]
+fix-md:
+    markdownlint-cli2 --fix "**/*.md"
+
 # Everything fast enough to run on every commit. smoke is deliberately not a
 # dependency here: it does real filesystem work, so it's a separate, slower
 # step rather than baked into the default gate.
