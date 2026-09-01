@@ -12,6 +12,7 @@ linked/herdr-plugin-config/**/*.log
 # transient (and empty), so it shows up as a stray untracked file after any
 # in-app settings change.
 linked/omp-extensions/*.lock
+home/dot_omp/agent/*.lock
 
 # Herdr plugin secrets. linked/herdr-plugin-config is symlinked from
 # ~/.config/herdr/plugins/config, so a plugin's API keys physically land inside
