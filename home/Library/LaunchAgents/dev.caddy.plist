@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>dev.caddy</string>
+	<!--
+	  Replaces `brew services start caddy` now that Caddy installs via mise
+	  (no LaunchAgent of its own comes with it). Not loaded by any
+	  provisioning script — a machine with nothing to proxy doesn't need it
+	  running, so `launchctl load -w` this file by hand when you want it
+	  (see README's Caddy section).
+
+	  No absolute path to the caddy binary: a plist can't tilde/$HOME-expand
+	  ProgramArguments, and this repo lives at a different $HOME per
+	  machine. `/bin/zsh -c` sources zshenv — which puts mise's shims
+	  (~/.local/share/mise/shims, where caddy's shim lives) on PATH — and
+	  lets `$HOME` expand inside the command string for the `--config` flag
+	  below.
+	-->
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/zsh</string>
+		<string>-c</string>
+		<string>exec caddy run --config "$HOME/.config/caddy/Caddyfile" --adapter caddyfile</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<!--
+	  caddy logs its own access/runtime output via its config; this only
+	  catches a startup failure (PATH miss, bad Caddyfile) before that
+	  logging initializes.
+	-->
+	<key>StandardOutPath</key>
+	<string>/tmp/caddy.launchd.log</string>
+	<key>StandardErrorPath</key>
+	<string>/tmp/caddy.launchd.log</string>
+</dict>
+</plist>

@@ -86,10 +86,12 @@ packages:
   - { name: wget,    darwin: { via: brew }, linux: { via: apt } }
   - { name: rsync,   darwin: { via: brew }, linux: { via: apt } }
 
-  # ── macOS-only, Homebrew ──────────────────────────────────────────────────
-  # caddy and dnsmasq are `brew services` daemons reading /opt/homebrew/etc;
-  # mise has a caddy entry but not the service supervision this needs.
-  - { name: caddy,   darwin: { via: brew } }
+  # ── macOS-only ───────────────────────────────────────────────────────────
+  # caddy and dnsmasq back this repo's own LaunchAgents (see
+  # home/Library/LaunchAgents/dev.{caddy,dnsmasq}.plist), not `brew
+  # services` — caddy is in mise's registry so it comes from there; dnsmasq
+  # isn't, so it stays a brew package.
+  - { name: caddy,   darwin: { via: mise } }
   - { name: dnsmasq, darwin: { via: brew } }
   - { name: fswatch, darwin: { via: brew } }
   - { name: cmake,   darwin: { via: brew } }

@@ -1,0 +1,19 @@
+# Base dnsmasq config — safe to track, no machine-specific domains here.
+#
+# Binds to loopback only, on a high port so the LaunchAgent that starts
+# dnsmasq (Library/LaunchAgents/dev.dnsmasq.plist) never needs root — macOS
+# keeps its own resolver on port 53 regardless. Pair each wildcard domain
+# you want resolved to 127.0.0.1 with an /etc/resolver/<domain> file naming
+# this same port — see README's dnsmasq section for the exact steps.
+listen-address=127.0.0.1
+port=5453
+bind-interfaces
+no-resolv
+no-hosts
+
+# Machine-local domain -> 127.0.0.1 records live outside this repo, since
+# they name real internal hostnames. dnsmasq has no notion of "relative to
+# this file" the way Caddy's `import` does, and the LaunchAgent that starts
+# it sets no working directory, so this has to be an absolute path — the
+# one templated value in an otherwise-plain config.
+conf-file={{ .chezmoi.homeDir }}/.config/dnsmasq/dnsmasq.local.conf

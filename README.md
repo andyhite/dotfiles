@@ -49,8 +49,8 @@ The inventory tables below list every path chezmoi manages, named in chezmoi's o
 naming (`dot_` → `.`, `private_` → mode 0600, `create_private_` → written once at mode
 0600 and never overwritten, `symlink_` → a `$HOME` symlink to a `linked/` tree, `.tmpl` →
 rendered per machine). `home/.chezmoiroot` (containing the single line `home`) is what
-keeps everything outside `home/` and `linked/` — this README, the `Justfile`, `caddy/`,
-`dnsmasq/` — out of the applied state entirely.
+keeps everything outside `home/` and `linked/` — this README, the `Justfile` — out of the
+applied state entirely.
 
 ### Shell & prompt
 
@@ -76,10 +76,12 @@ keeps everything outside `home/` and `linked/` — this README, the `Justfile`, 
 | `home/dot_config/herdr/layout/` | `~/.config/herdr/layout/` | the `prefix+f` fold command — a `type = "shell"` keybinding that folds a row of N side-by-side panes into N/2 columns of two |
 | `home/dot_config/herdr/plugins/symlink_config.tmpl` | `~/.config/herdr/plugins/config` → `linked/herdr-plugin-config` | per-plugin Herdr config, one directory per plugin id — herdr writes into this tree as new plugins install, which is why it's `linked/` rather than copied — see [Copy mode vs. `linked/`](./AGENTS.md#copy-mode-vs-linked) in `AGENTS.md` |
 | `linked/herdr-plugins/ticket-worktree/` | reached via `herdr plugin link`, driven by its `packages.yaml` entry | the `prefix+t` ticket-to-worktree plugin: a single-screen form popup for a Jira/Linear ticket URL, then creates a `ticket/<key>` branch + worktree and starts an omp agent with the ticket queued as an unsubmitted prompt — see [Herdr plugins](#herdr-plugins--one-manifest-herdrs-registry-stays-untracked) below |
-| `caddy/Caddyfile` | `/opt/homebrew/etc/Caddyfile` (macOS only) | base Caddyfile — `local_certs` only, imports the machine-local one below; symlinked by `run_onchange_after_70-services.sh.tmpl`, not by chezmoi's own apply — see [Caddy](#caddy--local-https-for-internal-only-dev-hostnames) below |
-| `caddy/Caddyfile.local.example` | copied once to `/opt/homebrew/etc/Caddyfile.local` (mode 0600) | machine-local site blocks, never committed |
-| `dnsmasq/dnsmasq.conf` | `/opt/homebrew/etc/dnsmasq.conf` (macOS only) | base dnsmasq config — loopback-only, non-privileged port; symlinked the same way as Caddy's — see [dnsmasq](#dnsmasq--wildcard-local-dns-via-macoss-per-domain-resolver) below |
-| `dnsmasq/dnsmasq.local.conf.example` | copied once to `/opt/homebrew/etc/dnsmasq.local.conf` (mode 0600) | machine-local wildcard-domain records, never committed |
+| `home/dot_config/caddy/Caddyfile` | `~/.config/caddy/Caddyfile` (macOS only) | base Caddyfile — `local_certs` only, imports the machine-local one below by a path relative to itself — see [Caddy](#caddy--local-https-for-internal-only-dev-hostnames) below |
+| `home/dot_config/caddy/create_private_Caddyfile.local` | `~/.config/caddy/Caddyfile.local` (created once, mode 0600) | machine-local site blocks, never committed |
+| `home/dot_config/dnsmasq/dnsmasq.conf.tmpl` | `~/.config/dnsmasq/dnsmasq.conf` (macOS only) | base dnsmasq config — loopback-only, non-privileged port — see [dnsmasq](#dnsmasq--wildcard-local-dns-via-macoss-per-domain-resolver) below |
+| `home/dot_config/dnsmasq/create_private_dnsmasq.local.conf` | `~/.config/dnsmasq/dnsmasq.local.conf` (created once, mode 0600) | machine-local wildcard-domain records, never committed |
+| `home/Library/LaunchAgents/dev.caddy.plist` | `~/Library/LaunchAgents/dev.caddy.plist` (macOS) | this repo's own LaunchAgent for caddy, replacing `brew services` — not loaded by any provisioning script; `launchctl load -w` it by hand when you want it running |
+| `home/Library/LaunchAgents/dev.dnsmasq.plist` | `~/Library/LaunchAgents/dev.dnsmasq.plist` (macOS) | same, for dnsmasq |
 
 ### Editor
 
@@ -191,7 +193,7 @@ re-running on every apply would be wasted work rather than a correctness fix.
 | `run_onchange_after_45-fontcache.sh.tmpl` | linux | `fc-cache -f` on the Nerd Font directory the external in `.chezmoiexternal.toml` fetched |
 | `run_onchange_after_50-completions.sh.tmpl` | both | see [Completions](#completions) below |
 | `run_onchange_after_60-agents.sh.tmpl` | both | installs/links `via: herdr` plugins, `via: omp` plugins, upserts `via: gh` extensions, installs `via: skill` cross-agent skills, and re-links `~/.omp/agent/skills` from every installed herdr plugin's own `skills/`/`.agents/skills/` directory |
-| `run_onchange_after_70-services.sh.tmpl` | both | darwin: symlinks `caddy/Caddyfile` and `dnsmasq/dnsmasq.conf` into `/opt/homebrew/etc`, copies each `*.local.example` beside it at mode 0600 only when absent, loads the dstack LaunchAgent; linux: `systemctl --user enable --now dstack-server.service` |
+| `run_onchange_after_70-services.sh.tmpl` | both | darwin: loads the dstack LaunchAgent if not already loaded (caddy's and dnsmasq's own LaunchAgents are deliberately *not* auto-loaded here — see their inventory rows above); linux: `systemctl --user enable --now dstack-server.service` |
 | `run_onchange_after_80-nvchad.sh.tmpl` | both | hashes `linked/nvim/lazy-lock.json` at runtime against the last hash it wrote, and runs `nvim --headless "+Lazy! restore" +qa` only when that hash changed — see [NvChad's lockfile](#nvchads-lockfile--apply-restores-it-lazy-sync-moves-it) |
 | `run_once_after_90-repo-hooks.sh.tmpl` | both | `pre-commit install` in the repo's own working tree, guarded on the binary and on `.git` existing |
 
@@ -238,15 +240,17 @@ it actually writes something new, so the next shell rebuilds once.
 
 ### The `create_private_` secrets
 
-Seven tracked entries, one convention: `create_private_dot_zshrc.local`,
+Nine tracked entries, one convention: `create_private_dot_zshrc.local`,
 `create_private_dot_gitconfig.local`, `private_dot_ssh/create_private_config.local`,
 `dot_omp/agent/create_private_models.yml`, `dot_omp/agent/create_private_config.local.yml`,
-and `dot_dstack/server/create_private_config.yml` are written at mode 0600 the first time
-`chezmoi apply` runs, and left alone on every run after that — a filled-in file is never
-clobbered by a re-apply. Each one holds real secrets or per-machine values that have no
-business in a public repo. `create_private_dot_gitconfig-work.tmpl` is the seventh, and the
-one exception to "hand-filled": it's rendered from the three `promptStringOnce` answers
-(`workName`, `workEmail`) instead, since work identity isn't a secret — see
+`dot_dstack/server/create_private_config.yml`,
+`dot_config/caddy/create_private_Caddyfile.local`, and
+`dot_config/dnsmasq/create_private_dnsmasq.local.conf` are written at mode 0600 the first
+time `chezmoi apply` runs, and left alone on every run after that — a filled-in file is
+never clobbered by a re-apply. Each one holds real secrets or per-machine values that have
+no business in a public repo. `create_private_dot_gitconfig-work.tmpl` is the ninth, and
+the one exception to "hand-filled": it's rendered from the three `promptStringOnce`
+answers (`workName`, `workEmail`) instead, since work identity isn't a secret — see
 [Work identity](./AGENTS.md#work-identity) in `AGENTS.md`.
 
 The two config templates among the first six exist because of how their tracked file reads
@@ -281,10 +285,16 @@ templated. It ships with the `main` project defined but no backend configured �
 docs require the project to exist even with zero backends — plus a commented RunPod block
 showing where a real `api_key` goes.
 
-`caddy/Caddyfile.local.example` and `dnsmasq/dnsmasq.local.conf.example` follow the same
-copy-once-at-0600 rule but aren't chezmoi `create_private_` entries — their targets are
-under `/opt/homebrew/etc`, outside chezmoi's destination directory, so
-`run_onchange_after_70-services.sh.tmpl` reproduces the same guarantee by hand.
+`dot_config/caddy/create_private_Caddyfile.local` and
+`dot_config/dnsmasq/create_private_dnsmasq.local.conf` are two more of these — the eighth
+and ninth. They didn't use to qualify: caddy and dnsmasq used to run via `brew services`,
+which reads config from `/opt/homebrew/etc`, outside chezmoi's destination directory
+entirely, so the copy-once-at-0600 guarantee had to be reproduced by hand in
+`run_onchange_after_70-services.sh.tmpl`. Now that both run under this repo's own
+LaunchAgents instead (see [Caddy](#caddy--local-https-for-internal-only-dev-hostnames) and
+[dnsmasq](#dnsmasq--wildcard-local-dns-via-macoss-per-domain-resolver) below), their
+configs live under `~/.config` like everything else chezmoi manages, and get the same
+`create_private_` treatment as the rest of this section.
 
 ### mise
 
@@ -457,26 +467,35 @@ a host-level decision, not a dotfiles one.
 
 ### Caddy — local HTTPS for internal-only dev hostnames
 
-`caddy/Caddyfile` is deliberately thin — `local_certs` and one `import` line — because a
-real site block always names a real internal hostname and a real IP, neither of which
-belongs in a public repo. `local_certs` is what makes that possible at all: it mints certs
-from Caddy's own built-in CA instead of asking Let's Encrypt, which could never issue for
-a hostname that isn't publicly resolvable. `caddy trust` installs that CA into your
-keychain once, and every site the imported file defines is trusted with no browser warning
-from then on.
+`dot_config/caddy/Caddyfile` is deliberately thin — `local_certs` and one `import` line —
+because a real site block always names a real internal hostname and a real IP, neither of
+which belongs in a public repo. `local_certs` is what makes that possible at all: it mints
+certs from Caddy's own built-in CA instead of asking Let's Encrypt, which could never
+issue for a hostname that isn't publicly resolvable. `caddy trust` installs that CA into
+your keychain once, and every site the imported file defines is trusted with no browser
+warning from then on.
 
-The imported file, `/opt/homebrew/etc/Caddyfile.local`, is created once from
-`caddy/Caddyfile.local.example` — inert until you uncomment a block and fill in a
-real hostname and IP, same contract as `private_dot_ssh/create_private_config.local`. A
-single regex-matched wildcard block there can stand in for a whole family of hostnames —
-`<service>-<port>` — without a new site block per port; the template shows the pattern.
+The imported file, `~/.config/caddy/Caddyfile.local`, is created once from
+`dot_config/caddy/create_private_Caddyfile.local` — inert until you uncomment a block and
+fill in a real hostname and IP, same contract as
+`private_dot_ssh/create_private_config.local`. `import Caddyfile.local` (no leading `/`)
+resolves relative to the Caddyfile doing the importing, not the process's working
+directory, so it always finds the sibling file regardless of who starts caddy or from
+where. A single regex-matched wildcard block there can stand in for a whole family of
+hostnames — `<service>-<port>` — without a new site block per port; the template shows the
+pattern.
 
-`brew services start caddy` (not part of any provisioning script — a machine with nothing
-to proxy doesn't need it running) always sets `HOME=/opt/homebrew/var/lib` for the service,
-so Caddy's default cert-storage location under that `HOME` is the same on every start
-regardless of who launches it — no path to pin. After editing the local Caddyfile, apply
-it with `caddy reload --config /opt/homebrew/etc/Caddyfile` (no restart, no dropped
-connections) rather than `brew services restart caddy`.
+Caddy starts via this repo's own `Library/LaunchAgents/dev.caddy.plist`, not
+`brew services` — caddy installs from mise (`aqua:caddyserver/caddy`), which ships no
+service supervision of its own, so this repo owns that instead. It's deliberately not
+loaded by any provisioning script — a machine with nothing to proxy doesn't need it
+running — so start it once with
+`launchctl load -w ~/Library/LaunchAgents/dev.caddy.plist`. Because it's a normal
+user-scoped LaunchAgent (not `brew services`' own, which pins `HOME` to a fixed path for
+every service it manages), it runs under your real login `HOME`, so Caddy's default
+cert-storage location is wherever that user actually is. After editing the local
+Caddyfile, apply it with `caddy reload --config ~/.config/caddy/Caddyfile` (no restart, no
+dropped connections) rather than reloading the LaunchAgent.
 
 ### dnsmasq — wildcard local DNS via macOS's per-domain resolver
 
@@ -488,24 +507,25 @@ resolver you name instead of the system default, and dnsmasq answers every hostn
 it — including ones that don't exist yet — with a single `address=/.<domain>/127.0.0.1`
 line.
 
-`dnsmasq/dnsmasq.conf` binds `127.0.0.1` on port `5453`, not the standard `53`, so
-`brew services start dnsmasq` never needs root — macOS's own resolver keeps port 53
-regardless, since `/etc/resolver` only redirects the one domain named there, not the
-whole system. Its final line, `conf-file=/opt/homebrew/etc/dnsmasq.local.conf`, is the
+`dot_config/dnsmasq/dnsmasq.conf.tmpl` binds `127.0.0.1` on port `5453`, not the standard
+`53`, so the LaunchAgent that starts it never needs root — macOS's own resolver keeps port
+53 regardless, since `/etc/resolver` only redirects the one domain named there, not the
+whole system. Its final line, `conf-file=~/.config/dnsmasq/dnsmasq.local.conf`, is the
 actual domain list, deliberately not this tracked file: real internal hostnames don't
-belong in a public repo.
+belong in a public repo. Unlike Caddy's `import`, dnsmasq has no notion of "relative to
+this file", and the LaunchAgent sets no working directory, so that one line is templated
+with `{{ .chezmoi.homeDir }}` rather than tracked as a literal path — the only templated
+value in an otherwise-plain config.
 
-Both `dnsmasq.conf`'s symlink and `dnsmasq.local.conf`'s one-time copy — like Caddy's
-above — happen in `run_onchange_after_70-services.sh.tmpl`'s `link_etc_config` helper,
-shared by both tools: `/opt/homebrew/etc` sits outside every chezmoi destination
-directory, so `just smoke`'s throwaway-destination sandbox would otherwise silently touch
-the real machine's copy on every run instead of staying contained.
+`dnsmasq.local.conf` is created once from
+`dot_config/dnsmasq/create_private_dnsmasq.local.conf`, same `create_private_` contract as
+everything else in this section.
 
 Wiring a new domain in is two steps this repo can't do for you, since the domain name
 itself is the machine-local part:
 
 ```
-# in /opt/homebrew/etc/dnsmasq.local.conf
+# in ~/.config/dnsmasq/dnsmasq.local.conf
 address=/.example.internal/127.0.0.1
 
 # /etc/resolver/example.internal
@@ -513,9 +533,13 @@ nameserver 127.0.0.1
 port 5453
 ```
 
-`brew services start dnsmasq` (not part of any provisioning script — a machine with no
-wildcard domain to resolve doesn't need it running) picks up edits to `dnsmasq.local.conf`
-on `brew services restart dnsmasq`, since dnsmasq doesn't watch the file for changes.
+dnsmasq starts via `Library/LaunchAgents/dev.dnsmasq.plist`, replacing
+`brew services start dnsmasq` (dnsmasq isn't in mise's registry, so it still installs from
+Homebrew — only its startup moved). Same reasoning as Caddy's plist: not loaded by any
+provisioning script, since a machine with no wildcard domain to resolve doesn't need it
+running — `launchctl load -w ~/Library/LaunchAgents/dev.dnsmasq.plist` to start it.
+dnsmasq doesn't watch its config for changes, so picking up an edit to `dnsmasq.local.conf`
+needs `launchctl kickstart -k gui/$(id -u)/dev.dnsmasq` (or unload/reload the same plist).
 
 ### omp — one tracked config, two machines, different accounts
 

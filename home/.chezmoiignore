@@ -1,6 +1,8 @@
 {{ if ne .chezmoi.os "darwin" }}
 .hammerspoon
 Library
+.config/caddy
+.config/dnsmasq
 {{ end }}
 {{ if ne .chezmoi.os "linux" }}
 .config/systemd

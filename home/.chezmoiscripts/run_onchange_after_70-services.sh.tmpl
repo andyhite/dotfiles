@@ -2,39 +2,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# caddy/dnsmasq's base config is tracked; the actual site/domain blocks are
-# machine-local and never tracked. A *.local.example is copied in beside the
-# base config at mode 0600 only when absent — the same copy-once guarantee
-# chezmoi's own create_private_ entries give $HOME files, reproduced here
-# because the targets sit under /opt/homebrew/etc, outside chezmoi's
-# destination directory entirely.
-link_etc_config() {
-  local base="$1" example="$2" bin="$3"
-  command -v "$bin" >/dev/null 2>&1 || return 0
-
-  local src="{{ .chezmoi.workingTree }}/$base"
-  local dst
-  dst="/opt/homebrew/etc/$(basename "$base")"
-  if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]; then
-    :
-  elif [ -e "$dst" ] || [ -L "$dst" ]; then
-    mv "$dst" "$dst.bak.$(date +%s)"
-    ln -s "$src" "$dst"
-  else
-    ln -s "$src" "$dst"
-  fi
-
-  local target
-  target="/opt/homebrew/etc/$(basename "${example%.example}")"
-  if [ ! -f "$target" ]; then
-    cp "{{ .chezmoi.workingTree }}/$example" "$target"
-    chmod 600 "$target"
-  fi
-}
-
-link_etc_config dnsmasq/dnsmasq.conf dnsmasq/dnsmasq.local.conf.example dnsmasq
-link_etc_config caddy/Caddyfile caddy/Caddyfile.local.example caddy
-
 if command -v dstack >/dev/null 2>&1; then
   plist="$HOME/Library/LaunchAgents/ai.dstack.server.plist"
   if [ -e "$plist" ] && ! launchctl list ai.dstack.server >/dev/null 2>&1; then

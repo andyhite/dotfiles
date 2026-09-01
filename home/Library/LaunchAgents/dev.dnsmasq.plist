@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>dev.dnsmasq</string>
+	<!--
+	  Replaces `brew services start dnsmasq`. Not loaded by any
+	  provisioning script — same optional-service reasoning as the caddy
+	  plist above.
+
+	  dnsmasq stays a brew package (no mise registry entry for it), so
+	  unlike caddy's shim its binary sits under /opt/homebrew, which
+	  zshenv's PATH additions don't cover — only zshrc's interactive-only
+	  `brew shellenv` eval does, and this non-interactive shell never reads
+	  zshrc. Prepending it here is the fix, not a workaround: it's the one
+	  tool in this file that genuinely needs a path zshenv doesn't already
+	  give every non-interactive shell.
+
+	  `--keep-in-foreground` is required, not optional: dnsmasq daemonizes
+	  (forks and exits) by default, which would make launchd see the
+	  process it spawned exit immediately and relaunch it in a loop.
+	-->
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/zsh</string>
+		<string>-c</string>
+		<string>PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH" exec dnsmasq --conf-file="$HOME/.config/dnsmasq/dnsmasq.conf" --keep-in-foreground</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>StandardOutPath</key>
+	<string>/tmp/dnsmasq.launchd.log</string>
+	<key>StandardErrorPath</key>
+	<string>/tmp/dnsmasq.launchd.log</string>
+</dict>
+</plist>
