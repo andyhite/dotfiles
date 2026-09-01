@@ -95,11 +95,10 @@ brew "aaronkwhite/tap/lin"
 # strings that look like ordinary words to any generic scanner.
 brew "gitleaks"
 
-# ── Shell/JSON tooling this repo's own scripts use ──────────────────────────
-# jq is the only one actually load-bearing: config/herdr/palette/palette.sh
-# shells out to `jq -r` to build fzf's rows and unpack herdr's JSON-RPC
-# responses. shellcheck and shfmt are Justfile/CI (`just shellcheck`) and
-# config/nvim/lua/configs/conform.lua's sh/bash formatter, respectively.
+# jq is load-bearing for config/herdr/palette/palette.sh and
+# config/herdr/plugins/ticket-worktree/modal.sh (herdr JSON-RPC). shellcheck
+# and shfmt are Justfile/CI (`just shellcheck`) and config/nvim/lua/configs/
+# conform.lua's sh/bash formatter, respectively.
 brew "jq"
 brew "shellcheck"
 brew "shfmt"
@@ -153,6 +152,11 @@ brew "yq"
 brew "coreutils"
 brew "moreutils"
 brew "wget"
+# gum was a config dependency until ticket-worktree's popup grew a real form:
+# `gum input` and `gum confirm` each own the whole TTY for one widget, which
+# is exactly why that flow needed two screens, so modal.sh draws its own now.
+# Kept for ad-hoc scripts — nothing tracked here shells out to it.
+brew "gum"
 
 # ── Shell completions ────────────────────────────────────────────────────────
 # install.sh hand-generates completions for tools that ship no generator at

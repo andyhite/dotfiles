@@ -234,6 +234,21 @@ Gotcha: `Ctrl+R` is fzf's default history search everywhere fzf is documented, b
 it here in both `viins` and `vicmd` (see zsh-vi-mode above) — don't go looking for fzf's
 history popup, it's atuin's.
 
+## gum — Charm's TUI widgets for shell scripts
+
+Small composable prompts — bordered inputs, confirms, spinners — from the Charm
+bracelet stack, for ad-hoc scripts. Nothing tracked in this repo uses it: the
+`prefix+t` ticket-worktree popup did, until it needed one screen holding a live
+preview and buttons at once, which no single gum widget can render. fzf is still
+the fuzzy-picker layer everywhere.
+
+    gum input --placeholder "type here"     # single-line input with chrome
+    gum input --header "Title" --width 60   # header + fixed field width
+    gum confirm "Delete branch?"            # y/n confirm
+    gum spin --title "Working…" -- sleep 2  # spinner while a command runs
+    gum style --bold "emphasis"             # inline styled text
+
+
 ## carapace — multi-shell completion engine feeding fzf-tab
 
 A single binary that generates argument completions for roughly a thousand CLIs — git, docker,

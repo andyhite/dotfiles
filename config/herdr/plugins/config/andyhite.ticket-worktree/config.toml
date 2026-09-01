@@ -2,7 +2,7 @@
 #
 # By default the new worktree/tab opens in the BACKGROUND: `herdr worktree
 # create` runs with --no-focus and the new agent is never explicitly focused,
-# so pressing prefix+alt+g queues a ticket without yanking you away from
+# so pressing prefix+t queues a ticket without yanking you away from
 # whatever you were doing — same call the herdr skill makes for background
 # split panes. Uncomment to switch to the new worktree immediately instead.
 # focus = true

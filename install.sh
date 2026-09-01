@@ -1092,6 +1092,9 @@ install_tools_linux() {
   ensure_release_binary charmbracelet/glow glow \
     "glow_VERSION_Linux_x86_64.tar.gz" "glow_VERSION_Linux_arm64.tar.gz" \
     glow version
+  ensure_release_binary charmbracelet/gum gum \
+    "gum_VERSION_Linux_x86_64.tar.gz" "gum_VERSION_Linux_arm64.tar.gz" \
+    gum --version
 
   # eza predates its Ubuntu packaging (24.04+); build it where apt can't.
   command -v eza >/dev/null 2>&1 || cargo_ensure_latest eza
@@ -1680,12 +1683,28 @@ install_herdr_plugins() {
     return 0
   fi
 
-  local line plugin_spec plugin_ref link_path
+  local line plugin_spec plugin_ref link_path plugin_path rel
   while IFS= read -r line || [ -n "$line" ]; do
     line="${line%%#*}"
     line="${line#"${line%%[![:space:]]*}"}"
     line="${line%"${line##*[![:space:]]}"}"
     [ -n "$line" ] || continue
+
+    case "$line" in
+      local:*)
+        rel="${line#local:}"
+        rel="${rel#./}"
+        plugin_path="$DOTFILES_DIR/$rel"
+        if [ ! -f "$plugin_path/herdr-plugin.toml" ]; then
+          warned "$line" "no herdr-plugin.toml at $plugin_path"
+          continue
+        fi
+        if run_quiet "$line" herdr plugin link "$plugin_path" </dev/null; then
+          updated "$line" "linked $plugin_path"
+        fi
+        continue
+        ;;
+    esac
 
     plugin_spec="${line%%@*}"
     plugin_ref=""

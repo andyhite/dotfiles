@@ -65,9 +65,9 @@ NvChad for editing.
 | `config/herdr/config.toml` | `~/.config/herdr/config.toml` | Herdr (agent terminal workspace manager), native theme resynced to Ghostty's accent blue, no contrast-repair overrides needed |
 | `config/herdr/palette` | `~/.config/herdr/palette` | the `prefix+p` command palette — an fzf script run by a `type = "popup"` keybinding, plus the MIT notice of the plugin it's derived from |
 | `config/herdr/layout` | `~/.config/herdr/layout` | the `prefix+f` fold command — a `type = "shell"` keybinding that folds a row of N side-by-side panes into N/2 columns of two |
-| `herdr_plugins.txt` | (not linked — read by `install.sh`) | Herdr plugin list, one `owner/repo[@ref]` per line; `install.sh` installs/updates each one |
+| `herdr_plugins.txt` | (not linked — read by `install.sh`) | Herdr plugin list — GitHub `owner/repo[@ref]` lines install/update via `herdr plugin install`; `local:<path>` lines link a checkout in this repo |
 | `config/herdr/plugins/config` | `~/.config/herdr/plugins/config` | per-plugin Herdr config, one directory per plugin id — the whole tree is linked, so new plugins land here on install |
-| `config/herdr/plugins/ticket-worktree` | (not linked — `herdr plugin link`ed) | the `prefix+t` ticket-to-worktree plugin: a popup prompts for a Jira/Linear ticket URL, then creates a `ticket/<key>` branch + worktree and starts an omp agent with the ticket queued as an unsubmitted prompt — see [Herdr plugins](#herdr-plugins--the-list-is-tracked-herdrs-registry-isnt) below |
+| `config/herdr/plugins/ticket-worktree` | (linked via `herdr_plugins.txt`) | the `prefix+t` ticket-to-worktree plugin: a single-screen form popup for a Jira/Linear ticket URL, then creates a `ticket/<key>` branch + worktree and starts an omp agent with the ticket queued as an unsubmitted prompt — see [Herdr plugins](#herdr-plugins--the-list-is-tracked-herdrs-registry-isnt) below |
 | `caddy/Caddyfile` | `/opt/homebrew/etc/Caddyfile` (macOS only) | base Caddyfile — `local_certs` only, imports the machine-local one below; symlinked by the `tools` step, not `configs` — see [Caddy](#caddy--local-https-for-internal-only-dev-hostnames) below |
 | `caddy/Caddyfile.local.example` | (copy, not linked) | template for `/opt/homebrew/etc/Caddyfile.local` — machine-local site blocks, never committed |
 | `dnsmasq/dnsmasq.conf` | `/opt/homebrew/etc/dnsmasq.conf` (macOS only) | base dnsmasq config — loopback-only, non-privileged port; symlinked by the `tools` step, not `configs` — see [dnsmasq](#dnsmasq--wildcard-local-dns-via-macoss-per-domain-resolver) below |
@@ -919,11 +919,11 @@ upgrade` will never see or touch. `which -a herdr` shows both if that's happened
 Herdr keeps its installed-plugin state in `~/.config/herdr/plugins.json`, which it
 rewrites on every install: absolute paths, resolved commit SHAs, install timestamps.
 That's generated state, not config, so it stays out of this repo — the same call
-antidote's generated `zsh_plugins.zsh` gets. `herdr_plugins.txt` is the tracked source
-of truth instead:
+`herdr_plugins.txt` is the tracked source of truth instead:
 ```
-paulbkim-dev/vim-herdr-navigation  # default branch at install time
-someone/their-plugin@v1.2.0       # pinned to a tag, branch, or commit
+paulbkim-dev/vim-herdr-navigation           # default branch at install time
+someone/their-plugin@v1.2.0                # pinned to a tag, branch, or commit
+local:config/herdr/plugins/ticket-worktree # link a checkout in this repo
 ```
 
 To add a plugin, add the line and re-run `install.sh` — or run
@@ -1003,25 +1003,21 @@ list`, so every action of every installed plugin is one fuzzy search away whethe
 it has a key. Only the ones reached for constantly earn a `[[keys.command]]` entry;
 worktree-setup has no actions, so it needs no keybinding.
 
-`andyhite.ticket-worktree` — the `prefix+t` binding — is the newest plugin and the
-one exception to "the list is tracked, herdr's registry isn't": it lives entirely in this
-repo, at `config/herdr/plugins/ticket-worktree`, rather than being installed from
-`herdr_plugins.txt`. That is deliberate for now, same status command-palette had before
-it got its own repo: a plugin still being iterated on doesn't need a separate GitHub repo
-and a round trip through `plugin install` to change. It's registered per machine with
-`herdr plugin link config/herdr/plugins/ticket-worktree`, one-time, since `install.sh`'s
-herdr step only reads `herdr_plugins.txt`'s `owner/repo` lines and has no notion of
-linking a path — see the "developing on this machine" paragraph above for why re-running
-`install.sh` can't clobber that link, only replace it if something else installs the same
-plugin id from GitHub first. The plugin itself is a single manifest `[[panes]]` entry
-(`placement = "popup"`) rather than an action, for the same TTY reason command-palette
-isn't an action either — `modal.sh` prompts for a Jira/Linear ticket URL, derives a
-`ticket/<key>` branch from it, and calls `herdr worktree create`, `herdr agent start
---kind omp`, and `herdr pane send-text` (not `agent prompt`, which would submit
-immediately) to land the ticket as a queued-but-unsent prompt. Its config
+`andyhite.ticket-worktree` — the `prefix+t` binding — lives in this repo at
+`config/herdr/plugins/ticket-worktree` and is registered through `herdr_plugins.txt` as a
+`local:` line (same status command-palette had before it got its own repo: iterate in-tree
+without a separate GitHub repo). Re-running `install.sh` re-links it idempotently via
+`herdr plugin link`. The plugin is a single manifest `[[panes]]` entry (`placement =
+"popup"`) rather than an action, for the same TTY reason command-palette isn't an action
+either — `modal.sh` draws its own form (text field, live `ticket/<key>` branch preview,
+Create/Cancel buttons, one screen) in raw-mode ANSI rather than gum, whose widgets each own
+the TTY one at a time and so forced a two-step type-then-confirm flow. From the parsed key
+it calls `herdr worktree create`, `herdr agent start --kind omp`, and `herdr pane
+send-text` (not `agent prompt`, which would submit immediately) to land the ticket as a
+queued-but-unsent prompt. Its config
 (`config/herdr/plugins/config/andyhite.ticket-worktree/config.toml`) defaults the new
-worktree to opening in the background; set `focus = true` there to switch to it
-immediately instead, matching plain `prefix+shift+g`'s own default worktree behavior.
+worktree to opening in the background; set `focus = true` there to switch to it immediately
+instead, matching plain `prefix+shift+g`'s own default worktree behavior.
 
 That palette started as the `JanTvrdik/herdr-command-palette` plugin and is now a script
 in this repo, for two reasons that are really one. fzf needs a TTY; a herdr plugin action

@@ -8,10 +8,17 @@ platforms = ["linux", "macos"]
 # The whole plugin is this one popup. See modal.sh for why a manifest pane
 # rather than an action: an action runs on the server with no TTY, and
 # reading a ticket URL needs one.
+#
+# Size is the form's own geometry, not a guess: modal.sh draws a 70-column
+# input box inside a 2-space indent, over 11 rows plus one of slack.
+#
+# The title is the popup border's, and the only one: herdr rejects a missing
+# or empty pane title outright, so the form deliberately draws no heading of
+# its own rather than stacking a second one inside a 12-row popup.
 [[panes]]
 id = "modal"
 title = "New ticket worktree"
 placement = "popup"
-width = 70
-height = 8
+width = 76
+height = 12
 command = ["bash", "modal.sh"]

@@ -374,10 +374,8 @@ command = "$HOME/.config/herdr/layout/fold-columns.sh"
 ## starts an omp agent in the new worktree's root pane, and queues
 ## "Work on <KEY> — <url>" in that agent's input WITHOUT submitting it.
 ##
-## A local plugin linked with `herdr plugin link config/herdr/plugins/
-## ticket-worktree` rather than installed from `herdr_plugins.txt` — it lives
-## in this repo "for now" per its own README note, same status as
-## command-palette before it got its own repo.
+## Registered via `local:config/herdr/plugins/ticket-worktree` in
+## herdr_plugins.txt — install.sh links it with `herdr plugin link`.
 ##
 ## `type = "shell"` dispatching straight to `herdr plugin pane open`, not
 ## `herdr plugin action invoke <id>` like the plugin bindings above: reading

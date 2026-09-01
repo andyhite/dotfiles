@@ -1,5 +1,8 @@
-# Herdr plugins, one per line: <owner>/<repo>[/<subdir>][@<ref>]
-# install.sh feeds each line to `herdr plugin install`, which is also how herdr
+# Herdr plugins, one per line:
+#   <owner>/<repo>[/<subdir>][@<ref>]  — install from GitHub via `herdr plugin install`
+#   local:<path>                       — link a checkout in this repo via `herdr plugin link`
+#                                        (<path> is relative to the dotfiles root)
+# install.sh feeds GitHub lines to `herdr plugin install`, which is also how herdr
 # updates an already-installed plugin. Pin a tag/branch/commit with @<ref>;
 # without one you get the repo's default branch at install time.
 # Two things live outside this file:
@@ -30,3 +33,6 @@ paulbkim-dev/vim-herdr-navigation
 # issue otherwise starts with none of its gitignored files. No actions, pure
 # event hook. Config: config.toml.
 tdi/herdr-worktree-setup
+
+# Local plugins — paths relative to this repo; install.sh runs `herdr plugin link`.
+local:config/herdr/plugins/ticket-worktree
