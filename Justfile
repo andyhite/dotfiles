@@ -202,6 +202,28 @@ smoke:
 apply:
     chezmoi apply --source "$PWD"
 
+# Provisioning scripts only re-run when their rendered content's hash changes
+# (run_onchange_) or exactly once ever (run_once_), and those two triggers
+# live in different persistent-state buckets — clearing only one leaves the
+# other looking "already applied" and silently skipped, which is exactly the
+# trap this exists to avoid. Derives each script's state key from its own
+# filename instead of hardcoding the list, so a renamed/added/removed script
+# never needs a matching edit here.
+[doc("Clear provisioning-script state so the next apply re-runs every script")]
+reprovision:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for f in home/.chezmoiscripts/*.sh.tmpl; do
+      name="$(basename "$f" .tmpl)"
+      name="${name#run_onchange_}"
+      name="${name#run_once_}"
+      name="${name#before_}"
+      name="${name#after_}"
+      chezmoi state delete --bucket=entryState --key="$HOME/.chezmoiscripts/$name" --source "$PWD" 2>/dev/null || true
+    done
+    chezmoi state delete-bucket --bucket=scriptState --source "$PWD"
+    echo "ok  provisioning-script state cleared — next apply re-runs every script"
+
 # Replaces the old --host driver. The remote pulls from origin, not this
 # working copy: a run that silently installs the previous commit is the
 # failure mode here that looks like success.
