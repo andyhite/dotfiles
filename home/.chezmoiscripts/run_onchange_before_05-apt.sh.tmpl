@@ -2,6 +2,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 {{ template "output.sh.tmpl" . }}
+heading "apt packages"
 
 # One batched update, then one `apt-get install` per `via: apt` entry rather
 # than a single call with every package — a package missing from this Ubuntu

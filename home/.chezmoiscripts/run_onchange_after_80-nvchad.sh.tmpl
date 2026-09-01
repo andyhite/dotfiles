@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 {{ template "output.sh.tmpl" . }}
+heading "NvChad restore"
 
 # chezmoi's `include` resolves relative to the source dir and cannot reach
 # linked/, so this can't self-hash the lockfile at render time — hash it at

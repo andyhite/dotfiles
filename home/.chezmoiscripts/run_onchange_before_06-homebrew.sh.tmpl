@@ -2,6 +2,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 {{ template "output.sh.tmpl" . }}
+heading "Homebrew"
 
 # Never auto-installs Homebrew — that needs sudo and is a machine-level
 # decision, not something a dotfiles apply should make unattended.

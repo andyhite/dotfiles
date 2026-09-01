@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 {{ template "output.sh.tmpl" . }}
+heading "One-time installers"
 
 # run_once_, not run_onchange_: omp and claude both self-update (`omp
 # update`, `claude update`) and omp's installer is a ~120MB download, so

@@ -41,6 +41,13 @@ skipped() { _line "$C_DIM"    "$G_SKIP" "$@"; }
 warned()  { _line "$C_YELLOW" "$G_WARN" "$@"; }
 failed()  { _line "$C_RED"    "$G_ERR"  "$@"; }
 
+# Section heading for one script's block of status lines, so a full `apply`
+# run reads as one group per script — in the same before_/after_ + number
+# order the scripts themselves run in — instead of one undifferentiated
+# stream. Called once, right after this template's own inclusion, by every
+# run_*.sh.tmpl script below.
+heading() { printf '\n%s%s%s\n' "$C_BOLD" "$*" "$C_RESET"; }
+
 # Free-form indented text, for guidance that doesn't fit the label/detail shape.
 say() { printf '     %s%s%s\n' "$C_DIM" "$*" "$C_RESET"; }
 

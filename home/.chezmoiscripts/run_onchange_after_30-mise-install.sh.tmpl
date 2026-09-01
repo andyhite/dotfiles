@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 {{ template "output.sh.tmpl" . }}
+heading "mise tools"
 
 # node and rust first, not redundant with the bare `mise install --yes`
 # below: `lin` resolves through the cargo:lincli backend, which needs a

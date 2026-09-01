@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 {{ template "output.sh.tmpl" . }}
+heading "Shell completions"
 
 # zsh autoloads completions from files named `_<cmd>` anywhere on fpath.
 # carapace covers a large set of third-party CLIs at runtime through the

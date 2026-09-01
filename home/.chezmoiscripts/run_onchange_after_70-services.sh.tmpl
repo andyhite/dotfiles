@@ -2,6 +2,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 {{ template "output.sh.tmpl" . }}
+heading "Background services"
 
 if command -v dstack >/dev/null 2>&1; then
   plist="$HOME/Library/LaunchAgents/ai.dstack.server.plist"
@@ -13,6 +14,7 @@ fi
 #!/usr/bin/env bash
 set -euo pipefail
 {{ template "output.sh.tmpl" . }}
+heading "Background services"
 
 if command -v dstack >/dev/null 2>&1 && command -v systemctl >/dev/null 2>&1; then
   unit="$HOME/.config/systemd/user/dstack-server.service"

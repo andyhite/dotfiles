@@ -2,6 +2,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 {{ template "output.sh.tmpl" . }}
+heading "Homebrew bundle"
 
 # No Brewfile is tracked. Generating one at apply time from packages.yaml
 # means nothing in $HOME can drift from the manifest or be hand-edited, and

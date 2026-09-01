@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 {{ template "output.sh.tmpl" . }}
+heading "uv tools"
 
 # uv is itself a mise tool (aqua:astral-sh/uv). A machine where the previous
 # script failed or was skipped should not fail the whole apply here too.

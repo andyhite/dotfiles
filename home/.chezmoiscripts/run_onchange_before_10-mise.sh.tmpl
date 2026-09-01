@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 {{ template "output.sh.tmpl" . }}
+heading "mise (bootstrap)"
 
 # mise cannot install itself from its own config, so its `packages.yaml`
 # entry is read directly here rather than filtered like every other tool.

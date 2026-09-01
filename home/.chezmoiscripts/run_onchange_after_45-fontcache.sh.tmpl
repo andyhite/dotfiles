@@ -2,6 +2,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 {{ template "output.sh.tmpl" . }}
+heading "Font cache"
 
 # Separate from the apt script because the font external is only present
 # once the `after_` phase has run — the `before_` apt script runs before any
