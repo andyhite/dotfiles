@@ -19,5 +19,15 @@ if [ -f "$statefile" ] && [ "$(cat "$statefile")" = "$hash" ]; then
   exit 0
 fi
 
-run_quiet "nvchad plugins" nvim --headless "+Lazy! restore" +qa && updated "nvchad plugins" "restored"
-printf '%s' "$hash" >"$statefile"
+# The retry policy is deliberate: on failure the hash stays unwritten and the
+# apply carries on with a warning — a transient plugin/network failure should
+# not fail the whole apply, and every later `chezmoi apply` reattempts the
+# restore until one succeeds and records the hash. A restore that keeps
+# failing therefore keeps warning, which is the signal to run
+# `nvim "+Lazy! restore"` interactively and read the real error.
+if run_quiet "nvchad plugins" nvim --headless "+Lazy! restore" +qa; then
+  updated "nvchad plugins" "restored"
+  printf '%s' "$hash" >"$statefile"
+else
+  warned "nvchad plugins" "restore failed — retrying on the next apply"
+fi

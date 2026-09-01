@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+{{ template "output.sh.tmpl" . }}
+heading "Repo hooks"
+
+# .pre-commit-config.yaml is tracked, but a fresh clone has no hooks
+# installed until something runs `pre-commit install` — and the whole point
+# of the gitleaks hook is to fire before the commit a fresh clone is most
+# likely to make. run_onchange_ keyed on the hook config's hash below, not
+# run_once_: a run_once_ that bailed early (pre-commit not on PATH yet on
+# first apply) was recorded as done and never retried, so that machine
+# silently never got its hooks at all. The bail is also loud now, for the
+# same reason.
+#
+# .pre-commit-config.yaml hash: {{ include (joinPath .chezmoi.workingTree ".pre-commit-config.yaml") | sha256sum }}
+repo="{{ .chezmoi.workingTree }}"
+[ -d "$repo/.git" ] || exit 0
+if ! command -v pre-commit >/dev/null 2>&1; then
+  warned "pre-commit hook" "pre-commit not on PATH — hooks not installed; re-apply once mise has it"
+  exit 0
+fi
+
+cd "$repo" && run_quiet "pre-commit hook" pre-commit install && ok "pre-commit hook" "installed"

@@ -87,7 +87,10 @@ if [ -n "$_antidote" ]; then
   source "$_antidote"
   antidote load "$HOME/.zsh_plugins.txt"
 else
-  echo "zshrc: antidote not found — run the dotfiles install.sh to set up plugins"
+  # stderr, so a missing plugin manager is visible in an interactive shell
+  # but never pollutes stdout captured from editor/automation shells. The
+  # fix is one apply: chezmoi's .antidote external clones it.
+  echo "zshrc: antidote not found — run \`chezmoi apply\` to set up plugins" >&2
 fi
 unset _antidote _c
 

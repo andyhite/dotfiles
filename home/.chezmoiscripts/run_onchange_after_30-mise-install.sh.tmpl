@@ -3,12 +3,26 @@ set -euo pipefail
 {{ template "output.sh.tmpl" . }}
 heading "mise tools"
 
-# node and rust first, not redundant with the bare `mise install --yes`
-# below: `lin` resolves through the cargo:lincli backend, which needs a
-# cargo on PATH before it can build, and node is needed the moment any
-# npm: tool is added. mise does not promise to order npm:/cargo: tools
-# after the runtimes they shell out to.
-run_quiet "mise (node, rust)" mise install --yes node rust
+# Backend runtimes first, not redundant with the bare `mise install --yes`
+# below: mise does not promise to order npm:/cargo: tools after the runtimes
+# they shell out to, so anything resolved through those backends needs its
+# runtime on PATH before it can build. The list is derived from
+# packages.yaml — an npm: entry pulls in node, a cargo: entry pulls in
+# rust — so adding or removing a backend tool in the manifest is the only
+# edit; nothing here names a tool by hand.
+{{- $runtimes := list }}
+{{- range $.packages }}
+{{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
+{{-   if and $spec (eq $spec.via "mise") }}
+{{-     $id := (index $spec "id") | default .name }}
+{{-     if hasPrefix "npm:" $id }}{{ $runtimes = append $runtimes "node" }}{{ end }}
+{{-     if hasPrefix "cargo:" $id }}{{ $runtimes = append $runtimes "rust" }}{{ end }}
+{{-   end }}
+{{- end }}
+{{- $runtimes = $runtimes | uniq }}
+{{- if $runtimes }}
+run_quiet "mise ({{ $runtimes | join ", " }})" mise install --yes {{ $runtimes | join " " }}
+{{- end }}
 run_quiet "mise (all tools)" mise install --yes
 
 # One status line per tool, reusing mise's own installed-version report
