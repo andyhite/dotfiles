@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+{{ template "output.sh.tmpl" . }}
 
 # ── herdr plugins ────────────────────────────────────────────────────────
 # A `local:` id is a path relative to the repo working tree, resolved and
@@ -12,14 +13,16 @@ if command -v herdr >/dev/null 2>&1; then
 {{-   if $spec }}{{ if eq $spec.via "herdr" }}
 {{-     $id := index $spec "id" }}
 {{-     if hasPrefix "local:" $id }}
-  herdr plugin link {{ printf "%s/%s" $.chezmoi.workingTree (trimPrefix "local:" $id) | squote }}
+  run_quiet {{ .name | squote }} herdr plugin link {{ printf "%s/%s" $.chezmoi.workingTree (trimPrefix "local:" $id) | squote }} && updated {{ .name | squote }} "linked"
 {{-     else }}
-  herdr plugin install {{ $id | squote }}
+  # --yes must follow the positional argument — herdr's plugin parser
+  # rejects `herdr plugin install --yes <spec>` with a usage error.
+  run_quiet {{ .name | squote }} herdr plugin install {{ $id | squote }} --yes && updated {{ .name | squote }}
 {{-     end }}
 {{ end }}{{ end }}
 {{- end }}
 else
-  echo "herdr not on PATH — skipping herdr plugins" >&2
+  warned "herdr" "not on PATH — skipping herdr plugins"
 fi
 
 # ── omp plugins ──────────────────────────────────────────────────────────
@@ -28,7 +31,7 @@ if command -v omp >/dev/null 2>&1; then
 {{ range $.packages -}}
 {{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
 {{-   if $spec }}{{ if eq $spec.via "omp" }}
-  omp plugin install {{ (index $spec "id") | squote }}
+  run_quiet {{ .name | squote }} omp plugin install {{ (index $spec "id") | squote }} && updated {{ .name | squote }}
 {{ end }}{{ end }}
 {{- end }}
 fi
@@ -44,25 +47,27 @@ if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
 {{-   if $spec }}{{ if eq $spec.via "gh" }}
 {{-     $id := (index $spec "id") | default .name }}
   if gh extension list 2>/dev/null | awk '{print $3}' | grep -qx {{ $id | squote }}; then
-    gh extension upgrade {{ $id | squote }}
+    run_quiet {{ $id | squote }} gh extension upgrade {{ $id | squote }} && updated {{ $id | squote }}
   else
-    gh extension install {{ $id | squote }}
+    run_quiet {{ $id | squote }} gh extension install {{ $id | squote }} && added {{ $id | squote }}
   fi
 {{ end }}{{ end }}
 {{- end }}
 else
-  echo "gh not authenticated — skipping gh extensions" >&2
+  warned "gh" "not authenticated — skipping gh extensions"
 fi
 
 # ── cross-agent skills ───────────────────────────────────────────────────
 # `npx skills add` keeps one canonical copy of each skill in ~/.agents/skills
 # and symlinks every agent it detects at that tree. Re-adding an installed
-# skill is how the CLI updates one, so this runs every time.
+# skill is how the CLI updates one, so this runs every time. npx's own
+# --yes skips its "need to install skills@x, ok to proceed?" prompt — the
+# skills CLI's own -y is a separate flag for its own prompts.
 {{ range $.packages -}}
 {{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
 {{-   if $spec }}{{ if eq $spec.via "skill" }}
 {{-     $skillName := trimPrefix "skill/" .name }}
-mise exec -- npx skills add {{ (index $spec "id") | squote }} --skill {{ $skillName | squote }} -g -y
+run_quiet {{ .name | squote }} mise exec -- npx --yes skills add {{ (index $spec "id") | squote }} --skill {{ $skillName | squote }} -g -y && updated {{ .name | squote }}
 {{ end }}{{ end }}
 {{- end }}
 
@@ -98,7 +103,7 @@ if command -v herdr >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
               mv "$skill_dst" "$skill_dst.bak.$(date +%s)"
             fi
             ln -s "$skill_src" "$skill_dst"
-            echo "omp skill: linked $skill_name from $plugin_id" >&2
+            updated "$skill_name" "linked from $plugin_id"
           done
         done
       done

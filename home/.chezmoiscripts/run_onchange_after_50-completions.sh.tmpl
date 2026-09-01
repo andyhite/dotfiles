@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+{{ template "output.sh.tmpl" . }}
 
 # zsh autoloads completions from files named `_<cmd>` anywhere on fpath.
 # carapace covers a large set of third-party CLIs at runtime through the
@@ -26,6 +27,7 @@ if command -v {{ index $argv 0 | squote }} >/dev/null 2>&1; then
     if ! cmp -s "$tmp" "$dir/_{{ $pkg.name }}" 2>/dev/null; then
       mv "$tmp" "$dir/_{{ $pkg.name }}"
       wrote=1
+      updated {{ $pkg.name | squote }} "zsh completion"
     else
       rm -f "$tmp"
     fi

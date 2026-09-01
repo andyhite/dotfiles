@@ -1,11 +1,12 @@
 {{ if eq .chezmoi.os "linux" -}}
 #!/usr/bin/env bash
 set -euo pipefail
+{{ template "output.sh.tmpl" . }}
 
 # Separate from the apt script because the font external is only present
 # once the `after_` phase has run — the `before_` apt script runs before any
 # file, directory, or external is in place.
 if command -v fc-cache >/dev/null 2>&1; then
-  fc-cache -f "$HOME/.local/share/fonts/GeistMonoNerdFont"
+  run_quiet "fontcache" fc-cache -f "$HOME/.local/share/fonts/GeistMonoNerdFont" && ok "fontcache" "rebuilt"
 fi
 {{ end -}}

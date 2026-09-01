@@ -1,0 +1,66 @@
+# Shared status-line + quiet-runner helpers for every run_*.sh.tmpl
+# provisioning script. Included via a `template` action naming this file,
+# right after `set -euo pipefail` — keeps the ✓/+/↑ output and run_quiet
+# noise-suppression in exactly one place instead of duplicated across all of
+# them. Ported from this repo's old install.sh, which chezmoi replaced.
+
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ] && [ "${TERM:-dumb}" != "dumb" ]; then
+  C_RESET=$'\033[0m'; C_BOLD=$'\033[1m'; C_DIM=$'\033[2m'
+  C_RED=$'\033[31m'; C_GREEN=$'\033[32m'; C_YELLOW=$'\033[33m'; C_BLUE=$'\033[34m'
+else
+  C_RESET=""; C_BOLD=""; C_DIM=""
+  C_RED=""; C_GREEN=""; C_YELLOW=""; C_BLUE=""
+fi
+
+# Glyphs fall back to ASCII outside a UTF-8 locale — a freshly imaged box may
+# not have one yet, and mojibake in a bootstrap script reads as breakage.
+case "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in
+  *UTF-8*|*utf-8*|*UTF8*|*utf8*)
+    G_OK="✓"; G_ADD="+"; G_UPD="↑"; G_SKIP="·"; G_WARN="!"; G_ERR="✗" ;;
+  *)
+    G_OK="*"; G_ADD="+"; G_UPD="^"; G_SKIP="-"; G_WARN="!"; G_ERR="x" ;;
+esac
+
+# One writer for every status line, so the glyph, colour and label column can
+# never drift between call sites. Only pads the label when a detail follows
+# it, so a bare label doesn't emit a run of trailing spaces.
+_line() {
+  local color=$1 glyph=$2 label=$3; shift 3
+  if [ -n "$*" ]; then
+    printf '  %s%s%s %s%-26s%s %s%s%s\n' \
+      "$color" "$glyph" "$C_RESET" "$C_BOLD" "$label" "$C_RESET" "$C_DIM" "$*" "$C_RESET"
+  else
+    printf '  %s%s%s %s%s%s\n' "$color" "$glyph" "$C_RESET" "$C_BOLD" "$label" "$C_RESET"
+  fi
+}
+
+ok()      { _line "$C_GREEN"  "$G_OK"   "$@"; }
+added()   { _line "$C_GREEN"  "$G_ADD"  "$@"; }
+updated() { _line "$C_BLUE"   "$G_UPD"  "$@"; }
+skipped() { _line "$C_DIM"    "$G_SKIP" "$@"; }
+warned()  { _line "$C_YELLOW" "$G_WARN" "$@"; }
+failed()  { _line "$C_RED"    "$G_ERR"  "$@"; }
+
+# Free-form indented text, for guidance that doesn't fit the label/detail shape.
+say() { printf '     %s%s%s\n' "$C_DIM" "$*" "$C_RESET"; }
+
+# Runs a command with its own output suppressed, then replays the tail
+# (indented) only if it failed — a long installer's build noise would
+# otherwise bury the structured ok/added/updated line above it. Stdin is
+# always /dev/null: none of these commands should ever block on a prompt,
+# and a stray read must fail loudly (exit != 0, tail printed) rather than
+# hang chezmoi apply. CHEZMOI_VERBOSE=1 shows everything, always.
+run_quiet() {
+  local label=$1; shift
+  if [ "${CHEZMOI_VERBOSE:-0}" = 1 ]; then "$@" </dev/null; return $?; fi
+
+  local log rc=0
+  log="$(mktemp)"
+  "$@" >"$log" 2>&1 </dev/null || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    failed "$label" "exit $rc"
+    sed 's/^/       /' "$log" | tail -12
+  fi
+  rm -f "$log"
+  return "$rc"
+}

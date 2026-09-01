@@ -131,6 +131,7 @@ applied state entirely.
 | `home/.chezmoidata/packages.yaml` | not applied — read by the templates below | the one manifest for every installable thing: CLI tools, language runtimes, Homebrew casks, apt packages, uv tools, herdr plugins, gh extensions, cross-agent skills — see [Bootstrap a new machine](#bootstrap-a-new-machine) |
 | `home/dot_config/mise/config.toml.tmpl` | `~/.config/mise/config.toml` | mise's global tool-version config, rendered from every `via: mise` entry in `packages.yaml` — see [mise](#mise) below |
 | `home/.chezmoiscripts/*.sh.tmpl` | not applied — run by `chezmoi apply` in numbered order | thirteen provisioning scripts — see [Provisioning scripts](#provisioning-scripts) below |
+| `home/.chezmoitemplates/output.sh.tmpl` | not applied — included by every provisioning script via a `template` action | shared `ok`/`added`/`updated`/`skipped`/`warned`/`failed`/`run_quiet` output helpers — see [Provisioning scripts](#provisioning-scripts) below |
 | `home/.chezmoi.toml.tmpl` | `~/.config/chezmoi/chezmoi.toml` | sets `sourceDir` to the repo's own working tree and prompts the three `workName`/`workEmail`/`workGitDir` values once — see [Work identity](./AGENTS.md#work-identity) in `AGENTS.md` |
 | `home/.chezmoiignore` | not applied — chezmoi reads it directly | OS-conditional exclusions: `.hammerspoon`/`Library` off Linux, `.config/systemd` off macOS, the Tailscale shim unless the App Store app is installed, `.gitconfig-work` unless `workGitDir` is set |
 | `home/.chezmoiexternal.toml` | not applied — chezmoi reads it directly | antidote's git-repo clone (`~/.antidote`) and, Linux only, the Geist Mono Nerd Font release archive (macOS gets the same font from a cask instead) |
@@ -180,6 +181,15 @@ manifest edit re-triggers only the scripts whose rendered text actually changed.
 `run_once_` scripts run exactly once per machine, ever, regardless of content changes —
 used for the two installers that self-update and for the `pre-commit install` call, where
 re-running on every apply would be wasted work rather than a correctness fix.
+
+Every script pulls in `home/.chezmoitemplates/output.sh.tmpl` — a `.chezmoitemplates`
+partial, not applied on its own — as its first line after `set -euo pipefail`. It defines
+`ok`/`added`/`updated`/`skipped`/`warned`/`failed` (colour + glyph, `NO_COLOR`/non-tty
+aware) and `run_quiet <label> <cmd…>`, which redirects a noisy installer's own stdout/
+stderr to a temp file and only replays it (indented, tail -12) if the command failed.
+`CHEZMOI_VERBOSE=1 chezmoi apply` shows every command's raw output instead. This is the
+same structured-status/quiet-by-default design the old `install.sh` used, ported into
+chezmoi's script model instead of duplicated across all thirteen scripts.
 
 | Script | Platform | What it does |
 | --- | --- | --- |

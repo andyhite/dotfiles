@@ -1,13 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
+{{ template "output.sh.tmpl" . }}
 
 # node and rust first, not redundant with the bare `mise install --yes`
 # below: `lin` resolves through the cargo:lincli backend, which needs a
 # cargo on PATH before it can build, and node is needed the moment any
 # npm: tool is added. mise does not promise to order npm:/cargo: tools
 # after the runtimes they shell out to.
-mise install --yes node rust
-mise install --yes
+run_quiet "mise (node, rust)" mise install --yes node rust
+run_quiet "mise (all tools)" mise install --yes
+
+# One status line per tool, reusing mise's own installed-version report
+# instead of tracking added/updated ourselves — `mise install` above already
+# no-ops for anything current, so this is just visibility, not extra work.
+while read -r tool version _; do
+  [ -n "$tool" ] || continue
+  ok "$tool" "$version"
+done < <(mise ls --current --quiet 2>/dev/null)
 
 # Rendered tool list, embedded so this script's own content — and therefore
 # chezmoi's onchange trigger — changes whenever packages.yaml's mise entries

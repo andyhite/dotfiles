@@ -1,6 +1,7 @@
 {{ if eq .chezmoi.os "darwin" -}}
 #!/usr/bin/env bash
 set -euo pipefail
+{{ template "output.sh.tmpl" . }}
 
 # No Brewfile is tracked. Generating one at apply time from packages.yaml
 # means nothing in $HOME can drift from the manifest or be hand-edited, and
@@ -28,11 +29,21 @@ cask "{{ (index $spec "id") | default .name }}"
 {{- end }}
 BREWFILE
 
-if ! brew bundle check --file "$brewfile" >/dev/null 2>&1; then
-  echo "brew bundle: installing/upgrading outstanding formulae and casks —" >&2
-  echo "this can take several minutes, and 1password-cli's signed .pkg may" >&2
-  echo "prompt for your sudo password mid-run." >&2
-  brew bundle check --file "$brewfile" --verbose 2>&1 || true
+if brew bundle check --file "$brewfile" >/dev/null 2>&1; then
+  ok "homebrew" "up to date"
+else
+  # `brew bundle check --verbose` reports each outstanding formula/cask as
+  # "→ Formula/Cask <name> needs to be installed or updated." — pull just the
+  # names out so this prints one readable line instead of the raw report.
+  report="$(brew bundle check --file "$brewfile" --verbose 2>&1 || true)"
+  missing="$(sed -n 's/^→ [A-Za-z]* \(.*\) needs to be installed or updated\./\1/p' \
+    <<<"$report" | paste -sd' ' - || true)"
+  if [ -n "$missing" ]; then
+    say "installing/upgrading: $missing"
+  fi
+  say "1password-cli's signed .pkg may prompt for your sudo password mid-run"
+  if run_quiet "homebrew" brew bundle install --file "$brewfile" --quiet; then
+    updated "homebrew" "${missing:-formulae and casks}"
+  fi
 fi
-brew bundle install --file "$brewfile" --quiet
 {{ end -}}

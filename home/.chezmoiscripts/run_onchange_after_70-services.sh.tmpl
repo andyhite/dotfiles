@@ -1,22 +1,24 @@
 {{ if eq .chezmoi.os "darwin" -}}
 #!/usr/bin/env bash
 set -euo pipefail
+{{ template "output.sh.tmpl" . }}
 
 if command -v dstack >/dev/null 2>&1; then
   plist="$HOME/Library/LaunchAgents/ai.dstack.server.plist"
   if [ -e "$plist" ] && ! launchctl list ai.dstack.server >/dev/null 2>&1; then
-    launchctl load -w "$plist"
+    run_quiet "dstack-server" launchctl load -w "$plist" && added "dstack-server" "LaunchAgent loaded"
   fi
 fi
 {{ else -}}
 #!/usr/bin/env bash
 set -euo pipefail
+{{ template "output.sh.tmpl" . }}
 
 if command -v dstack >/dev/null 2>&1 && command -v systemctl >/dev/null 2>&1; then
   unit="$HOME/.config/systemd/user/dstack-server.service"
   if [ -e "$unit" ]; then
-    systemctl --user daemon-reload
-    systemctl --user enable --now dstack-server
+    run_quiet "dstack-server" systemctl --user daemon-reload
+    run_quiet "dstack-server" systemctl --user enable --now dstack-server && added "dstack-server" "systemd unit enabled"
   fi
 fi
 {{ end -}}

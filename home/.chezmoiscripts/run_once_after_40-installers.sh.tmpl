@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+{{ template "output.sh.tmpl" . }}
 
 # run_once_, not run_onchange_: omp and claude both self-update (`omp
 # update`, `claude update`) and omp's installer is a ~120MB download, so
@@ -9,7 +10,9 @@ set -euo pipefail
 {{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
 {{-   if $spec }}{{ if eq $spec.via "installer" }}
 if ! command -v {{ .name | squote }} >/dev/null 2>&1; then
-  curl -fsSL {{ (index $spec "url") | squote }} | {{ index $spec "shell" }}
+  run_quiet {{ .name | squote }} sh -c "curl -fsSL {{ (index $spec "url") | squote }} | {{ index $spec "shell" }}" \
+    && added {{ .name | squote }} \
+    || warned {{ .name | squote }} "download failed — re-run to retry"
 fi
 {{ end }}{{ end }}
 {{- end }}

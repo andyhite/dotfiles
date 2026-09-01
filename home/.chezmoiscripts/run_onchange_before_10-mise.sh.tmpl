@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+{{ template "output.sh.tmpl" . }}
 
 # mise cannot install itself from its own config, so its `packages.yaml`
 # entry is read directly here rather than filtered like every other tool.
@@ -10,7 +11,7 @@ if command -v mise >/dev/null 2>&1; then
 fi
 
 {{ if eq .chezmoi.os "darwin" -}}
-brew install mise
+run_quiet mise brew install mise && added mise
 {{- else -}}
-curl -sS https://mise.run | sh
+run_quiet mise sh -c "curl -sS https://mise.run | sh" && added mise
 {{- end }}

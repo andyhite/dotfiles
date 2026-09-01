@@ -1,11 +1,12 @@
 {{ if eq .chezmoi.os "darwin" -}}
 #!/usr/bin/env bash
 set -euo pipefail
+{{ template "output.sh.tmpl" . }}
 
 # Never auto-installs Homebrew — that needs sudo and is a machine-level
 # decision, not something a dotfiles apply should make unattended.
 if ! command -v brew >/dev/null 2>&1; then
-  echo "error: Homebrew not found — install it first: https://brew.sh" >&2
+  failed "homebrew" "not found — install it first: https://brew.sh"
   exit 1
 fi
 {{ end -}}
