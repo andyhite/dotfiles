@@ -189,6 +189,16 @@ apply:
 # Replaces the old --host driver. The remote pulls from origin, not this
 # working copy: a run that silently installs the previous commit is the
 # failure mode here that looks like success.
+#
+# `init` runs unconditionally, even when `~/.dotfiles/.git` already exists
+# from a pre-chezmoi clone (or a prior run here) — per `chezmoi init --help`,
+# it only clones when the source dir has no `.git`, so on an existing repo it
+# just (re)generates `~/.config/chezmoi/chezmoi.toml` from `.chezmoi.toml.tmpl`.
+# That config is what makes `workGitDir` et al. resolve; skipping `init`
+# because `.git` already existed (the old branch here) left it missing and
+# broke every template that reads `.workGitDir`. `promptStringOnce` reads the
+# answers back out of the previous config, so re-running `init` on later
+# calls never re-prompts.
 [doc("Apply this repo's chezmoi state on a remote host over ssh")]
 remote host:
     #!/usr/bin/env bash
@@ -199,8 +209,5 @@ remote host:
       export PATH="$HOME/.local/bin:$PATH"
       command -v chezmoi >/dev/null 2>&1 \
         || sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
-      if [ -d "$HOME/.dotfiles/.git" ]; then
-        chezmoi --source "$HOME/.dotfiles" update --apply
-      else
-        chezmoi init --apply --source "$HOME/.dotfiles" https://github.com/andyhite/dotfiles.git
-      fi'
+      chezmoi init --source "$HOME/.dotfiles" https://github.com/andyhite/dotfiles.git
+      chezmoi --source "$HOME/.dotfiles" update --apply'
