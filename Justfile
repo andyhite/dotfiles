@@ -80,9 +80,15 @@ templates:
         # home/.chezmoi.toml.tmpl is chezmoi's own config template — it uses
         # promptStringOnce, only defined under --init, and is never rendered
         # through a plain execute-template call in real use.
-        init_flag=()
-        [ "$f" = "home/.chezmoi.toml.tmpl" ] && init_flag=(--init)
-        chezmoi execute-template --source "$PWD" "${init_flag[@]}" \
+        # Plain scalar, not an array: bash 3.2 (macOS system bash, still what
+        # `/usr/bin/env bash` finds on a fresh machine before Homebrew's own
+        # bash is installed) raises "unbound variable" on `${arr[@]}` for an
+        # empty array under `set -u` — fixed only in bash 4.4+. The value is
+        # always either empty or the literal `--init`, so unquoted expansion
+        # below is safe.
+        init_flag=
+        [ "$f" = "home/.chezmoi.toml.tmpl" ] && init_flag=--init
+        chezmoi execute-template --source "$PWD" ${init_flag:+"$init_flag"} \
           --override-data "{\"chezmoi\":{\"os\":\"$os\"},\"workName\":\"\",\"workEmail\":\"\",\"workGitDir\":\"\"}" \
           < "$f" >/dev/null
       done

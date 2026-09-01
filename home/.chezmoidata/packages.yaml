@@ -45,7 +45,10 @@ packages:
   - { name: uv,         all: { via: mise } }
   - { name: pre-commit, all: { via: mise } }
   - { name: just,       all: { via: mise } }
-  - { name: btop,       all: { via: mise } }
+  # aristocratos/btop ships only Linux/FreeBSD binaries upstream — mise's
+  # aqua backend has no darwin build, so macOS stays on the brew formula
+  # (which builds from source) while Linux uses mise's prebuilt binary.
+  - { name: btop, darwin: { via: brew }, linux: { via: mise } }
   - { name: hunk,       all: { via: mise } }
   - { name: chezmoi,    all: { via: mise } }
   # No mise registry entry — `mise registry | awk '$1=="lin"'` is empty. The
