@@ -16,6 +16,7 @@ mkdir -p "$statedir"
 
 hash="$(shasum -a 256 "$lockfile" 2>/dev/null | awk '{print $1}')"
 if [ -f "$statefile" ] && [ "$(cat "$statefile")" = "$hash" ]; then
+  ok "nvchad plugins" "up to date"
   exit 0
 fi
 

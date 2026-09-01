@@ -45,4 +45,6 @@ fi
 # the files above. Dropping the dumps forces the next shell to rebuild once.
 if [ "$wrote" = 1 ]; then
   rm -f "$HOME"/.zcompdump*
+else
+  ok "completions" "up to date"
 fi

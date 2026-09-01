@@ -6,9 +6,15 @@ heading "Background services"
 
 if command -v dstack >/dev/null 2>&1; then
   plist="$HOME/Library/LaunchAgents/ai.dstack.server.plist"
-  if [ -e "$plist" ] && ! launchctl list ai.dstack.server >/dev/null 2>&1; then
+  if [ ! -e "$plist" ]; then
+    skipped "dstack-server" "no LaunchAgent tracked"
+  elif ! launchctl list ai.dstack.server >/dev/null 2>&1; then
     run_quiet "dstack-server" launchctl load -w "$plist" && added "dstack-server" "LaunchAgent loaded"
+  else
+    ok "dstack-server" "already loaded"
   fi
+else
+  skipped "dstack-server" "dstack not installed"
 fi
 {{ else -}}
 #!/usr/bin/env bash
@@ -21,6 +27,10 @@ if command -v dstack >/dev/null 2>&1 && command -v systemctl >/dev/null 2>&1; th
   if [ -e "$unit" ]; then
     run_quiet "dstack-server" systemctl --user daemon-reload
     run_quiet "dstack-server" systemctl --user enable --now dstack-server && added "dstack-server" "systemd unit enabled"
+  else
+    ok "dstack-server" "no unit tracked"
   fi
+else
+  skipped "dstack-server" "dstack or systemctl not installed"
 fi
 {{ end -}}
