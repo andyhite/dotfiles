@@ -1,0 +1,38 @@
+{{ if eq .chezmoi.os "darwin" -}}
+#!/usr/bin/env bash
+set -euo pipefail
+
+# No Brewfile is tracked. Generating one at apply time from packages.yaml
+# means nothing in $HOME can drift from the manifest or be hand-edited, and
+# keeps this repo from ever writing $XDG_CONFIG_HOME/homebrew/Brewfile —
+# `brew bundle --global` reads that exact path, and a chezmoi-managed file
+# there would silently become the global Brewfile for every bare
+# `brew bundle` invocation on the machine.
+brewfile="$(mktemp)"
+trap 'rm -f "$brewfile"' EXIT
+
+cat >"$brewfile" <<'BREWFILE'
+{{- range $.packages }}
+{{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
+{{-   if $spec }}
+{{-     if eq $spec.via "brew" }}
+brew "{{ (index $spec "id") | default .name }}"
+{{-     else if eq $spec.via "cask" }}
+{{-       if index $spec "args" }}
+cask "{{ (index $spec "id") | default .name }}", args: { {{ index $spec "args" }} }
+{{-       else }}
+cask "{{ (index $spec "id") | default .name }}"
+{{-       end }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+BREWFILE
+
+if ! brew bundle check --file "$brewfile" >/dev/null 2>&1; then
+  echo "brew bundle: installing/upgrading outstanding formulae and casks —" >&2
+  echo "this can take several minutes, and 1password-cli's signed .pkg may" >&2
+  echo "prompt for your sudo password mid-run." >&2
+  brew bundle check --file "$brewfile" --verbose 2>&1 || true
+fi
+brew bundle install --file "$brewfile" --quiet
+{{ end -}}

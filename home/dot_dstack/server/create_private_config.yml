@@ -1,0 +1,35 @@
+# Written to ~/.dstack/server/config.yml by `chezmoi apply` the first time
+# it runs, then never touched again — everything else under ~/.dstack (the
+# sqlite db, server logs, per-run job/runner logs, a generated ssh keypair)
+# is state dstack itself writes, but this file holds real cloud-provider
+# credentials, so it's templated instead of tracked, same as
+# home/private_dot_ssh/create_private_config.local and
+# home/create_private_dot_gitconfig.local. `dstack server` only reads it on
+# startup — restart the server after editing it directly. Mode 0600
+# already, from the source name's `private_` attribute.
+#
+# Ships with the main project defined but no backend configured, same
+# "must parse, but not populated" shape as create_private_models.yml:
+# dstack's docs say the default project has to exist even with zero backends
+# (SSH fleets need none at all — see README).
+
+projects:
+  - name: main
+    backends: []
+
+# ── RunPod ─────────────────────────────────────────────────────────────────
+# Uncomment and fill in a real key from
+# https://www.runpod.io/console/user/settings (API Keys), then delete the
+# `backends: []` project above — dstack's own config schema rejects two
+# `name: main` entries. community_cloud: false restricts provisioning to
+# RunPod's Secure Cloud only; flip to true to also allow Community Cloud
+# pods, which run on hosts RunPod doesn't operate itself.
+#
+# projects:
+#   - name: main
+#     backends:
+#       - type: runpod
+#         creds:
+#           type: api_key
+#           api_key: rpa_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+#         community_cloud: false

@@ -1,0 +1,17 @@
+{{ if eq .chezmoi.os "linux" -}}
+#!/usr/bin/env bash
+set -euo pipefail
+
+# One batched update, then one `apt-get install` per `via: apt` entry rather
+# than a single call with every package — a package missing from this Ubuntu
+# release's archives (e.g. a backport not yet promoted) skips itself instead
+# of failing the whole list. Runs first so curl/git/unzip exist for every
+# later script.
+sudo apt-get update -y
+{{ range $.packages }}
+{{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
+{{-   if $spec }}{{ if eq $spec.via "apt" }}
+sudo apt-get install -y {{ (index $spec "id") | default .name | squote }} || true
+{{-   end }}{{ end }}
+{{- end }}
+{{ end -}}

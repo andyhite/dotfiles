@@ -1,0 +1,13 @@
+{
+	# Local dev tooling wants real HTTPS for internal-only hostnames that
+	# Let's Encrypt can never issue for. This mints certs from Caddy's own
+	# built-in CA instead — trust it once with `caddy trust`.
+	local_certs
+}
+
+# Site blocks with real hostnames/IPs are machine-local, never tracked here.
+# `import Caddyfile.local` resolves relative to this file, not the process's
+# CWD, so it always finds the sibling file below regardless of who starts
+# caddy or from where. See create_private_dot_config/caddy/Caddyfile.local
+# for the template and README's Caddy section for the full setup.
+import Caddyfile.local

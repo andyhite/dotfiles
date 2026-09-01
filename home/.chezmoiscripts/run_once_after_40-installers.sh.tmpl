@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# run_once_, not run_onchange_: omp and claude both self-update (`omp
+# update`, `claude update`) and omp's installer is a ~120MB download, so
+# re-running on every packages.yaml change is wrong. Force a reinstall with
+# `chezmoi state delete-bucket --bucket=scriptState`.
+{{ range $.packages -}}
+{{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
+{{-   if $spec }}{{ if eq $spec.via "installer" }}
+if ! command -v {{ .name | squote }} >/dev/null 2>&1; then
+  curl -fsSL {{ (index $spec "url") | squote }} | {{ index $spec "shell" }}
+fi
+{{ end }}{{ end }}
+{{- end }}

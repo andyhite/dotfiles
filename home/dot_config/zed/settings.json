@@ -1,0 +1,197 @@
+// Zed settings
+//
+// For information on how to configure Zed, see the Zed
+// documentation: https://zed.dev/docs/configuring-zed
+//
+// To see all of Zed's default settings without changing your
+// custom settings, run `zed: open default settings` from the
+// command palette (cmd-shift-p / ctrl-shift-p)
+//
+// ssh_connections is deliberately not tracked here: it now lives in Zed's
+// project-local settings, not the user-level file this repo manages, so it
+// never reaches this config in the first place. leakguard (Justfile/CI)
+// still greps committed content for the key, as the backstop for a future
+// Zed version that writes it here again.
+{
+  "active_pane_modifiers": {
+    "inactive_opacity": 1.0
+  },
+  "bottom_dock_layout": "contained",
+  "accessible_mode": false,
+  "markdown_preview": {
+    "max_width": 1440.0,
+    "limit_content_width": false
+  },
+  "vim": {
+    "use_system_clipboard": "always"
+  },
+  "use_system_window_tabs": false,
+  "debugger": {
+    "button": false
+  },
+  "diagnostics": {
+    "button": false
+  },
+  "status_bar": {
+    "show_active_file": true
+  },
+  "collaboration_panel": {
+    "button": false
+  },
+  "project_panel": {
+    "hide_hidden": false,
+    "hide_root": false,
+    "git_status_indicator": true,
+    "diagnostic_badges": true,
+    "auto_fold_dirs": false,
+    "bold_folder_labels": true,
+    "entry_spacing": "comfortable",
+    "hide_gitignore": false,
+    "dock": "left"
+  },
+  // Agents are driven from the terminal via omp, not from inside the editor —
+  // this is the one setting in this file that actually changes Zed's
+  // behaviour rather than just its appearance. With it true, the `agent`,
+  // `agent_servers` and `agent_buffer_font_size` keys below have nothing left
+  // to configure, so they're dropped rather than tracked as dead config.
+  "disable_ai": true,
+  "diff_view_style": "split",
+  "cli_default_open_behavior": "existing_window",
+  "buffer_font_fallbacks": [
+    "Menlo",
+    "Monaco",
+    "Courier New",
+    "monospace"
+  ],
+  "file_types": {
+    "markdown": [
+      "*.mdx"
+    ],
+    "Go Text Template": [
+      "*.tmpl",
+      "*.gotmpl"
+    ]
+  },
+  "ensure_final_newline_on_save": true,
+  "hard_tabs": false,
+  "git": {
+    "hunk_style": "staged_hollow",
+    "inline_blame": {
+      "show_commit_summary": true
+    }
+  },
+  "terminal": {
+    "button": false,
+    "env": {},
+    "font_size": 12.0,
+    "shell": "system"
+  },
+  "git_panel": {
+    "dock": "left",
+    "tree_view": true,
+    "sort_by_path": true,
+    "button": true
+  },
+  "tab_bar": {
+    "show_tab_bar_buttons": true
+  },
+  "tabs": {
+    "file_icons": true,
+    "git_status": true
+  },
+  "title_bar": {
+    "button_layout": "platform_default",
+    "show_user_picture": true,
+    "show_sign_in": true,
+    "show_branch_status_icon": true,
+    "show_menus": false
+  },
+  "search": {
+    "regex": true
+  },
+  "prettier": {
+    "allowed": true
+  },
+  "inlay_hints": {
+    "enabled": true
+  },
+  "colorize_brackets": true,
+  "indent_guides": {
+    "coloring": "indent_aware"
+  },
+  "tab_size": 2,
+  "toolbar": {
+    "code_actions": true
+  },
+  "minimap": {
+    "thumb": "always",
+    "show": "auto"
+  },
+  "sticky_scroll": {
+    "enabled": true
+  },
+  "languages": {
+    "TypeScript": {
+      "ensure_final_newline_on_save": true,
+      "hard_tabs": false,
+      "tab_size": 2,
+      "formatter": [
+        {
+          "external": {
+            "command": "npx prettier",
+            "arguments": ["--stdin-filepath", "{buffer_path}"]
+          }
+        },
+        { "code_action": "source.fixAll.eslint" },
+        { "code_action": "source.organizeImports" }
+      ]
+    }
+  },
+  // Ships via the font-geist cask in this repo's Brewfile.
+  "ui_font_family": "Geist",
+  // Ships via the font-geist-mono cask in this repo's Brewfile — install.sh's
+  // brew bundle step is what makes this font actually present on a fresh
+  // machine.
+  "buffer_font_family": "Geist Mono",
+  // material-icon-theme and github-dark-default are Zed extensions, not
+  // built in, so both have to be force-installed or a fresh machine falls
+  // back to Zed's defaults with no error. The trap with the theme extension
+  // specifically: the plain `github-theme` extension does NOT ship a
+  // "Default" variant — it only has GitHub Dark, Dimmed, High Contrast,
+  // Colorblind, and Tritanopia. The variant that matches Ghostty's "GitHub
+  // Dark Default" is the separate `github-dark-default` extension id
+  // (MordFustang21/zed-github-dark), which exposes the theme under the
+  // exact name "GitHub Dark Default".
+  "auto_install_extensions": {
+    "material-icon-theme": true,
+    "github-dark-default": true
+  },
+  "icon_theme": {
+    "mode": "dark",
+    "light": "Material Icon Theme",
+    "dark": "Material Icon Theme"
+  },
+  "telemetry": {
+    "diagnostics": false,
+    "metrics": false
+  },
+  "session": {
+    "trust_all_worktrees": true
+  },
+  "vim_mode": true,
+  "base_keymap": "VSCode",
+  "ui_font_size": 15.0,
+  "buffer_font_size": 12.0,
+  // "GitHub Dark Default" comes from the github-dark-default extension
+  // above (MordFustang21/zed-github-dark), not from Zed's own
+  // assets/themes — Zed's bundled themes don't include a GitHub family at
+  // all. The extension exposes the theme under this exact name, so this is
+  // a byte-for-byte match to Ghostty's "GitHub Dark Default", not an
+  // approximation. Light theme is untouched (One Light is still bundled
+  // and this repo doesn't otherwise theme a light mode).
+  "theme": {
+    "mode": "dark",
+    "light": "One Light",
+    "dark": "GitHub Dark Default"
+  }
+}

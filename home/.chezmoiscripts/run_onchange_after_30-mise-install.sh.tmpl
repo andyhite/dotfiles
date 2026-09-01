@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# node and rust first, not redundant with the bare `mise install --yes`
+# below: `lin` resolves through the cargo:lincli backend, which needs a
+# cargo on PATH before it can build, and node is needed the moment any
+# npm: tool is added. mise does not promise to order npm:/cargo: tools
+# after the runtimes they shell out to.
+mise install --yes node rust
+mise install --yes
+
+# Rendered tool list, embedded so this script's own content — and therefore
+# chezmoi's onchange trigger — changes whenever packages.yaml's mise entries
+# do, even though the commands above never mention a tool by name.
+#
+# {{ range $.packages }}
+# {{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
+# {{-   if $spec }}{{ if eq $spec.via "mise" }}
+#   - {{ (index $spec "id") | default .name }} = {{ (index $spec "version") | default "latest" }}
+# {{-   end }}{{ end }}
+# {{- end }}

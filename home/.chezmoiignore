@@ -1,0 +1,15 @@
+{{ if ne .chezmoi.os "darwin" }}
+.hammerspoon
+Library
+.config/caddy
+.config/dnsmasq
+{{ end }}
+{{ if ne .chezmoi.os "linux" }}
+.config/systemd
+{{ end }}
+{{ if not (and (eq .chezmoi.os "darwin") (stat "/Applications/Tailscale.app/Contents/MacOS/Tailscale")) }}
+.local/bin/tailscale
+{{ end }}
+{{ if not .workGitDir }}
+.gitconfig-work
+{{ end }}

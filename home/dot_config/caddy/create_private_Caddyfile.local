@@ -1,0 +1,24 @@
+# Written to ~/.config/caddy/Caddyfile.local by `chezmoi apply` the first
+# time it runs, then never touched again — inert until you uncomment a
+# block and fill in a real hostname and IP, same contract as
+# private_dot_ssh/create_private_config.local. Imported by the tracked
+# Caddyfile above.
+#
+# Caddy now runs via this repo's own LaunchAgent
+# (Library/LaunchAgents/dev.caddy.plist), not `brew services`, so it starts
+# under your real login HOME every time — no fixed cert-storage path to
+# pin here.
+#
+# https://frontend.example.internal {
+# 	reverse_proxy <tailnet-ip-address>:3000
+# }
+#
+# A wildcard block with a regex matcher covers any `<name>-<port>` hostname
+# without a new site block per port — see README's Caddy section:
+#
+# https://*.example.internal {
+# 	@dynport header_regexp p Host ^[a-z0-9]+-(\d+)\.example\.internal$
+# 	handle @dynport {
+# 		reverse_proxy <tailnet-ip-address>:{re.p.1}
+# 	}
+# }

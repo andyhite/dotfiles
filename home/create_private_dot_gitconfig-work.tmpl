@@ -1,0 +1,11 @@
+# Written to ~/.gitconfig-work by `chezmoi apply` the first time it runs,
+# then never touched again. Only written when the `workGitDir` prompt
+# (asked once, in home/.chezmoi.toml.tmpl) is non-blank — see
+# .chezmoiignore, which excludes this target entirely on a machine with no
+# work identity. This is the one machine-local fact that is not a secret,
+# which is why it comes from a prompt rather than a hand-filled *.local
+# template like home/create_private_dot_gitconfig.local.
+
+[user]
+	name = {{ .workName | quote }}
+	email = {{ .workEmail | quote }}

@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# zsh autoloads completions from files named `_<cmd>` anywhere on fpath.
+# carapace covers a large set of third-party CLIs at runtime through the
+# zshrc hook, but ships no spec of its own for the tools below, so they keep
+# needing a generated file here — the two mechanisms never fight over the
+# same completion.
+dir="$HOME/.local/share/zsh/site-functions"
+mkdir -p "$dir"
+
+wrote=0
+
+{{ range $.packages -}}
+{{-   $pkg := . }}
+{{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
+{{-   if $spec }}
+{{-     range (index $pkg "postInstall") }}
+{{-       if index . "zshCompletion" }}
+{{-         $argv := index . "zshCompletion" }}
+if command -v {{ index $argv 0 | squote }} >/dev/null 2>&1; then
+  # Generate to a temp file first: a tool that errors or emits nothing must
+  # not replace a working completion with an empty one.
+  tmp="$(mktemp)"
+  if {{ range $argv }}{{ . | squote }} {{ end }}>"$tmp" 2>/dev/null && [ -s "$tmp" ]; then
+    if ! cmp -s "$tmp" "$dir/_{{ $pkg.name }}" 2>/dev/null; then
+      mv "$tmp" "$dir/_{{ $pkg.name }}"
+      wrote=1
+    else
+      rm -f "$tmp"
+    fi
+  else
+    rm -f "$tmp"
+  fi
+fi
+{{         end }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+
+# zshrc runs `compinit -C`, which trusts a cached dump and would never notice
+# the files above. Dropping the dumps forces the next shell to rebuild once.
+if [ "$wrote" = 1 ]; then
+  rm -f "$HOME"/.zcompdump*
+fi

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# mise cannot install itself from its own config, so its `packages.yaml`
+# entry is read directly here rather than filtered like every other tool.
+# Once present, mise is upgraded by whichever manager installed it — this
+# only ever handles the from-nothing case.
+if command -v mise >/dev/null 2>&1; then
+  exit 0
+fi
+
+{{ if eq .chezmoi.os "darwin" -}}
+brew install mise
+{{- else -}}
+curl -sS https://mise.run | sh
+{{- end }}

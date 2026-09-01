@@ -1,6 +1,9 @@
-# install.sh mutates an entire machine and is the only entry point this repo
-# has, so the two things worth checking on every push are that it parses and
-# that it still links a config tree end to end. Neither needs a real machine.
+# chezmoi + mise own this repo's bootstrap now, not a bespoke install.sh, so
+# what's worth checking on every push is that every template renders on both
+# platforms this repo targets and that an apply is idempotent. Neither needs
+# more than a throwaway destination directory — except the per-OS divergence
+# a single Ubuntu runner can never exercise, which is what the darwin job is
+# for.
 name: CI
 
 # Every branch, not just main: work here usually lands as a direct push, so a
@@ -12,11 +15,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Two seconds, and it catches the class of bug this repo is most exposed to:
-  # a quoting or `set -e` mistake in 1700 lines of bash that nobody runs until
-  # a fresh machine needs bootstrapping. Justfile is the source of truth for
-  # what each check actually runs and why — these steps just invoke it, kept
-  # separate so a failure still names itself in the GitHub UI.
+  # Justfile is the source of truth for what each check actually runs and
+  # why — these steps just invoke it, kept separate so a failure still names
+  # itself in the GitHub UI.
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -25,30 +26,30 @@ jobs:
       - uses: extractions/setup-just@v3
 
       # Justfile recipes assume their dependencies are already on PATH and
-      # install nothing themselves — zsh (for zsh-syntax) and pyyaml (for
-      # templates) have to land here instead, once, before any recipe runs.
+      # install nothing themselves.
       - name: Install lint dependencies
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq zsh
-          pip install --quiet pyyaml
+          sudo apt-get update -qq && sudo apt-get install -y -qq zsh jq shellcheck
+          sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin
 
-      - name: Parse
-        run: just parse
+      # A typo in `via` would otherwise render an entry silently absent on
+      # one platform rather than failing — see the `data` recipe in Justfile.
+      - name: packages.yaml schema
+        run: just data
 
-      # Three warnings are expected and deliberate — see the `shellcheck`
-      # recipe in Justfile for which codes and why each is excluded by name
-      # rather than downgrading the whole check.
-      - name: ShellCheck
-        run: just shellcheck
+      # Checks more than syntax: every prompt-driven template (gitconfig,
+      # the work-identity overlay, the chezmoi config template itself) has
+      # to render for both darwin and linux with no answers supplied.
+      - name: Templates render on both platforms
+        run: just templates
+
+      # Every provisioning script renders and passes shellcheck for both
+      # platforms — see the `scripts` recipe in Justfile.
+      - name: Provisioning scripts render and lint
+        run: just scripts
 
       - name: zsh syntax
         run: just zsh-syntax
-
-      # Checks more than syntax — omp validates models.yml's root as an
-      # object and every tracked routing entry against the model catalog.
-      # See the `templates` recipe in Justfile for what that guards against.
-      - name: Template YAML parses
-        run: just templates
 
       # Only a check on COMMITTED content catches the realistic leak (new
       # machine, clone, open a remote project in Zed, commit) — see the
@@ -56,101 +57,72 @@ jobs:
       - name: No work identifiers in committed content
         run: just leakguard
 
-      # The clean filter is the only thing standing between Zed and a public
-      # repo; see the `zed-filter` recipe in Justfile for what it asserts.
-      - name: Zed clean filter strips ssh_connections
-        run: just zed-filter
-
-  # The half that would have caught a real bug: `--only configs` exercises
-  # link_configs against a throwaway HOME, so a broken symlink target, a missing
-  # mkdir, or a step that aborts the whole run shows up here instead of on a
-  # machine being set up for the first time.
-  configs:
+  # The half that would have caught a real bug: applies the whole tree into
+  # a throwaway destination twice, then asserts individual targets exist at
+  # the shape they're supposed to — a broken symlink target, a missing
+  # create_private_ entry, or a target that flip-flops shows up here instead
+  # of on a machine being set up for the first time.
+  apply:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
       - uses: extractions/setup-just@v3
 
-      # `just smoke` only re-runs `--only configs` twice and checks the second
-      # run backs nothing up (below) — it doesn't assert individual link
-      # targets, so those assertions stay here rather than in the Justfile.
-      - name: Link configs into a throwaway HOME
-        run: |
-          export HOME="$(mktemp -d)"
-          ./install.sh --only configs --yes
+      - name: Install chezmoi
+        run: sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin
 
-          test -L "$HOME/.zshrc"
-          test -L "$HOME/.gitconfig"
-          test -L "$HOME/.omp/agent/config.yml"
-
-          # Every template must be copied, not linked: a symlink here would put
-          # machine-local credentials back inside the repo.
-          test -f "$HOME/.zshrc.local" && test ! -L "$HOME/.zshrc.local"
-
-          # Lands in ~/.omp/agent/ rather than at ~/.*.local like the rest, so
-          # a regression here is silent: omp would just never see it.
-          test -f "$HOME/.omp/agent/models.yml"
-          test ! -L "$HOME/.omp/agent/models.yml"
-
-          # Same never-linked rule, for the per-machine model-routing overlay
-          # PI_CONFIG_FILES points at — a missing file there is a hard omp
-          # startup error, not a silent skip.
-          test -f "$HOME/.omp/agent/config.local.yml"
-          test ! -L "$HOME/.omp/agent/config.local.yml"
-
-          # Same never-linked rule as models.yml above, for the dstack backend
-          # credentials template.
-          test -f "$HOME/.dstack/server/config.yml"
-          test ! -L "$HOME/.dstack/server/config.yml"
-
-          # The systemd unit itself is a plain symlink like zshrc/gitconfig above —
-          # only *enabling* it (a separate "services" step, not covered by
-          # `--only configs`) touches the real systemd namespace.
-          test -L "$HOME/.config/systemd/user/dstack-server.service"
-
-      # Re-running must be a no-op, not a pile of .bak files: the second run
-      # should report every link as already correct and back nothing up.
-      # `just smoke` (Justfile) — same throwaway-HOME double-install, just
-      # runnable outside CI too.
-      - name: Re-run is idempotent
+      # `just smoke` applies twice into its own throwaway destination and
+      # asserts `chezmoi verify` is clean after the second run — it doesn't
+      # assert individual target shapes, so those assertions stay here.
+      - name: Idempotent apply
         run: just smoke
 
-  # A failing step must not take the rest of the run down with it, and a flag
-  # with no value must fail loudly. Both were real bugs: on a Mac without
-  # Homebrew the whole script used to abort after the tools step, and bare
-  # `--only` exited 1 with no message at all.
-  cli:
-    runs-on: ubuntu-latest
+      - name: Assert target shapes on linux
+        run: |
+          dest="$(mktemp -d)"
+          chezmoi apply --source "$PWD" --destination "$dest" \
+            --exclude scripts,externals --force \
+            --override-data '{"workName":"","workEmail":"","workGitDir":""}'
+
+          test -f "$dest/.zshrc"
+          test -f "$dest/.gitconfig"
+          test -f "$dest/.omp/agent/config.yml"
+
+          # Every create_private_ target must be a real file, not a symlink —
+          # a symlink here would put machine-local credentials back inside
+          # the repo.
+          test -f "$dest/.zshrc.local" && test ! -L "$dest/.zshrc.local"
+          test -f "$dest/.omp/agent/models.yml" && test ! -L "$dest/.omp/agent/models.yml"
+          test -f "$dest/.omp/agent/config.local.yml" && test ! -L "$dest/.omp/agent/config.local.yml"
+          test -f "$dest/.dstack/server/config.yml" && test ! -L "$dest/.dstack/server/config.yml"
+
+          test -f "$dest/.config/systemd/user/dstack-server.service"
+
+          # The Darwin-only Library/ tree must not exist on this platform —
+          # this is the check today's single-OS CI runner used to be unable
+          # to do at all, now checked from the other side by the darwin job.
+          test ! -e "$dest/Library"
+
+  # A real macOS runner, replacing the stub-uname trick the old CI used to
+  # fake Darwin on Ubuntu. Asserts the inverse of the apply job: the paths
+  # that only exist on macOS are present, and the Linux-only systemd unit is
+  # absent.
+  darwin:
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
 
-      - uses: extractions/setup-just@v3
+      - name: Install chezmoi
+        run: brew install chezmoi
 
-      - name: Argument handling
-        run: just cli-checks
-
-      # Runs the steps in the order a real bootstrap would while reporting
-      # Darwin on an Ubuntu runner. That deterministically reaches the missing-
-      # Homebrew failure without installing anything. The run must still reach
-      # configs and print the summary. Stays a raw step rather than a Justfile
-      # recipe: it fakes `uname` via PATH, which is too environment-specific
-      # for something meant to run unmodified on a real machine too.
-      - name: A failing step does not abort the run
+      - name: Assert target shapes on darwin
         run: |
-          export HOME="$(mktemp -d)"
-          fakebin="$(mktemp -d)"
-          printf '#!/bin/sh\nprintf "Darwin\n"\n' > "$fakebin/uname"
-          chmod +x "$fakebin/uname"
-          set +e
-          env PATH="$fakebin:/usr/bin:/bin:/usr/sbin:/sbin" ./install.sh --only tools,configs --yes > /tmp/run.log 2>&1
-          rc=$?
-          set -e
-          cat /tmp/run.log
+          dest="$(mktemp -d)"
+          chezmoi apply --source "$PWD" --destination "$dest" \
+            --exclude scripts,externals --force \
+            --override-data '{"workName":"","workEmail":"","workGitDir":""}'
 
-          grep -q 'Done' /tmp/run.log \
-            || { echo "::error::run never reached the Done summary"; exit 1; }
-          test -L "$HOME/.zshrc" \
-            || { echo "::error::configs step never ran after tools failed"; exit 1; }
-          test "$rc" -ne 0 \
-            || { echo "::error::a step failed but the script exited 0"; exit 1; }
+          test -e "$dest/Library/LaunchAgents/ai.dstack.server.plist"
+          test -L "$dest/Library/Application Support/lazygit/config.yml"
+          test ! -e "$dest/.config/systemd"

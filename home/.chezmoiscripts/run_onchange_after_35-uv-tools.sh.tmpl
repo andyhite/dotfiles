@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# uv is itself a mise tool (aqua:astral-sh/uv). A machine where the previous
+# script failed or was skipped should not fail the whole apply here too.
+if ! command -v uv >/dev/null 2>&1; then
+  echo "uv not on PATH — skipping uv-installed tools" >&2
+  exit 0
+fi
+
+{{ range $.packages -}}
+{{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
+{{-   if $spec }}{{ if eq $spec.via "uv" }}
+{{-     $id := (index $spec "id") | default .name }}
+if command -v {{ .name | squote }} >/dev/null 2>&1; then
+  uv tool upgrade {{ .name | squote }}
+else
+  uv tool install {{ $id | squote }}
+fi
+{{ end }}{{ end }}
+{{- end }}
