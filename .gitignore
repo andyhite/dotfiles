@@ -1,5 +1,12 @@
 .DS_Store
-*.local
+# No blanket `*.local` line here on purpose: every real secret lands outside
+# this repo, in $HOME, once `chezmoi apply` runs a `create_private_*` file —
+# never inside the tracked home/ source tree. A repo-wide `*.local` pattern
+# would instead silently swallow four of the six intentionally-tracked
+# create_private_*.local seed files the moment any of them is re-added
+# (e.g. after a rebase, or a new seed file with the same suffix) — `git
+# check-ignore` only looks quiet on them today because it exempts paths
+# already in the index, which `git add`/`status` do not.
 *.bak.*
 **/*.log
 
