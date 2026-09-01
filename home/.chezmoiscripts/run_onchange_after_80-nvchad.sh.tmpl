@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# chezmoi's `include` resolves relative to the source dir and cannot reach
+# linked/, so this can't self-hash the lockfile at render time — hash it at
+# runtime instead, against the state this script itself last wrote, and skip
+# the restore when nothing changed.
+command -v nvim >/dev/null 2>&1 || exit 0
+
+lockfile="{{ .chezmoi.workingTree }}/linked/nvim/lazy-lock.json"
+statedir="$HOME/.local/state/dotfiles"
+statefile="$statedir/nvchad-lock.sha256"
+mkdir -p "$statedir"
+
+hash="$(shasum -a 256 "$lockfile" 2>/dev/null | awk '{print $1}')"
+if [ -f "$statefile" ] && [ "$(cat "$statefile")" = "$hash" ]; then
+  exit 0
+fi
+
+nvim --headless "+Lazy! restore" +qa
+printf '%s' "$hash" >"$statefile"

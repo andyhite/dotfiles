@@ -1,0 +1,35 @@
+# Written to ~/.zshrc.local by `chezmoi apply` the first time it runs, then
+# never touched again — fill in per-machine secrets and paths here. zshrc
+# sources this automatically if it exists, after PATH/mise/compinit and
+# before the tool blocks that read these values.
+#
+# Mode 0600 already, from the source name's `private_` attribute.
+
+# ── Secrets ──────────────────────────────────────────────────────────────────
+# Model-provider keys are the exception to this file. Put ANTHROPIC_API_KEY and
+# OPENAI_API_KEY in ~/.omp/agent/.env instead: omp loads that dotenv file
+# itself, so the keys are present no matter how omp is launched, while this
+# file only reaches processes started from a login shell.
+#
+# Setting the variable is also not sufficient on its own. A stored OAuth session
+# outranks every environment variable in omp's credential order, so on a machine
+# that has run `/login`, the key is ignored until it is pinned in
+# ~/.omp/agent/models.yml. See omp/agent/models.yml.example.
+# export GITHUB_PERSONAL_ACCESS_TOKEN='github_pat_...'
+# export FIGMA_ACCESS_TOKEN='figd_...'
+# export RUNPOD_API_KEY='rpa_...'
+# export HF_TOKEN='hf_...'
+
+# ── Work context ─────────────────────────────────────────────────────────────
+# export AWS_PROFILE='...'
+# export AWS_REGION='us-east-2'
+
+# ── Machine-specific build flags ─────────────────────────────────────────────
+# Each `brew --prefix` is a subprocess on every shell start — only add the
+# ones you actually build against.
+# export LDFLAGS="-L$(brew --prefix tcl-tk@8)/lib"
+# export CPPFLAGS="-I$(brew --prefix tcl-tk@8)/include"
+# export PKG_CONFIG_PATH="$(brew --prefix tcl-tk@8)/lib/pkgconfig"
+
+# Apple Silicon: let unimplemented MPS ops fall back to CPU instead of erroring.
+# export PYTORCH_ENABLE_MPS_FALLBACK=1

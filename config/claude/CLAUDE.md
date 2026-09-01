@@ -1,1 +1,0 @@
-../../omp/agent/AGENTS.md

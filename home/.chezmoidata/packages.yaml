@@ -1,0 +1,205 @@
+packages:
+  # ── mise, both platforms ──────────────────────────────────────────────────
+  # Registry names verified against `mise registry`. Plain names, not pinned
+  # backends: the registry lists several backends per tool in preference order
+  # and mise picks the first one this machine can actually use, which is what
+  # makes eza (vfox, then cargo) and neovim (vfox, then aqua) work on both
+  # platforms without a per-OS override here.
+  - name: starship
+    all: { via: mise }
+    postInstall: [{ zshCompletion: [starship, completions, zsh] }]
+  - name: atuin
+    all: { via: mise }
+    postInstall: [{ zshCompletion: [atuin, gen-completions, --shell, zsh] }]
+  - name: bat
+    all: { via: mise }
+    postInstall: [{ zshCompletion: [bat, --completion, zsh] }]
+  - name: rg
+    all: { via: mise, id: ripgrep }
+    postInstall: [{ zshCompletion: [rg, --generate, complete-zsh] }]
+  - name: carapace
+    all: { via: mise }
+    postInstall: [{ zshCompletion: [carapace, _carapace, zsh] }]
+  - name: tree-sitter
+    all: { via: mise }
+    postInstall: [{ zshCompletion: [tree-sitter, complete, --shell, zsh] }]
+  - name: herdr
+    all: { via: mise }
+    postInstall: [{ zshCompletion: [herdr, completion, zsh] }]
+  - { name: fzf,        all: { via: mise } }
+  - { name: eza,        all: { via: mise } }
+  - { name: direnv,     all: { via: mise } }
+  - { name: nvim,       all: { via: mise, id: neovim } }
+  - { name: fd,         all: { via: mise } }
+  - { name: gh,         all: { via: mise } }
+  - { name: lazygit,    all: { via: mise } }
+  - { name: delta,      all: { via: mise } }
+  - { name: gitleaks,   all: { via: mise } }
+  - { name: jq,         all: { via: mise } }
+  - { name: shellcheck, all: { via: mise } }
+  - { name: shfmt,      all: { via: mise } }
+  - { name: uv,         all: { via: mise } }
+  - { name: pre-commit, all: { via: mise } }
+  - { name: just,       all: { via: mise } }
+  - { name: btop,       all: { via: mise } }
+  - { name: hunk,       all: { via: mise } }
+  - { name: chezmoi,    all: { via: mise } }
+  # No mise registry entry — `mise registry | awk '$1=="lin"'` is empty. The
+  # crates.io package is `lincli`; `linear-cli` is a different project by a
+  # different author. cargo backend, so it needs rust (below).
+  - { name: lin,        all: { via: mise, id: "cargo:lincli" } }
+
+  # ── Runtimes, exact pins ──────────────────────────────────────────────────
+  # Exact versions on purpose — a machine should not silently drift to
+  # whatever happened to be latest the day someone ran an install. Canonical
+  # mise tool names, not asdf's: node/python/go, never nodejs/golang.
+  - { name: node,   all: { via: mise, version: "26.7.0" } }
+  # python is the normal (GIL) build. A trailing `t` — 3.14.7t — would select
+  # the free-threaded build instead; that's a different, opt-in variant, not a
+  # patch/typo, so don't "fix" it if you see it elsewhere.
+  - { name: python, all: { via: mise, version: "3.14.7" } }
+  - { name: go,     all: { via: mise, version: "1.26.5" } }
+  - { name: bun,    all: { via: mise, version: "1.3.14" } }
+  - { name: pnpm,   all: { via: mise, version: "11.20.0" } }
+  # rust is mise's on both platforms, not Homebrew's, because the cargo backend
+  # that installs `lin` needs a cargo on PATH on macOS too.
+  - { name: rust,   all: { via: mise } }
+
+  # ── mise itself ───────────────────────────────────────────────────────────
+  # Cannot install itself from its own config; run_onchange_before_10-mise reads
+  # this entry directly. Listed here anyway so the manifest is the one place a
+  # tool's per-platform source is written down.
+  - name: mise
+    darwin: { via: brew }
+    linux:  { via: installer, url: "https://mise.run", shell: sh }
+    postInstall: [{ zshCompletion: [mise, completion, zsh] }]
+
+  # ── System packages: brew on macOS, apt on Linux ──────────────────────────
+  # The tracked gitconfig declares the lfs filter and names gh as its
+  # credential helper, so git and git-lfs are config dependencies. Neither is
+  # a mise shim: replacing the system git is not worth the blast radius.
+  - { name: git,     darwin: { via: brew }, linux: { via: apt } }
+  - { name: git-lfs, darwin: { via: brew }, linux: { via: apt } }
+  # Not a dependency of anything this repo runs — no script here calls it.
+  # It's here because `-c` and `--mirror` cover the resumable and recursive
+  # downloads curl makes you hand-roll.
+  - { name: wget,    darwin: { via: brew }, linux: { via: apt } }
+  - { name: rsync,   darwin: { via: brew }, linux: { via: apt } }
+
+  # ── macOS-only, Homebrew ──────────────────────────────────────────────────
+  # caddy and dnsmasq are `brew services` daemons reading /opt/homebrew/etc;
+  # mise has a caddy entry but not the service supervision this needs.
+  - { name: caddy,   darwin: { via: brew } }
+  - { name: dnsmasq, darwin: { via: brew } }
+  - { name: fswatch, darwin: { via: brew } }
+  - { name: cmake,   darwin: { via: brew } }
+  # GNU make as `gmake`; Linux gets it from build-essential.
+  - { name: gmake,   darwin: { via: brew, id: make } }
+
+  # ── Linux-only, apt ───────────────────────────────────────────────────────
+  # macOS ships zsh, curl and unzip; Xcode CLT covers the build toolchain.
+  - { name: zsh,        linux: { via: apt } }
+  - { name: curl,       linux: { via: apt } }
+  - { name: unzip,      linux: { via: apt } }
+  - { name: cc,         linux: { via: apt, id: build-essential } }
+  - { name: pkg-config, linux: { via: apt } }
+  - { name: fc-cache,   linux: { via: apt, id: fontconfig } }   # Nerd Font external
+  - { name: infocmp,    linux: { via: apt, id: ncurses-bin } }  # ghostty ssh-terminfo
+  - { name: wl-copy,    linux: { via: apt, id: wl-clipboard } } # nvim `+` on Wayland
+  - { name: xclip,      linux: { via: apt } }                   # …and on X11
+
+  # ── macOS casks ───────────────────────────────────────────────────────────
+  - { name: ghostty,     darwin: { via: cask } }
+  - { name: zed,         darwin: { via: cask } }
+  # macOS window/Space automation (Lua-scriptable) — drives
+  # dot_hammerspoon/init.lua's per-Space Ghostty toggle, working around the
+  # upstream app-wide toggle_visibility bug documented in that file.
+  - { name: hammerspoon, darwin: { via: cask } }
+  # zed/settings.json names Geist and Geist Mono; ghostty and nvim both need the
+  # Nerd Font build for glyphs. Linux gets the Nerd Font from
+  # .chezmoiexternal.toml instead — there is no Linux package for it.
+  - { name: font-geist,                darwin: { via: cask } }
+  - { name: font-geist-mono,           darwin: { via: cask } }
+  - { name: font-geist-mono-nerd-font, darwin: { via: cask } }
+  # Ships a signed .pkg, so install/upgrade escalates through sudo mid-bundle.
+  - { name: 1password-cli,  darwin: { via: cask } }
+  # No tracked config reads it, but it's the one tool here whose absence turns
+  # an ordinary project checkout into a dead end. `args: { adopt: true }` is
+  # required, not decorative: a machine can already have /Applications/
+  # Docker.app installed outside Homebrew, and a plain cask install aborts
+  # with "It seems there is already an App at...".
+  - { name: docker-desktop, darwin: { via: cask, args: "adopt: true" } }
+
+  # ── uv tools ──────────────────────────────────────────────────────────────
+  # No Homebrew formula and no apt package on either OS. The `[server]` extra is
+  # required — the bare package omits the server's dependencies and
+  # `dstack server` fails at startup with "missing server dependencies".
+  # uv itself comes from mise (aqua:astral-sh/uv), so this runs after mise.
+  - { name: dstack, all: { via: uv, id: "dstack[server]" } }
+
+  # ── Upstream installers ───────────────────────────────────────────────────
+  # Both self-update (`omp update`, `claude update`) and omp is a ~120MB
+  # download, so these are installed once and then left alone. mise has a claude
+  # entry (aqua:anthropics/claude-code) but a mise shim would fight
+  # `claude update`.
+  - name: omp
+    all: { via: installer, url: "https://omp.sh/install", shell: sh }
+    postInstall: [{ zshCompletion: [omp, completions, zsh] }]
+  - { name: claude, all: { via: installer, url: "https://claude.ai/install.sh", shell: bash } }
+
+  # ── herdr plugins ─────────────────────────────────────────────────────────
+  # A `local:` id is a path relative to the repo working tree, resolved against
+  # {{ .chezmoi.workingTree }} and installed with `herdr plugin link` rather
+  # than `herdr plugin install`.
+  # Directional pane focus that hands off to nvim splits instead of stopping
+  # at the pane edge (vim-tmux-navigator, for herdr). Two-sided: the herdr
+  # half is the ctrl+h/j/k/l bindings in dot_config/herdr/config.toml, the
+  # nvim half is linked/nvim/lua/herdr-nav.lua.
+  - { name: herdr/vim-herdr-navigation, all: { via: herdr, id: paulbkim-dev/vim-herdr-navigation } }
+  - { name: herdr/ticket-worktree,      all: { via: herdr, id: "local:linked/herdr-plugins/ticket-worktree" } }
+
+  # ── gh extensions ─────────────────────────────────────────────────────────
+  # Deletes local branches whose PR is merged or closed. It checks PR state
+  # rather than merge-base, which is what makes it correct for squash-merged
+  # branches — `git branch --merged` never reports those, because the squash
+  # commit isn't an ancestor of anything local. Here specifically because
+  # per-branch worktrees mean merged-branch churn is continuous rather than
+  # occasional.
+  - { name: gh/gh-poi, all: { via: gh, id: seachicken/gh-poi } }
+
+  # ── Cross-agent skills ────────────────────────────────────────────────────
+  # Canonical copies land in ~/.agents/skills; the CLI symlinks each agent's own
+  # skills directory into that tree.
+  - { name: skill/herdr,        all: { via: skill, id: herdrdev/herdr } }
+  - { name: skill/i-have-adhd,  all: { via: skill, id: ayghri/i-have-adhd } }
+  # The mattpocock/skills bundle — 25 skills, installed as a group.
+  - { name: skill/ask-matt,                        all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/code-review,                     all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/codebase-design,                 all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/diagnosing-bugs,                 all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/domain-modeling,                 all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/grill-me,                        all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/grill-with-docs,                 all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/grilling,                        all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/handoff,                         all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/implement,                       all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/improve-codebase-architecture,   all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/prototype,                       all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/research,                        all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/resolving-merge-conflicts,       all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/setup-matt-pocock-skills,        all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/tdd,                             all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/teach,                           all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/to-questionnaire,                all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/to-spec,                         all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/to-tickets,                      all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/triage,                          all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/wait-what,                       all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/wayfinder,                       all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/wizard,                          all: { via: skill, id: mattpocock/skills } }
+  - { name: skill/writing-for-agents,              all: { via: skill, id: mattpocock/skills } }
+  # Apple HIG-based UI review, used for macOS/Tauri design work.
+  - { name: skill/apple-design, all: { via: skill, id: dickwu/apple-design-skill } }
+  # Strunk's 1918 Elements of Style, applied whenever the agent writes prose
+  # (docs, commit messages, error text) rather than code.
+  - { name: skill/writing-clearly-and-concisely, all: { via: skill, id: obra/the-elements-of-style } }

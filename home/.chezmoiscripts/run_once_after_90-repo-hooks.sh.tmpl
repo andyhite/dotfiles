@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# .pre-commit-config.yaml is tracked, but a fresh clone has no hooks
+# installed until something runs `pre-commit install` — and the whole point
+# of the gitleaks hook is to fire before the commit a fresh clone is most
+# likely to make. run_once_: installing an already-installed hook twice is
+# harmless but pointless.
+repo="{{ .chezmoi.workingTree }}"
+[ -d "$repo/.git" ] || exit 0
+command -v pre-commit >/dev/null 2>&1 || exit 0
+
+cd "$repo" && pre-commit install

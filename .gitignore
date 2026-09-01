@@ -6,26 +6,17 @@
 # Herdr plugins write runtime logs into their own config dirs — whatever a
 # plugin decides to drop beside its config. The config in that tree is worth
 # tracking; the logs aren't.
-config/herdr/plugins/config/**/*.log
+linked/herdr-plugin-config/**/*.log
 
 # omp takes a lock next to its config while writing through the symlink. It's
 # transient (and empty), so it shows up as a stray untracked file after any
 # in-app settings change.
-omp/agent/*.lock
+linked/omp-extensions/*.lock
 
-# Herdr plugin secrets. The plugin config tree is symlinked from
+# Herdr plugin secrets. linked/herdr-plugin-config is symlinked from
 # ~/.config/herdr/plugins/config, so a plugin's API keys physically land inside
 # this repo — provider.env for tab-smart-rename holds an OPENAI_API_KEY. Never
 # tracked. Keep a redacted provider.env.example in the plugin's own repo if a
 # template is needed; this file is per-machine.
-config/herdr/plugins/config/**/provider.env
-config/herdr/plugins/config/**/*.env
-
-# `herdr plugin link` targets. The parent tree is symlinked from
-# ~/.config/herdr/plugins, so a linked local plugin lands physically inside
-# this repo — and it is machine-specific by definition, the same way *.local
-# above is (which does not match a directory named `local`). Leaving it
-# untracked-but-visible is worse than it sounds: `install.sh --host` refuses to
-# fast-forward a dirty remote worktree, so one stray directory here silently
-# pins every remote to whatever commit it already had.
-config/herdr/plugins/local/
+linked/herdr-plugin-config/**/provider.env
+linked/herdr-plugin-config/**/*.env

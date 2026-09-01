@@ -1,0 +1,6 @@
+sourceDir = {{ .chezmoi.workingTree | quote }}
+
+[data]
+    workName = {{ promptStringOnce . "workName" "Work git author name" "" | quote }}
+    workEmail = {{ promptStringOnce . "workEmail" "Work git author email" "" | quote }}
+    workGitDir = {{ promptStringOnce . "workGitDir" "Work checkout dir for gitdir includeIf (blank to skip)" "" | quote }}

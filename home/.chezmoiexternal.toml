@@ -1,0 +1,17 @@
+[".antidote"]
+    type = "git-repo"
+    url = "https://github.com/mattmc3/antidote.git"
+    refreshPeriod = "168h"
+    clone.args = ["--depth=1"]
+
+{{ if eq .chezmoi.os "linux" -}}
+# macOS gets this font from the font-geist-mono-nerd-font cask. Linux has no
+# package for it, so pull the release archive directly; run_onchange_after_45
+# refreshes the font cache once it lands.
+[".local/share/fonts/GeistMonoNerdFont"]
+    type = "archive"
+    format = "zip"
+    url = "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/GeistMono.zip"
+    exact = true
+    refreshPeriod = "8760h"
+{{ end -}}

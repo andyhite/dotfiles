@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ── herdr plugins ────────────────────────────────────────────────────────
+# A `local:` id is a path relative to the repo working tree, resolved and
+# link-installed rather than fetched from GitHub — that's how a plugin still
+# being developed in this repo stays live instead of frozen at install time.
+if command -v herdr >/dev/null 2>&1; then
+  :
+{{ range $.packages -}}
+{{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
+{{-   if $spec }}{{ if eq $spec.via "herdr" }}
+{{-     $id := index $spec "id" }}
+{{-     if hasPrefix "local:" $id }}
+  herdr plugin link {{ printf "%s/%s" $.chezmoi.workingTree (trimPrefix "local:" $id) | squote }}
+{{-     else }}
+  herdr plugin install {{ $id | squote }}
+{{-     end }}
+{{ end }}{{ end }}
+{{- end }}
+else
+  echo "herdr not on PATH — skipping herdr plugins" >&2
+fi
+
+# ── omp plugins ──────────────────────────────────────────────────────────
+if command -v omp >/dev/null 2>&1; then
+  :
+{{ range $.packages -}}
+{{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
+{{-   if $spec }}{{ if eq $spec.via "omp" }}
+  omp plugin install {{ (index $spec "id") | squote }}
+{{ end }}{{ end }}
+{{- end }}
+fi
+
+# ── gh extensions ────────────────────────────────────────────────────────
+# `gh extension install` and `gh extension upgrade` are different commands —
+# neither upserts — so an already-installed extension has to be detected
+# first.
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  :
+{{ range $.packages -}}
+{{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
+{{-   if $spec }}{{ if eq $spec.via "gh" }}
+{{-     $id := (index $spec "id") | default .name }}
+  if gh extension list 2>/dev/null | awk '{print $3}' | grep -qx {{ $id | squote }}; then
+    gh extension upgrade {{ $id | squote }}
+  else
+    gh extension install {{ $id | squote }}
+  fi
+{{ end }}{{ end }}
+{{- end }}
+else
+  echo "gh not authenticated — skipping gh extensions" >&2
+fi
+
+# ── cross-agent skills ───────────────────────────────────────────────────
+# `npx skills add` keeps one canonical copy of each skill in ~/.agents/skills
+# and symlinks every agent it detects at that tree. Re-adding an installed
+# skill is how the CLI updates one, so this runs every time.
+{{ range $.packages -}}
+{{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
+{{-   if $spec }}{{ if eq $spec.via "skill" }}
+{{-     $skillName := trimPrefix "skill/" .name }}
+mise exec -- npx skills add {{ (index $spec "id") | squote }} --skill {{ $skillName | squote }} -g -y
+{{ end }}{{ end }}
+{{- end }}
+
+# ── omp skills from herdr plugins ────────────────────────────────────────
+# A herdr plugin can ship its own agent skills at its checkout root
+# (`skills/` or `.agents/skills/`), outside the plugin's own directory —
+# omp's `agents` skill provider only ever scans a user or project root, so
+# it never finds them there on its own. Dedupe by skill name, first source
+# wins, so re-running never relinks the destination to a different source.
+if command -v herdr >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+  registry="$HOME/.config/herdr/plugins.json"
+  omp_skills="$HOME/.omp/agent/skills"
+  if [ -f "$registry" ]; then
+    seen=""
+    while IFS=$'\t' read -r plugin_id plugin_root clone_root; do
+      [ -n "$plugin_root" ] || continue
+      for root in "$plugin_root" "$clone_root"; do
+        [ -n "$root" ] || continue
+        for skills_dir in "$root/skills" "$root/.agents/skills"; do
+          [ -d "$skills_dir" ] || continue
+          for skill_src in "$skills_dir"/*/; do
+            [ -f "$skill_src/SKILL.md" ] || continue
+            skill_src="${skill_src%/}"
+            skill_name="$(basename "$skill_src")"
+            case " $seen " in *" $skill_name "*) continue ;; esac
+            seen="$seen $skill_name"
+            skill_dst="$omp_skills/$skill_name"
+            mkdir -p "$omp_skills"
+            if [ -L "$skill_dst" ]; then
+              [ "$(readlink "$skill_dst")" = "$skill_src" ] && continue
+              rm "$skill_dst"
+            elif [ -e "$skill_dst" ]; then
+              mv "$skill_dst" "$skill_dst.bak.$(date +%s)"
+            fi
+            ln -s "$skill_src" "$skill_dst"
+            echo "omp skill: linked $skill_name from $plugin_id" >&2
+          done
+        done
+      done
+    done < <(jq -r '.[]? | select(.plugin_root) | [
+        .plugin_id,
+        .plugin_root,
+        (if (.source.subdir // "") != "" then (.source.managed_path // "") else "" end)
+      ] | @tsv' "$registry" 2>/dev/null || true)
+  fi
+fi
