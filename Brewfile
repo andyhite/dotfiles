@@ -20,26 +20,20 @@
 
 # ── Config dependencies ──────────────────────────────────────────────────────
 # Each of these is loaded or shelled out to by a tracked config, not merely
-# nice to have: starship (config/starship.toml + zshrc's prompt init), zoxide
-# and direnv (zshrc's shell hooks), atuin (config/atuin/config.toml + zshrc's
-# ^R binding), fzf (zshrc's completion/keybinding source and tmux.conf's
-# prefix+F switcher), eza and bat (zshrc's ls/cat aliases), tmux (tmux.conf),
-# neovim (config/nvim) and ripgrep (nvim's telescope live-grep pickers). fd is
-# ripgrep's other half: telescope's find_files and fzf's CTRL-T/ALT-C prefer
-# it and silently fall back to plain `find` without it, so a missing fd never
-# errors — it just gets slower and loses .gitignore awareness.
+# nice to have: starship (config/starship.toml + zshrc's prompt init), direnv
+# (zshrc's shell hook), atuin (config/atuin/config.toml + zshrc's ^R binding),
+# fzf (zshrc's completion/keybinding source), eza and bat (zshrc's ls/cat
+# aliases), neovim (config/nvim) and ripgrep (nvim's telescope live-grep
+# pickers). fd is ripgrep's other half: telescope's find_files and fzf's
+# CTRL-T/ALT-C prefer it and silently fall back to plain `find` without it, so
+# a missing fd never errors — it just gets slower and loses .gitignore
+# awareness.
 brew "starship"
-brew "zoxide"
 brew "atuin"
 brew "fzf"
 brew "eza"
 brew "bat"
-brew "glow"
-#
-# dotfiles-help renders the help/ corpus through glow; bat only syntax-
-# highlights the markdown source when glow is absent.
 brew "direnv"
-brew "tmux"
 brew "neovim"
 brew "ripgrep"
 brew "fd"
@@ -65,12 +59,6 @@ brew "lazygit"
 # side, syntax-highlighted, move-aware diffs. Binary is `delta`, formula is
 # git-delta.
 brew "git-delta"
-
-# gitconfig is rebase-first (pull.rebase, rebase.autoStash, rerere +
-# rerere.autoupdate); absorb is the step rebase alone doesn't cover — it
-# assigns worktree hunks back to the commit that last touched those lines,
-# which is the review-fixup step that was missing.
-brew "git-absorb"
 
 # Review-first terminal diff viewer, and this repo's git pager and difftool: it
 # owns core.pager and diff.tool in gitconfig, so `git diff`/`show`/`difftool`
@@ -136,27 +124,10 @@ brew "caddy"
 brew "dnsmasq"
 
 # ── General CLI utilities ────────────────────────────────────────────────────
-# None of these are dependencies of anything this repo runs — no script here
-# calls yq, a g-prefixed coreutils binary, a moreutils tool, or wget. They're
-# here because they're genuinely useful to have on PATH for ad-hoc work: yq is
-# jq's YAML-shaped counterpart, coreutils gives GNU flags BSD's tools lack (see
-# the coreutils help entry), moreutils' sponge/vipe/ts/etc plug real pipeline
-# gaps, and wget's `-c`/`--mirror` cover cases curl makes you hand-roll.
-#
-# `tree` used to live here too, aliased over by `zshrc`'s `eza --tree --icons`
-# and kept only for a `command tree` escape hatch nothing in this repo (or in
-# practice) ever reached for — eza's `-T`/`-L`/`-D`/`-I` already cover what
-# `tree` offers apart from JSON/XML output, so it was cut rather than kept for
-# a capability gap that was never actually used.
-brew "yq"
-brew "coreutils"
-brew "moreutils"
+# Not a dependency of anything this repo runs — no script here calls it. It's
+# here because `-c` and `--mirror` cover the resumable and recursive downloads
+# curl makes you hand-roll.
 brew "wget"
-# gum was a config dependency until ticket-worktree's popup grew a real form:
-# `gum input` and `gum confirm` each own the whole TTY for one widget, which
-# is exactly why that flow needed two screens, so modal.sh draws its own now.
-# Kept for ad-hoc scripts — nothing tracked here shells out to it.
-brew "gum"
 
 # ── Shell completions ────────────────────────────────────────────────────────
 # install.sh hand-generates completions for tools that ship no generator at
@@ -168,35 +139,21 @@ brew "gum"
 brew "carapace"
 
 # ── General dev CLIs ─────────────────────────────────────────────────────────
+# rust, cmake and make are build dependencies rather than everyday tools:
+# install.sh's Linux branch builds eza, delta, fd and lin from source with
+# cargo wherever apt has no package, and those builds need a C toolchain.
 brew "rust"
 brew "cmake"
 brew "make"
-brew "pipx"
-# zshrc already sources ~/.local/bin/env and its comment names uv alongside
-# pipx; uv was present on this machine but tracked in no manifest, so a fresh
-# machine never got it. pipx stays too — pulling it now would strand whatever
-# it already installed.
+# zshrc sources ~/.local/bin/env, which uv's own installer writes; on macOS
+# this line is what puts uv there in the first place. dstack is installed with
+# `uv tool install`, so this is a hard dependency of install.sh, not a
+# preference between Python packaging stacks.
 brew "uv"
 brew "pre-commit"
-brew "golangci-lint"
-brew "clang-format"
-brew "watchexec"
 brew "just"
 brew "fswatch"
-brew "ncdu"
-brew "dive"
-brew "ctop"
-# ncdu covers disk and ctop covers containers; nothing here covered host
-# processes.
 brew "btop"
-# Benchmarking — the only measurement tool alongside cloc/dive/ctop.
-brew "hyperfine"
-# ripgrep finds, nothing here replaced. sd is the sed-shaped counterpart, with
-# sane regex and a literal-string mode that doesn't need escaping.
-brew "sd"
-# `tldr` client. Binary name differs from the formula name.
-brew "tealdeer"
-brew "cloc"
 brew "rsync"
 
 # herdr — the terminal multiplexer config/herdr/config.toml and
@@ -233,8 +190,8 @@ cask "font-geist-mono-nerd-font"
 # the entry behind the password prompt install.sh's tools step warns about.
 cask "1password-cli"
 
-# dive and ctop were already in this file and are both useless without a
-# container runtime, which was the actual gap they left open.
+# The container runtime. No tracked config reads it, but it's the one tool
+# here whose absence turns an ordinary project checkout into a dead end.
 #
 # args: { adopt: true } is required, not decorative: /Applications/Docker.app
 # already exists on the machine this repo runs on, and a plain cask install

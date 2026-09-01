@@ -181,58 +181,6 @@ zed-filter:
     cmp /tmp/none.json /tmp/none.out
     echo "ok  filter strips, repairs, and passes through"
 
-# Every `brew`/`cask` line in the Brewfile needs a matching `## <command> —`
-# section in help/*.md, or `dotfiles-help` silently has nothing to say about
-# it the day someone forgets what a newly-added tool does.
-[doc("Assert every Brewfile entry has a dotfiles-help section")]
-help-coverage:
-    #!/usr/bin/env python3
-    import glob
-    import re
-    import sys
-
-    # Formula name -> the command name its help section is titled under.
-    # Kept as an explicit map rather than fuzzy-matched (stripping prefixes/
-    # suffixes, case-folding, etc.): fuzzy matching would let a genuinely
-    # undocumented tool slip through by coincidentally matching something
-    # unrelated, which defeats the point of this check.
-    ALIASES = {
-        "git-delta": "delta",
-        "tealdeer": "tldr",
-        "ripgrep": "rg",
-        "neovim": "nvim",
-        "1password-cli": "op",
-        "aaronkwhite/tap/lin": "lin",
-    }
-
-    # Casks/fonts that install a GUI app or an asset, not a command that
-    # could ever have a `## name —` help section.
-    EXEMPT = {
-        "font-geist",
-        "font-geist-mono",
-        "font-geist-mono-nerd-font",
-        "docker-desktop",
-    }
-
-    brewfile = open("Brewfile").read()
-    names = re.findall(r'^(?:brew|cask) "([^"]+)"', brewfile, re.MULTILINE)
-    names = [n for n in names if n not in EXEMPT]
-
-    documented = set()
-    for path in glob.glob("help/*.md"):
-        documented.update(re.findall(r"^## (\S+) — ", open(path).read(), re.MULTILINE))
-
-    missing = sorted(name for name in names if ALIASES.get(name, name) not in documented)
-
-    if missing:
-        print("help-coverage: missing help/*.md sections for:")
-        for name in missing:
-            wanted = ALIASES.get(name, name)
-            print(f"  {name} (section should be titled '## {wanted} — ...')")
-        sys.exit(1)
-
-    print(f"ok  {len(names)} Brewfile entries all have help/*.md sections")
-
 # Not part of `check`: it rewrites files, and `check` only ever reports.
 # `.markdownlint.yaml` at the repo root is the shared rule config with
 # nvim's own "markdownlint" linter — MD013/MD041 off, everything else on.
@@ -284,4 +232,4 @@ cli-checks:
 # dependency here: it mutates a temp HOME and does real filesystem work, so
 # it's a separate, slower step rather than baked into the default gate.
 [doc("Every check fast enough to run on every commit")]
-check: parse shellcheck zsh-syntax templates leakguard zed-filter help-coverage
+check: parse shellcheck zsh-syntax templates leakguard zed-filter

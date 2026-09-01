@@ -28,11 +28,5 @@ paulbkim-dev/vim-herdr-navigation
 # most plugin actions here are deliberately left unbound: all four of them are
 # one fuzzy search away rather than needing a key each.
 
-# Runs setup steps in a new worktree on worktree.created: copies .env* from the
-# main checkout, `mise trust`, `direnv allow`, installs deps. A worktree per
-# issue otherwise starts with none of its gitignored files. No actions, pure
-# event hook. Config: config.toml.
-tdi/herdr-worktree-setup
-
 # Local plugins — paths relative to this repo; install.sh runs `herdr plugin link`.
 local:config/herdr/plugins/ticket-worktree

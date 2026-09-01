@@ -340,9 +340,6 @@ command = "$HOME/.config/herdr/palette/palette.sh"
 width = 80
 height = 20
 
-# Deliberately unbound — all reachable through prefix+p:
-#   worktree-setup     no actions at all; it is purely a worktree.created hook.
-
 # ── Local layout commands ────────────────────────────────────────────────────
 
 ## fold-columns — turn a row of N side-by-side panes into N/2 columns of two

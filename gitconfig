@@ -216,16 +216,6 @@
 	# difftool pairing — the review-first path, and the one to reach for when
 	# reading more than a couple of files at once.
 	review = "!hunk diff"
-	# `--and-rebase` assigns each hunk in the worktree to the commit that last
-	# touched those lines and autosquashes immediately. Fits this config
-	# specifically: pull.rebase, rebase.autoStash, and rerere.enabled +
-	# rerere.autoupdate above already make this repo rebase-first, so absorb is
-	# the review-fixup step that was missing — e.g. a review round on a branch a
-	# coding agent wrote, where the fixes belong spread across the existing
-	# commits instead of piled into one "address review" commit. Calls the git-
-	# absorb binary directly, not `git absorb`, so this alias doesn't recurse
-	# into itself.
-	absorb = "!git-absorb --and-rebase"
 
 # Included last, not first: git applies repeated keys in file order, so
 # anything ~/.gitconfig.local sets after this point wins over every default

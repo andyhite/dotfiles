@@ -10,17 +10,17 @@
 # Host devbox
 #   User you
 
-# Throwaway localhost port-forward for testing tmux/moor over ssh instead of
+# Throwaway localhost port-forward for testing terminal tooling over ssh instead of
 # a real network host. StrictHostKeyChecking/UserKnownHostsFile/LogLevel below
 # turn off host-key verification entirely — safe only because the "host" is a
 # local process that gets torn down and rebuilt (a new key every time would
 # otherwise fail the known_hosts check). Never point these three settings at
 # a real remote host.
-# Host moor-tmux-test
+# Host sshd-test
 #   HostName localhost
 #   Port 2222
 #   User bash
-#   IdentityFile ~/.ssh/moor_tmux_test_ed25519
+#   IdentityFile ~/.ssh/sshd_test_ed25519
 #   IdentitiesOnly yes
 #   StrictHostKeyChecking no
 #   UserKnownHostsFile /dev/null

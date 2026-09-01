@@ -14,7 +14,7 @@ Run what CI runs — `just check` and `just smoke`. All of it works locally; not
 a VM.
 
 `just check` is the fast gate (parse, shellcheck, zsh syntax, template YAML, leakguard,
-zed-filter, help-coverage). It deliberately excludes `smoke`: that recipe mutates a
+zed-filter). It deliberately excludes `smoke`: that recipe mutates a
 throwaway `HOME` and does real filesystem work, so it stays a separate, slower step rather
 than baked into every commit.
 
@@ -52,17 +52,11 @@ consumer, not a `links` entry.
 
 ## Adding a tool
 
-Four edits:
+Three edits:
 
 1. A `brew`/`cask` line in `Brewfile`, with a comment saying *why this tool*.
 2. A Linux equivalent in `install.sh`'s apt/cargo/release path.
 3. A row or section in README's inventory.
-4. A `## <name> — <tagline>` section in the right `help/*.md`. The parser depends on the
-   em-dash separator, 4-space-indented command examples, and the command name in the heading
-   being what you TYPE — which is why `just help-coverage` carries an explicit alias map
-   for the five Brewfile names that differ (`git-delta`/`delta`, `tealdeer`/`tldr`,
-   `ripgrep`/`rg`, `neovim`/`nvim`, `1password-cli`/`op`) and an exempt set for casks
-   that install an app rather than a command.
 
 ## Secrets
 

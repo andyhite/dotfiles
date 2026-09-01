@@ -44,7 +44,7 @@ search_mode_shell_up_key_binding = "fuzzy"
 ## Rounded boxes around the input, results and preview instead of compact's
 ## bare lines. Unlike `auto` this never degrades: `auto` would drop back to
 ## compact below 14 rows of available height, `full` keeps the borders and just
-## gets cramped, so a short tmux split is the one place it looks worse.
+## gets cramped, so a short split is the one place it looks worse.
 ##
 ## The border color is deliberately absent from
 ## themes/github-dark-default.toml: atuin builds these blocks with no
@@ -106,7 +106,7 @@ filters = ["global", "session", "session-preload", "workspace", "directory"]
 columns = ["duration", "time", { type = "directory", width = 24 }, "command"]
 
 [keys]
-## tmux.conf sets `mouse on`, which turns one scroll-wheel nudge past the last
+## Ghostty's own mouse reporting turns one scroll-wheel nudge past the last
 ## result into "close the search and discard the query". Stop at the ends
 ## instead.
 scroll_exits = false
@@ -120,21 +120,9 @@ scroll_exits = false
 common_subcommands = [
   "apt", "cargo", "composer", "dnf", "docker", "dotnet", "git", "go", "ip",
   "kubectl", "nix", "nmcli", "npm", "pecl", "pnpm", "podman", "port",
-  "systemctl", "tmux", "yarn",
+  "systemctl", "yarn",
   "atuin", "brew", "bun", "gh", "herdr", "mise", "omp", "uv",
 ]
-
-[tmux]
-## Draw the search in a popup floating over the current pane instead of
-## repainting the pane itself. Needs tmux >= 3.2 (3.7b here) and zsh, bash or
-## fish. The one setup this silently breaks on is iTerm2's control-mode tmux
-## integration, which can't render display-popup and can't be detected — not a
-## concern with Ghostty. Outside tmux, atuin falls back to inline rendering with
-## no error, so this is safe to leave on everywhere.
-##
-## Read by `atuin init` and passed to the shell plugin through the environment,
-## not read by the search itself, so changing this needs a new shell.
-enabled = true
 
 [logs]
 ## Put the log directory next to the databases in ~/.local/share/atuin instead of

@@ -41,7 +41,7 @@ fi
 # machine-specific paths that need to win.
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 
-# uv / pipx drop an env script here; it extends PATH and nothing else.
+# uv drops an env script here; it extends PATH and nothing else.
 [ -f "$HOME/.local/bin/env" ] && source "$HOME/.local/bin/env"
 
 # ── Version manager (mise) ───────────────────────────────────────────────────
@@ -154,10 +154,9 @@ setopt EXTENDED_GLOB          # ~/^/# glob qualifiers
 
 # ── Prompt / navigation ──────────────────────────────────────────────────────
 # starship only draws a prompt, so it's skipped outright without a line editor;
-# zoxide and direnv are guarded inside their own init output and stay useful
-# (`z`, per-directory env) in a scripted shell.
+# direnv is guarded inside its own init output and stays useful (per-directory
+# env) in a scripted shell.
 [[ -z $_no_zle ]] && command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
-command -v zoxide   >/dev/null 2>&1 && eval "$(zoxide init zsh)"
 command -v direnv   >/dev/null 2>&1 && eval "$(direnv hook zsh)"
 
 # ── fzf ──────────────────────────────────────────────────────────────────────
@@ -208,11 +207,6 @@ command -v lazygit >/dev/null 2>&1 && alias lg='lazygit'
 # machine this trusted; typing it out every invocation is friction with no
 # safety benefit here, so it's baked into the alias instead.
 command -v claude >/dev/null 2>&1 && alias claude='claude --dangerously-skip-permissions'
-
-# ── Dotfiles help ────────────────────────────────────────────────────────────
-# `dh`, not `help`: zsh's run-help and bash's builtin help both already own
-# that word, and shadowing it breaks run-help for everyone.
-command -v dotfiles-help >/dev/null 2>&1 && alias dh='dotfiles-help'
 
 # ── Node / pnpm / bun ────────────────────────────────────────────────────────
 if [ -z "${PNPM_HOME:-}" ]; then

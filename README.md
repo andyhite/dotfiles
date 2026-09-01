@@ -15,12 +15,11 @@ NvChad for editing.
   - [`make` on macOS — `gmake`, not `gnumake`](#make-on-macos--gmake-not-gnumake)
   - [Shells with no line editor — `TERM=dumb`, or no tty](#shells-with-no-line-editor--termdumb-or-no-tty)
 - [Notes by tool](#notes-by-tool)
-  - [Git — rebase-first, with hunk, delta, and absorb](#git--rebase-first-with-hunk-delta-and-absorb)
+  - [Git — rebase-first, with hunk and delta](#git--rebase-first-with-hunk-and-delta)
   - [Shell — carapace, fd, uv, and Linux clipboards](#shell--carapace-fd-uv-and-linux-clipboards)
-  - [dotfiles-help — the `help/` corpus and `dh`](#dotfiles-help--the-help-corpus-and-dh)
   - [gh extensions — manifest beside `herdr_plugins.txt`](#gh-extensions--manifest-beside-herdr_pluginstxt)
   - [btop — GitHub Dark Default theme, and the config-rewrite trap](#btop--github-dark-default-theme-and-the-config-rewrite-trap)
-  - [Misc dev CLIs — hyperfine, sd, tealdeer, and Docker Desktop](#misc-dev-clis--hyperfine-sd-tealdeer-and-docker-desktop)
+  - [Docker Desktop](#docker-desktop)
   - [Caddy — local HTTPS for internal-only dev hostnames](#caddy--local-https-for-internal-only-dev-hostnames)
   - [dnsmasq — wildcard local DNS via macOS's per-domain resolver](#dnsmasq--wildcard-local-dns-via-macoss-per-domain-resolver)
   - [Zed's `ssh_connections` is stripped by a clean filter](#zeds-ssh_connections-is-stripped-by-a-clean-filter)
@@ -50,7 +49,7 @@ NvChad for editing.
 | `tool-versions` | `~/.tool-versions` | mise runtime pins (node, python, go, bun, pnpm) — mise walks up from the current directory to find this, so the symlink is the global default under `$HOME`; see [mise](#mise) below |
 | `zsh_plugins.txt` | `~/.zsh_plugins.txt` | antidote's plugin list (zsh-autosuggestions, zsh-syntax-highlighting, fzf-tab, zsh-vi-mode) |
 | `config/starship.toml` | `~/.config/starship.toml` | prompt — GitHub Dark Default palette, hostname shown only over SSH |
-| `config/atuin/config.toml` | `~/.config/atuin/config.toml` | Atuin (shell history): overrides only — daemon, fuzzy search, full-style UI, vi keymap, tmux popup, `atuin ai`. Also the answers `atuin setup` would otherwise re-ask on every install |
+| `config/atuin/config.toml` | `~/.config/atuin/config.toml` | Atuin (shell history): overrides only — daemon, fuzzy search, full-style UI, vi keymap, `atuin ai`. Also the answers `atuin setup` would otherwise re-ask on every install |
 | `config/atuin/themes/github-dark-default.toml` | `~/.config/atuin/themes/github-dark-default.toml` | GitHub Dark Default for Atuin; foreground colors only, background comes from Ghostty |
 | `zshrc.local.example` | (copy, not linked) | template for machine-local secrets — never committed |
 
@@ -58,7 +57,6 @@ NvChad for editing.
 
 | Path | Links to | What it is |
 | --- | --- | --- |
-| `tmux.conf` | `~/.tmux.conf` | tmux config, plugins managed by TPM |
 | `config/ghostty/config` | `~/.config/ghostty/config` | Ghostty terminal: `GitHub Dark Default` theme, shell integration — same path on macOS and Linux |
 | `config/hammerspoon` | `~/.hammerspoon` (macOS only) | Hammerspoon: `init.lua` binds the per-Space Ghostty show/hide toggle that replaced Ghostty's own app-wide one — see [Hammerspoon](#hammerspoon--per-space-ghostty-toggle-ghosttys-own-is-app-wide) below |
 | `config/btop` | `~/.config/btop` | btop resource monitor: GitHub Dark Default theme, `save_config_on_exit = false` so btop's default full-config-rewrite-on-quit can't overwrite this file — see [btop](#btop--github-dark-default-theme-and-the-config-rewrite-trap) below |
@@ -84,7 +82,7 @@ NvChad for editing.
 
 | Path | Links to | What it is |
 | --- | --- | --- |
-| `gitconfig` | `~/.gitconfig` | tracked git identity, LFS/xet filter wiring, rebase-first defaults, hunk pager + hunk difftool (delta retained for `add -p`), and `git absorb`; anything that varies per machine layers in through `gitconfig.local.example` below |
+| `gitconfig` | `~/.gitconfig` | tracked git identity, LFS/xet filter wiring, rebase-first defaults, hunk pager + hunk difftool (delta retained for `add -p`); anything that varies per machine layers in through `gitconfig.local.example` below |
 | `gitconfig.local.example` | (copy, not linked) | template for `~/.gitconfig.local` — work identity via `includeIf "gitdir:…"`, private-registry credentials. `gitconfig`'s trailing `[include]` applies last, so anything set here wins over every default in the tracked file |
 | `config/git/ignore` | `~/.config/git/ignore` | global gitignore — git's own default `core.excludesFile` location when that setting is unset, so machine-tool droppings (`.DS_Store`, `.idea/`) never have to live in a project's own `.gitignore` |
 | `config/gh/config.yml` | `~/.config/gh/config.yml` | gh CLI defaults and aliases; `git_protocol: https` is deliberate — `ssh/config` maps `github.com` to the work SSH key, so an ssh remote here would silently authenticate as the wrong account |
@@ -120,8 +118,6 @@ NvChad for editing.
 | `Justfile` | (not linked — invoked by `just` and CI) | single source of truth for every check — `.github/workflows/ci.yml` calls its recipes instead of duplicating them; see [Justfile and CI](#justfile-and-ci) |
 | `.pre-commit-config.yaml` | (not linked — read by `pre-commit`) | gitleaks plus the local `just leakguard` hook; `install.sh` runs `pre-commit install` during the hooks step so a fresh clone gets both |
 | `.markdownlint.yaml` | (not linked — read by `markdownlint-cli2` and nvim's `markdownlint` linter) | shared markdown lint rules: MD013 (line-length) and MD041 (require a top-level heading) off, since neither matches this repo's own conventions — `just fix-md` and the nvim linter both read this one file |
-| `bin/dotfiles-help` | `~/.local/bin/dotfiles-help` | renders the `help/` corpus — fzf picker, search, and per-tool sections; aliased as `dh` in `zshrc` — see [dotfiles-help](#dotfiles-help--the-help-corpus-and-dh) |
-| `help/` | (not linked — read by `bin/dotfiles-help`) | curated command reference keyed to the Brewfile — one `## <name> — <tagline>` section per tool; `just help-coverage` fails if a formula has no matching section |
 | `bin/tailscale` | `~/.local/bin/tailscale` | PATH shim for the Mac App Store build of Tailscale — `exec`s the bundled CLI directly, since a plain symlink to it fails at runtime (see the file itself for why). Linked only on macOS, and only when the App Store app is actually installed |
 | `install.sh` | — | installs/updates every tool above, then symlinks all of it into place — locally, or on another machine with `--host` |
 
@@ -155,13 +151,10 @@ and `TERM`, and the glyphs fall back to ASCII outside a UTF-8 locale.
 The steps, in order — the order is load-bearing, which is why `--only` exists but
 reordering doesn't:
 
-1. **Installs/updates the tools this config drives**: starship, zoxide, atuin,
-   fzf, eza, bat, direnv, tmux, lazygit, delta, hunk, git-absorb,
-   fd, carapace, gitleaks, pre-commit, just, uv, antidote, TPM, the Geist Mono
-   Nerd Font, neovim, ripgrep, tree-sitter-cli, mise, omp, claude, prime-agent,
-   btop, herdr,
-   and NvChad —
-   plus Docker Desktop on macOS. macOS applies
+1. **Installs/updates the tools this config drives**: starship, atuin, fzf, eza, bat,
+   direnv, lazygit, delta, hunk, fd, carapace, gitleaks, pre-commit, just, uv, antidote,
+   the Geist Mono Nerd Font, neovim, ripgrep, tree-sitter-cli, mise, omp, claude, btop,
+   herdr, and NvChad — plus Docker Desktop on macOS. macOS applies
    `Brewfile` with `brew bundle` (formulae + casks, including Ghostty itself);
    Linux goes through `apt` where a package exists, and falls back
    to each tool's official installer otherwise:
@@ -196,10 +189,6 @@ reordering doesn't:
    - omp: install-only, via the installer at [omp.sh](https://omp.sh) — the binary is
      ~120MB and ships its own `omp update`, so re-running this script skips it rather
      than re-downloading.
-   - prime-agent: install-only, same reasoning as omp above — the installer at
-     [app.primeintellect.ai/prime-agent/install.sh](https://github.com/PrimeIntellect-ai/prime-agent)
-     downloads a versioned release and verifies its SHA-256 checksum, and ships its own
-     `prime-agent update`, so re-running this script skips it rather than re-downloading.
    - claude: the native installer at
      [claude.ai/install.sh](https://claude.ai/install.sh) auto-detects the platform, so
      one curl call covers both branches — run_quiet-wrapped like herdr/atuin/starship
@@ -216,13 +205,13 @@ reordering doesn't:
      that's happened.
    - Linux-only: `fd-find` installs as `fdfind`, so `ensure_fd_shim_linux` symlinks
      `~/.local/bin/fd` — telescope and fzf shell out to the literal name `fd`, not a
-     shell alias. delta, git-absorb, sd, tealdeer, hyperfine, and lin
-     fall back to `cargo install` where apt has no package (and, for `lin`, where
-     macOS has no tap bottle for the target arch). hunk (npm package `hunkdiff`)
+     shell alias. delta and lin fall back to `cargo install` where apt has no package
+     (and, for `lin`, where macOS has no tap bottle for the target arch). hunk (npm
+     package `hunkdiff`)
      installs the same mise-first-`npm`-then-plain-`npm` way as markdownlint-cli2,
      since it ships neither an apt package nor a crate. gitleaks and carapace pull
      GitHub release binaries. `wl-clipboard` and `xclip` install together on Linux so
-     tmux-yank and nvim's `+` register can paste on either Wayland or X11.
+     nvim's `+` register can paste on either Wayland or X11.
    - `pre-commit` lands via apt when possible, otherwise `uv tool install` after the
      uv installer runs.
 
@@ -235,10 +224,9 @@ reordering doesn't:
    outside a package manager (`omp`, `herdr`, `tree-sitter`) are uncovered on both. Each
    file is generated by the binary itself, so it can never drift from the installed
    version. See [Completions](#completions) below.
-3. **Symlinks every config file** in the table above into place — including
-   `bin/dotfiles-help`. Backs up (`.bak.<timestamp>`)
-   anything real that's already sitting where a symlink needs to go. Also copies
-   `zshrc.local.example`, `gitconfig.local.example`, and `ssh/config.local.example`
+3. **Symlinks every config file** in the table above into place. Backs up
+   (`.bak.<timestamp>`) anything real that's already sitting where a symlink needs to go.
+   Also copies `zshrc.local.example`, `gitconfig.local.example`, and `ssh/config.local.example`
    to their `~/.*.local` targets at mode 600 the first time only — a re-run never
    overwrites an already filled-in file. See [The `*.local` templates](#the-local-templates) below.
 4. **Enables the dstack server to start at login**, via a launchd `LaunchAgent`
@@ -350,7 +338,7 @@ disjoint command sets.
 Deliberately absent from the generator step because something else already covers them:
 most other Brewfile formulae (git, gh, docker, …) via carapace; `fzf` from the
 `fzf --zsh` eval in `zshrc`; `direnv` and `nvim`, which publish no zsh completion at
-all; and zsh itself ships `_tmux`, `_jq`, and `_vim`.
+all; and zsh itself ships `_jq` and `_vim`.
 
 Two details worth knowing. Generation goes through a temp file and only replaces the
 target when the output is non-empty, so a tool that starts erroring can't blank a working
@@ -445,13 +433,13 @@ its command has produced a byte:
 starship refuses to render into a terminal with no capabilities, and fzf's two scripts
 snapshot `$options` and restore the array wholesale on the way out — which tries to set
 `zle` back on, and zsh won't allow that where it turned it off. Everything that isn't
-the interactive layer still runs: `PATH`, mise, `compinit`, aliases, zoxide, direnv and
-atuin all load exactly as before, so a scripted shell resolves the same commands an
-interactive one does.
+the interactive layer still runs: `PATH`, mise, `compinit`, aliases, direnv, and atuin
+all load exactly as before, so a scripted shell resolves the same commands an interactive
+one does.
 
 ## Notes by tool
 
-### Git — rebase-first, with hunk, delta, and absorb
+### Git — rebase-first, with hunk and delta
 
 `gitconfig` is deliberately rebase-oriented (`pull.rebase`, `rebase.autoStash`,
 `rebase.autoSquash`, `rebase.updateRefs`, `rerere.enabled`, `rerere.autoupdate`) so
@@ -490,11 +478,6 @@ Shiki-backed and actually ships a theme with that exact id — plus
 machine's diffs are read almost entirely as agent-authored changesets rather than
 opting the notes rail in per session.
 
-**git-absorb** (`git absorb = !git-absorb --and-rebase`) is the review-fixup step the
-rebase settings above were missing: it assigns worktree hunks to the commits that last
-touched those lines and autosquashes immediately, which pairs with `rerere` when the
-rebase replays a conflict you already resolved once.
-
 **gitleaks** and **pre-commit** are both deliberate. `.pre-commit-config.yaml` runs
 gitleaks at commit time for tokens, keys, and credential-shaped strings; the local
 `just leakguard` hook is the other half, running the same work-identifier grep CI uses.
@@ -516,8 +499,7 @@ are. See [Completions](#completions) for how it coexists with install.sh's gener
 would expand an alias.
 
 **uv** comes from the Brewfile on macOS and from Astral's curl installer into
-`~/.local/bin` on Linux, where no formula exists. **pipx** stays on the Brewfile anyway —
-four tools are already installed through it, and removing the manager would strand them.
+`~/.local/bin` on Linux, where no formula exists.
 
 The trap to know, because it is silent: `zshrc` puts `~/.local/bin` first on `PATH`, so a
 standalone Astral install there *shadows* the Homebrew formula on macOS. Both binaries
@@ -525,42 +507,6 @@ work, `brew upgrade` only ever moves the one that loses, and nothing warns you �
 machine had a 14-month-old `~/.local/bin/uv` winning over a current formula until it was
 removed. On a Mac, let the Brewfile own `uv`; the `uv tool` installs live in
 `~/.local/share/uv` and survive deleting the binary.
-
-**wl-clipboard** and **xclip** install together on Linux only. `tmux.conf` sets
-`set-clipboard on`, so copy-*out* over SSH uses OSC 52 and lands in the local terminal's
-clipboard; tmux-yank and nvim's `+` register still need a real local clipboard binary for
-paste-*in*, and Wayland (`wl-copy`) and X11 (`xclip`) need different ones. Installing
-both and letting the session pick is cheaper than detecting the display server at install
-time.
-
-### dotfiles-help — the `help/` corpus and `dh`
-
-`bin/dotfiles-help` is the front door to the toolchain this repo installs. `install.sh`
-symlinks it to `~/.local/bin/dotfiles-help`; `zshrc` aliases `dh` (not `help`, which
-zsh's `run-help` already owns). The script resolves its own real path through the
-symlink with a portable loop — not `readlink -f`, which BSD/macOS lacks before
-`brew install coreutils` — then reads `help/*.md` next to the checkout.
-
-Five modes, all parsing the same corpus:
-
-- **default** (no args, with a tty and `fzf`): interactive picker sorted A–Z by
-  name, with a preview pane that re-invokes `dotfiles-help <name>` so the preview
-  cannot drift from a direct lookup
-- **`<name>`**: print one section — exact match first, then case-insensitive substring on
-  name and tagline
-- **`--list` / `-l`**: tools grouped by category (A–Z), name A–Z within each
-- **`--all` / `-a`**: the whole corpus in curated file order (`00-shell.md`, …)
-- **`--search` / `-s TEXT`**: grep section bodies, list matching lines tagged by tool
-
-The parser is shape-sensitive: each tool is `## <name> — <tagline>` (em dash, not hyphen)
-with command examples indented four spaces. Retitle a heading out of that shape, or let
-another `##` line appear in a body paragraph, and the tool silently drops from every
-mode. `just help-coverage` is the other half — it fails when a Brewfile formula has no
-matching section (with an explicit alias map for the six names that differ, like
-`git-delta` → `delta`).
-
-To add a tool: Brewfile line, Linux install path in `install.sh`, inventory row here, and
-a new `## <command> — …` section in the right `help/*.md` file.
 
 ### gh extensions — manifest beside `herdr_plugins.txt`
 
@@ -601,19 +547,13 @@ diffing file the moment two machines quit btop with different terminal sizes or 
 detection results. `save_config_on_exit = false` is what keeps this file exactly what's
 tracked, forever.
 
-### Misc dev CLIs — hyperfine, sd, tealdeer, and Docker Desktop
+### Docker Desktop
 
-**hyperfine** is the only deliberate benchmarking tool beside cloc/dive/ctop.
-**sd** is the sed-shaped find/replace with a literal mode; **tealdeer** (`tldr` on
-`PATH`) is example-first man pages. Neither drives tracked config beyond being on
-the Brewfile/apt path.
-
-**docker-desktop** was the missing runtime for **dive** and **ctop**, which were already
-tracked and useless without a daemon. `args: { adopt: true }` on the Brewfile cask is
-load-bearing: `/Applications/Docker.app` already exists on the machine this repo runs on,
-and a plain `brew bundle` install aborts with "already an App" unless adopt takes over the
-existing install. No Linux counterpart in `install.sh` — Docker's apt repo is a host-level
-decision, not a dotfiles one.
+`docker-desktop` is configured with `args: { adopt: true }` on the Brewfile cask:
+`/Applications/Docker.app` already exists on the machine this repo runs on, and a plain
+`brew bundle` install aborts with "already an App" unless adopt takes over the existing
+install. No Linux counterpart in `install.sh` — Docker's apt repo is a host-level decision,
+not a dotfiles one.
 
 ### Caddy — local HTTPS for internal-only dev hostnames
 
@@ -888,17 +828,6 @@ but config beats that flag for every value except `auto`, and the default is `em
 so the search opened in emacs keymap and threw the shell's actual mode away. Hence
 `keymap_mode = "auto"` in the config.
 
-**The tmux popup is latched into the environment.** `[tmux] enabled` is read by
-`atuin init`, which exports `ATUIN_TMUX_POPUP_WIDTH`/`_HEIGHT` when it's on and
-`ATUIN_TMUX_POPUP=false` when it's off — and the popup check honors that variable over
-the config. So flipping it needs a new shell, and any shell started before the flip
-keeps exporting the old answer into everything it spawns. If `Ctrl+R` draws inline
-inside tmux when it shouldn't, that stale export is why:
-
-```sh
-printenv ATUIN_TMUX_POPUP   # prints nothing when the popup is live
-```
-
 ### herdr — Homebrew on macOS, curl installer on Linux
 
 `herdr` is a real Homebrew core formula (`brew info herdr` shows
@@ -1001,7 +930,6 @@ bound to `prefix+p` — free because this config moved herdr's own `previous_tab
 and onto `prefix+shift+tab` — builds its fzf list at run time from `herdr plugin action
 list`, so every action of every installed plugin is one fuzzy search away whether or not
 it has a key. Only the ones reached for constantly earn a `[[keys.command]]` entry;
-worktree-setup has no actions, so it needs no keybinding.
 
 `andyhite.ticket-worktree` — the `prefix+t` binding — lives in this repo at
 `config/herdr/plugins/ticket-worktree` and is registered through `herdr_plugins.txt` as a
@@ -1010,11 +938,10 @@ without a separate GitHub repo). Re-running `install.sh` re-links it idempotentl
 `herdr plugin link`. The plugin is a single manifest `[[panes]]` entry (`placement =
 "popup"`) rather than an action, for the same TTY reason command-palette isn't an action
 either — `modal.sh` draws its own form (text field, live `ticket/<key>` branch preview,
-Create/Cancel buttons, one screen) in raw-mode ANSI rather than gum, whose widgets each own
-the TTY one at a time and so forced a two-step type-then-confirm flow. From the parsed key
-it calls `herdr worktree create`, `herdr agent start --kind omp`, and `herdr pane
-send-text` (not `agent prompt`, which would submit immediately) to land the ticket as a
-queued-but-unsent prompt. Its config
+Create/Cancel buttons, one screen) in raw-mode ANSI to keep the form on one screen. From
+the parsed key it calls `herdr worktree create`, `herdr agent start --kind omp`, and
+`herdr pane send-text` (not `agent prompt`, which would submit immediately) to land the
+ticket as a queued-but-unsent prompt. Its config
 (`config/herdr/plugins/config/andyhite.ticket-worktree/config.toml`) defaults the new
 worktree to opening in the background; set `focus = true` there to switch to it immediately
 instead, matching plain `prefix+shift+g`'s own default worktree behavior.
@@ -1031,13 +958,6 @@ titles in a ragged column. Titles come first now, in a fixed column, with the pl
 trailing and dimmed. It stays visible rather than hidden in the invoke-only field
 because fzf matches against what it displays, so a hidden field can't be searched.
 
-
-`worktree.created` fires on a new worktree and `worktree-setup` makes the checkout
-usable — copies `.env*` from the main checkout, `mise trust`, `direnv allow`, installs
-deps. Nothing else runs at that moment, by design: arranging the workspace belongs to
-whoever asked for the worktree. A dispatch tool that builds its own tabs and panes can
-start the agent itself via `herdr agent start`, which blocks until herdr detects it's
-ready; a worktree created by hand stays one bare pane until you shape it.
 
 ### Herdr plugin keybindings — `[keys]` only knows herdr's own actions
 
@@ -1071,8 +991,7 @@ Homebrew core formula and no apt package, so the Brewfile pulls the author's own
 fallback above, just a tap instead of a curl installer. Linux gets it via `cargo install
 lincli` in `install.sh`'s Linux branch (see the [general dev CLIs
 bullet](#bootstrap-a-new-machine) above); the crate name (`lincli`) and the binary name
-(`lin`) differ, same shape as `git-delta`/`delta` and `tealdeer`/`tldr` elsewhere in
-that list. No config file is tracked for it — `lin auth login` (interactive) or the
+(`lin`) differ. No config file is tracked for it — `lin auth login` (interactive) or the
 `LINEAR_API_KEY` environment variable authenticates it per machine, same as any other
 credential this repo deliberately keeps out of tracked content.
 
@@ -1196,7 +1115,7 @@ duplicate instead of restoring it), then hides the whole app (`hs.application:hi
 the same instant, no-genie-animation mechanism as Cmd+H, which is what Ghostty's own
 toggle already used and the one part of it that was never broken) if that window is
 focused, unhides and focuses it otherwise, or runs `ghostty +new-window` if the Space has
-none. See the `hammerspoon` section in `help/00-shell.md` for the command reference.
+none.
 
 Cask, not brew, and macOS-only in every sense — Hammerspoon has no Linux port and no
 headless use, so it's absent from `install.sh`'s Linux branch entirely (same treatment as
@@ -1219,7 +1138,6 @@ After that:
   secrets never end up in this repo or its history. See [The `*.local`
   templates](#the-local-templates) below.
 - Restart your shell (or `exec zsh`). Antidote clones its plugins on first run.
-- Open tmux and press `prefix+I` to have TPM install its plugins on first run.
 
 ## Making changes
 
@@ -1244,7 +1162,6 @@ once before any recipe runs.
 | `just templates` | models template parses; tracked routing uses built-in providers only |
 | `just leakguard` | work identifiers and committed `ssh_connections` in tracked content |
 | `just zed-filter` | the clean filter strips, repairs JSON, and pass-throughs correctly |
-| `just help-coverage` | every Brewfile entry has a matching `help/*.md` section |
 | `just check` | all of the above — the fast gate before every commit |
 | `just smoke` | `--only configs` twice in a throwaway `HOME`; second run is a no-op |
 | `just cli-checks` | `install.sh` argument handling still fails loudly |

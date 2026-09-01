@@ -3,15 +3,13 @@
 # rule set for both, not two configs drifting apart.
 
 # AGENTS.md's own prose convention is a soft 95-column wrap, not a hard rule
-# enforced by a linter — and README/help's link- and comment-heavy lines
-# routinely exceed even that on purpose. MD013 has no auto-fix (line
-# wrapping isn't safe to automate), so leaving it on reports hundreds of
-# unfixable "errors" on every run and drowns any real finding.
+# enforced by a linter — and README's link- and comment-heavy lines routinely
+# exceed even that on purpose. MD013 has no auto-fix (line wrapping isn't safe
+# to automate), so leaving it on reports hundreds of unfixable "errors" on
+# every run and drowns any real finding.
 MD013: false
 
-# help/*.md's sections open at `## name — tagline`, one level below a
-# document title that deliberately doesn't exist — dotfiles-help's own
-# parser depends on that exact shape (see help/10-cli.md's own gotcha about
-# it). MD041 assumes every file opens with a top-level `#` heading, which is
-# simply not this corpus's convention.
+# config/nvim/README.md is vendored from NvChad's starter and opens with a bold
+# paragraph, not a heading. MD041 assumes every file opens with a top-level
+# `#`, which that file has never followed and this repo has no reason to force.
 MD041: false

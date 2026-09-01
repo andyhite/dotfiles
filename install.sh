@@ -262,16 +262,6 @@ ensure_antidote() {
   fi
 }
 
-ensure_tpm() {
-  if [ -d "$HOME/.tmux/plugins/tpm" ]; then
-    run_quiet tpm git -C "$HOME/.tmux/plugins/tpm" pull --ff-only --quiet || return 0
-    updated "tpm" "pulled"
-  else
-    run_quiet tpm git clone --depth=1 --quiet https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm" || return 0
-    added "tpm" "cloned"
-  fi
-}
-
 ensure_nvchad() {
   if [ -f "$DOTFILES_DIR/config/nvim/init.lua" ]; then
     ok "NvChad starter" "already vendored in dotfiles"
@@ -318,55 +308,6 @@ ensure_claude_code() {
   # no-op once current rather than a large re-download.
   if run_quiet claude sh -c "curl -fsSL https://claude.ai/install.sh | bash"; then
     ok "claude" "installed/updated (installer always fetches latest)"
-  fi
-}
-
-ensure_prime_agent() {
-  # https://github.com/PrimeIntellect-ai/prime-agent — self-improving RLM
-  # coding agent. The installer downloads a versioned release and verifies
-  # its SHA-256 checksum, so re-running it here on every pass would be a
-  # needless re-download; prime-agent ships its own `prime-agent update` for
-  # upgrades, same install-only reasoning as ensure_omp above.
-  if command -v prime-agent >/dev/null 2>&1; then
-    ok "prime-agent" "installed — upgrade with 'prime-agent update'"
-    return
-  fi
-  added "prime-agent" "installing"
-  # The installer draws a full-screen ASCII splash while it works, gated only
-  # on PRIME_AGENT_INSTALLER_PLAIN and `[ -t 1 ]` — not on terminal size, so
-  # a piped run still draws it against its 80x24 fallback. PLAIN=1 skips it
-  # for plain, scrollable log output instead. Separately it asks two [Y/n]
-  # questions, both answered "yes" by a bare Enter or by no terminal at all.
-  # The second (bootstrap the IPython kernel now vs. on first use) has a
-  # documented escape hatch —
-  # PRIME_AGENT_BOOTSTRAP_KERNEL_ON_INSTALL=0 defers it to first `prime-agent`
-  # run. The first ("Install Prime Agent v$version globally with npm?") has
-  # no such variable: its prompt opens /dev/tty directly, so piping stdin
-  # here never reaches it — but its own fallback for a genuinely unattended
-  # run (headless `ssh` without `-t`, cron, CI) is to skip the confirmation
-  # once the process has no controlling terminal at all, and opening the
-  # literal path "/dev/tty" can't spontaneously acquire one. So give the
-  # child exactly that: `setsid -w` (Linux, util-linux) starts it in a new
-  # session with none and waits for its real exit status; macOS ships no
-  # setsid binary, so a one-line perl call does the same POSIX::setsid()
-  # syscall then execs in place (no fork, so no exit-status ambiguity) —
-  # /usr/bin/perl ships with the base system, unlike python3, so it needs no
-  # Xcode command-line-tools prompt. `${detach+"${detach[@]}"}` (unquoted,
-  # matching install_remote_all's FORWARD_ARGS guard above) expands to zero
-  # words when neither tool exists and empty-array expansion would otherwise
-  # trip `set -u` on bash 3.2. stdin still moves to /dev/null: a detached
-  # session still passes `[ -t 0 ]` if stdin points at the real terminal.
-  local -a detach=()
-  if command -v setsid >/dev/null 2>&1; then
-    detach=(setsid -w)
-  elif command -v perl >/dev/null 2>&1; then
-    detach=(perl -e 'use POSIX qw(setsid); setsid(); exec { $ARGV[0] } @ARGV or die $!;' --)
-  fi
-  if ! PRIME_AGENT_BOOTSTRAP_KERNEL_ON_INSTALL=0 PRIME_AGENT_INSTALLER_PLAIN=1 \
-    ${detach+"${detach[@]}"} sh -c \
-    'curl -fsSL https://app.primeintellect.ai/prime-agent/install.sh | sh' </dev/null; then
-    warned "prime-agent" "download failed — re-run to retry"
-    return 0
   fi
 }
 
@@ -444,9 +385,9 @@ install_services() {
 # themselves into one directory that zshrc prepends to fpath.
 #
 # Only tools with a real generator are listed. Deliberately absent:
-#   eza, zoxide, direnv  — no generator; brew ships _eza/_zoxide, direnv has none
+#   eza, direnv          — no generator; brew ships _eza, direnv has none
 #   fzf                  — zshrc already evals `fzf --zsh`, which includes it
-#   tmux, jq, vim        — zsh ships _tmux/_jq/_vim itself
+#   jq, vim              — zsh ships _jq/_vim itself
 #   nvim                 — upstream provides no zsh completion
 #
 # carapace covers a large set of third-party CLIs at runtime instead, through
@@ -725,12 +666,10 @@ install_tools_macos() {
   ensure_homebrew_etc_config dnsmasq/dnsmasq.conf dnsmasq/dnsmasq.local.conf.example dnsmasq
   ensure_homebrew_etc_config caddy/Caddyfile caddy/Caddyfile.local.example caddy
   ensure_antidote
-  ensure_tpm
   ensure_tree_sitter_cli
   ensure_nvchad
   ensure_omp
   ensure_claude_code
-  ensure_prime_agent
   ensure_dstack
 }
 
@@ -978,9 +917,9 @@ ensure_release_binary() {
     return 0
   fi
   # Extract the whole archive, then locate the binary: goreleaser puts some
-  # assets (gitleaks, carapace) at the archive root and others (glow 3.x) under
-  # a <name>_<ver>_<os>_<arch>/ directory. Asking tar for a top-level `$bin`
-  # path is what produced "glow: Not found in archive" on a fresh Linux box.
+  # assets (gitleaks, carapace) at the archive root and others under a
+  # <name>_<ver>_<os>_<arch>/ directory. Asking tar for a top-level `$bin`
+  # path is what produced "Not found in archive" on a fresh Linux box.
   if ! tar -xzf "$tmp/asset.tar.gz" -C "$tmp"; then
     rm -rf "$tmp"
     warned "$bin" "archive extract failed — re-run to retry"
@@ -1055,26 +994,22 @@ install_tools_linux() {
     # git-lfs, gh: gitconfig declares the lfs filter and names gh as its
     #      credential helper, so both are requirements of the tracked config
     #      rather than conveniences.
-    # jq, yq, shellcheck, shfmt: the Brewfile's counterparts. The last two only
+    # jq, shellcheck, shfmt: the Brewfile's counterparts. The last two only
     #      exist in recent archives; apt_ensure skips whatever isn't there.
     # build-essential/pkg-config: needed by the cargo builds below.
     # fontconfig: fc-list/fc-cache for the Nerd Font install.
     # ncurses-bin: infocmp, for ghostty's ssh-terminfo shell integration.
     # btop: in Ubuntu's archives outright, unlike most of the tools below.
-    # wl-clipboard, xclip: tmux.conf sets `set-clipboard on`, so OSC 52
-    #      already handles copy-OUT over SSH — but tmux-yank and nvim's `+`
-    #      register need a real local clipboard binary for paste-IN, and
-    #      Wayland vs X11 need different ones. Installing both and letting
-    #      the running session pick which one actually works is cheaper than
-    #      detecting which display server is live.
+    # wl-clipboard, xclip: nvim's `+` register needs a real local clipboard
+    #      binary, and Wayland vs X11 need different ones. Installing both
+    #      and letting the running session pick which one actually works is
+    #      cheaper than detecting which display server is live.
     # fd-find: ships its binary as `fdfind`, not `fd` — see
     #      ensure_fd_shim_linux below.
-    # glow: apt has it on recent Ubuntu; the release fallback below covers
-    #      older releases. dotfiles-help renders the help/ corpus through it.
-    for p in zsh git curl zoxide eza bat fzf direnv tmux unzip ripgrep \
-             git-lfs gh jq yq shellcheck shfmt wget moreutils rsync \
+    for p in zsh git curl eza bat fzf direnv unzip ripgrep \
+             git-lfs gh jq shellcheck shfmt wget rsync \
              fontconfig ncurses-bin build-essential pkg-config \
-             btop wl-clipboard xclip fd-find glow; do
+             btop wl-clipboard xclip fd-find; do
       apt_ensure "$p" || true
     done
   else
@@ -1089,12 +1024,6 @@ install_tools_linux() {
   ensure_release_binary carapace-sh/carapace-bin carapace \
     "carapace-bin_VERSION_linux_amd64.tar.gz" "carapace-bin_VERSION_linux_arm64.tar.gz" \
     carapace --version
-  ensure_release_binary charmbracelet/glow glow \
-    "glow_VERSION_Linux_x86_64.tar.gz" "glow_VERSION_Linux_arm64.tar.gz" \
-    glow version
-  ensure_release_binary charmbracelet/gum gum \
-    "gum_VERSION_Linux_x86_64.tar.gz" "gum_VERSION_Linux_arm64.tar.gz" \
-    gum --version
 
   # eza predates its Ubuntu packaging (24.04+); build it where apt can't.
   command -v eza >/dev/null 2>&1 || cargo_ensure_latest eza
@@ -1106,10 +1035,6 @@ install_tools_linux() {
   # is slow (a few minutes) but one-time: cargo_ensure_latest skips the
   # rebuild once a tool is installed and current.
   command -v delta >/dev/null 2>&1 || cargo_ensure_latest git-delta delta
-  command -v git-absorb >/dev/null 2>&1 || cargo_ensure_latest git-absorb
-  command -v sd >/dev/null 2>&1 || cargo_ensure_latest sd
-  command -v tldr >/dev/null 2>&1 || cargo_ensure_latest tealdeer tldr
-  command -v hyperfine >/dev/null 2>&1 || cargo_ensure_latest hyperfine
   command -v fd >/dev/null 2>&1 || cargo_ensure_latest fd-find fd
   command -v lin >/dev/null 2>&1 || cargo_ensure_latest lincli lin
 
@@ -1141,7 +1066,7 @@ install_tools_linux() {
   fi
 
   # pre-commit after uv: the fallback below shells out to it. apt first, same
-  # as everything else in this function; `uv tool install` (not pip/pipx) is
+  # as everything else in this function; `uv tool install` (not pip) is
   # the fallback because uv is now guaranteed present by the block just
   # above, and `tool install` gives pre-commit its own isolated venv without
   # pulling in a second Python packaging stack just for one tool.
@@ -1157,7 +1082,6 @@ install_tools_linux() {
   ensure_tree_sitter_cli
   ensure_neovim_linux
   ensure_antidote
-  ensure_tpm
   ensure_nerd_font_linux
   ensure_nvchad
   # markdownlint-cli2 ships no apt package and no release binary — npm is
@@ -1195,7 +1119,6 @@ install_tools_linux() {
   fi
   ensure_omp
   ensure_claude_code
-  ensure_prime_agent
   # Official installer, run_quiet-wrapped like starship/atuin/uv above — no
   # Homebrew tap, no apt package this young. Lands in ~/.local/bin, already
   # on PATH; re-runs are the update path, same as the others in this group.
@@ -1226,7 +1149,6 @@ link_configs() {
     "zshenv:$HOME/.zshenv"
     "zshrc:$HOME/.zshrc"
     "zsh_plugins.txt:$HOME/.zsh_plugins.txt"
-    "tmux.conf:$HOME/.tmux.conf"
     "config/starship.toml:$HOME/.config/starship.toml"
     "config/herdr/config.toml:$HOME/.config/herdr/config.toml"
     # The command palette bound to prefix+p in the config above. A directory
@@ -1315,11 +1237,6 @@ link_configs() {
     # Per-file for the same reason as the extensions above — anything omp or
     # another tool drops into ~/.omp/agent/rules stays visible alongside it.
     "omp/agent/rules/output-style.md:$HOME/.omp/agent/rules/output-style.md"
-    # The rendered corpus this reads lives in help/ in this repo; the script
-    # resolves its own real path through the symlink and walks back from
-    # there, so linking the script alone is enough — no separate link for
-    # help/ itself.
-    "bin/dotfiles-help:$HOME/.local/bin/dotfiles-help"
     # settings.json only — ~/.claude also holds sessions, an oauth/telemetry
     # cache, a machine ID, backups, and the skills/ symlinks the
     # agent_skills.txt step already manages, same reasoning as the omp/zed
@@ -1350,25 +1267,6 @@ link_configs() {
     links+=("launchd/ai.dstack.server.plist:$HOME/Library/LaunchAgents/ai.dstack.server.plist")
   else
     links+=("systemd/dstack-server.service:$HOME/.config/systemd/user/dstack-server.service")
-  fi
-
-  # Same OS-native-vs-XDG split as lazygit above — except the XDG half is the
-  # *data* dir (~/.local/share), not config: tealdeer's own docs put custom
-  # pages under $XDG_DATA_HOME/tealdeer/pages on Linux, distinct from
-  # $XDG_CONFIG_HOME/tealdeer holding config.toml. macOS makes no such
-  # distinction (both map to ~/Library/Application Support), confirmed by
-  # `tldr --show-paths` on this machine. No config.toml override exists in
-  # 1.8.1 (a freshly seeded config's `[directories]` table ships empty), so
-  # this OS branch is the only way to reach it. Directory link, not per-file:
-  # nothing but this repo's pages is expected to live there, and a future
-  # page drop-in should land automatically, same reasoning as config/nvim.
-  # Filenames matter too: tealdeer only recognizes `<command>.page.md` (full
-  # replacement) or `<command>.patch.md` (appended to an upstream page) —
-  # `<command>.md` is silently ignored.
-  if [ "$OS" = "Darwin" ]; then
-    links+=("config/tldr/pages:$HOME/Library/Application Support/tealdeer/pages")
-  else
-    links+=("config/tldr/pages:$HOME/.local/share/tealdeer/pages")
   fi
 
   # An unescaped `~` in the replacement half of ${var/#pat/rep} is tilde-expanded
@@ -2285,7 +2183,6 @@ printf '  %s%d ok%s   %s%d added%s   %s%d updated%s   %s%d skipped%s   %s%d warn
   "$C_RED"    "$N_ERR"  "$C_RESET"
 
 note "zsh"   "plugins install on next shell start (antidote) on a fresh machine"
-note "tmux"  "open it and press prefix+I so TPM installs its plugins"
 note "nvim"  "run :MasonInstallAll — it installs every LSP server in config/nvim/lua/configs/lspconfig.lua"
 note "nvim"  "this step only restores the pinned commits; to move them, run :Lazy sync and commit lazy-lock.json"
 printf '\n'

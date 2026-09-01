@@ -61,13 +61,6 @@ jobs:
       - name: Zed clean filter strips ssh_connections
         run: just zed-filter
 
-      # Catches a tool added to the Brewfile with no matching help/*.md
-      # section — the realistic drift now that `dotfiles-help` is the front
-      # door to the whole toolchain: a tool installs fine and nobody but the
-      # person who added it knows it's there.
-      - name: Help coverage
-        run: just help-coverage
-
   # The half that would have caught a real bug: `--only configs` exercises
   # link_configs against a throwaway HOME, so a broken symlink target, a missing
   # mkdir, or a step that aborts the whole run shows up here instead of on a
