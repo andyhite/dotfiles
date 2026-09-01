@@ -45,12 +45,7 @@ for how to change things here — this file is why each tool is configured the w
 
 ## What's in here
 
-The inventory tables below list every path chezmoi manages, named in chezmoi's own source
-naming (`dot_` → `.`, `private_` → mode 0600, `create_private_` → written once at mode
-0600 and never overwritten, `symlink_` → a `$HOME` symlink to a `linked/` tree, `.tmpl` →
-rendered per machine). `home/.chezmoiroot` (containing the single line `home`) is what
-keeps everything outside `home/` and `linked/` — this README, the `Justfile` — out of the
-applied state entirely.
+dot_omp/private_agent/
 
 ### Shell & prompt
 
@@ -87,7 +82,7 @@ applied state entirely.
 
 | Path | Target | What it is |
 | --- | --- | --- |
-| `home/dot_config/symlink_nvim.tmpl` | `~/.config/nvim` → `linked/nvim` | [NvChad](https://nvchad.com) starter — vendored once, `.git` stripped, fully mine to edit from here. Includes `lazy-lock.json`: tracked on purpose, so it's the pinned plugin set every machine restores to rather than per-machine generated state — see [the lockfile section](#nvchads-lockfile--apply-restores-it-lazy-sync-moves-it). It's `linked/` (live-symlinked, not copied) because NvChad rewrites `lazy-lock.json` on `:Lazy sync` |
+| `home/dot_config/symlink_nvim.tmpl` | `~/.config/nvim` → `linked/nvim` | [NvChad](https://nvchad.com) starter — vendored once, `.git` stripped, fully mine to edit from here. Includes `lazy-lock.json`: tracked on purpose, so it's the pinned plugin set every machine restores to rather than per-machine generated state — see [the lockfile section](#nvchads-lockfile--apply-restores-it-lazy-sync-moves-it). It's `linked/` (live-symlinked, not copied) because NvChad rewrites `lazy-lock.json` on `:Lazy sync`. This row is deliberately tree-level: everything under `linked/nvim/` (the `lua/configs/`, `lua/plugins/` and `lua/themes/` modules, `herdr-nav.lua`, mappings) rides this one symlink target rather than getting a row each |
 | `home/dot_config/zed/settings.json` | `~/.config/zed/settings.json` | Zed editor settings — `disable_ai: true` since agents run from the terminal via omp, not inside the editor, so the `agent`/`agent_servers` keys go undefined rather than tracked as dead config. `ssh_connections` is absent because it now lives in Zed's project-local settings, not this user-level file — see the header comment in the file itself |
 
 ### Git
@@ -109,16 +104,16 @@ applied state entirely.
 
 | Path | Target | What it is |
 | --- | --- | --- |
-| `home/dot_omp/agent/config.yml` | `~/.omp/agent/config.yml` | [omp](https://omp.sh) coding agent settings — besides this file, `AGENTS.md`, and `rules/output-style.md` below, the rest of `~/.omp/agent` is databases, sessions, and a secrets key |
-| `home/dot_omp/agent/extensions/symlink_atuin.ts.tmpl` | `~/.omp/agent/extensions/atuin.ts` → `linked/omp-extensions/atuin.ts` | records omp's `bash` commands into Atuin history as `--author pi` (a `KNOWN_AGENTS` name, so `$all-user` hides them), with omp's intent string as `--intent`. Hand-maintained: `atuin hook install` has no omp target. `linked/` because it's code developed in place, headed for its own repo eventually |
-| `home/dot_omp/agent/extensions/symlink_daily-budget.ts.tmpl` | `~/.omp/agent/extensions/daily-budget.ts` → `linked/omp-extensions/daily-budget.ts` | weekday spend-pacing warnings layered on top of `retry.usageAwareFallback` — shells out to `omp usage --json` on `turn_end` (plus a 5-minute idle fallback timer while a session sits quiet) and warns (never falls back — that stays `usageAwareFallback`'s job) once real usage outruns the cumulative allocation in `daily-budget.json` through today's weekday |
-| `home/dot_omp/agent/daily-budget.json` | `~/.omp/agent/daily-budget.json` | two independent budgets, `usage` (%-of-7d-quota, for whichever providers `omp usage --json` actually reports — never a static list) and `cost` (a $ cap pooled across every other, pay-per-token provider by default); each is a global default schedule plus an optional per-provider `providers` override, read by the extension above. The runtime ledger it writes (`daily-budget-state.json`) is untracked state, not this file |
-| `home/dot_omp/agent/rules/output-style.md` | `~/.omp/agent/rules/output-style.md` | `alwaysApply: true` rule that shapes every omp response for an ADHD reader — answer first, numbered steps, one next action, no preamble or recap |
-| `home/dot_omp/agent/AGENTS.md` | `~/.omp/agent/AGENTS.md` | omp's native global context file (highest-priority discovery provider — shadows every other tool's user-level context). Holds the same ADHD output-style guidance as `rules/output-style.md` above, since it's a personal preference rather than an omp-specific one; `dot_claude/symlink_CLAUDE.md.tmpl` below points straight at this file, so it's the one source of truth |
-| `home/dot_omp/agent/create_private_models.yml` | `~/.omp/agent/models.yml` (created once, mode 0600) | credentials and custom provider ids — trial models, self-hosted endpoints, a second identity for an existing account; see [omp model routing](./AGENTS.md#omp-model-routing) in `AGENTS.md` |
-| `home/dot_omp/agent/create_private_config.local.yml` | `~/.omp/agent/config.local.yml` (created once, mode 0600) | a `modelRoles`/`retry.fallbackChains` overlay `zshrc` loads via `PI_CONFIG_FILES`, deep-merged on top of the shared `config.yml` |
-| `home/dot_claude/settings.json` | `~/.claude/settings.json` | [Claude Code](https://claude.com/product/claude-code) CLI global settings — push/input-needed notifications, `theme: auto`, `skipDangerousModePermissionPrompt`, `tui: fullscreen`, and `PreToolUse`/`PostToolUse`/`PostToolUseFailure` hooks (all matcher `Bash`) that pipe `atuin hook claude-code` the same way `dot_omp/agent/extensions/atuin.ts` does for omp; the rest of `~/.claude` is sessions, an oauth/telemetry cache, a machine ID, backups, and the `skills/` symlinks the cross-agent skill install manages |
-| `home/dot_claude/symlink_CLAUDE.md.tmpl` | `~/.claude/CLAUDE.md` → `~/.omp/agent/AGENTS.md` | a symlink to the applied `dot_omp/agent/AGENTS.md` above — Claude Code's global user memory reuses the exact same content rather than carrying a second copy. The `claude` discovery provider is disabled in `dot_omp/agent/config.yml`, so omp itself reads `AGENTS.md` directly and never this path |
+| `home/dot_omp/private_agent/config.yml` | `~/.omp/agent/config.yml` | [omp](https://omp.sh) coding agent settings — besides this file, `AGENTS.md`, and `rules/output-style.md` below, the rest of `~/.omp/agent` is databases, sessions, and a secrets key |
+| `home/dot_omp/private_agent/extensions/symlink_atuin.ts.tmpl` | `~/.omp/agent/extensions/atuin.ts` → `linked/omp-extensions/atuin.ts` | records omp's `bash` commands into Atuin history as `--author pi` (a `KNOWN_AGENTS` name, so `$all-user` hides them), with omp's intent string as `--intent`. Hand-maintained: `atuin hook install` has no omp target. `linked/` because it's code developed in place, headed for its own repo eventually |
+| `home/dot_omp/private_agent/extensions/symlink_daily-budget.ts.tmpl` | `~/.omp/agent/extensions/daily-budget.ts` → `linked/omp-extensions/daily-budget.ts` | weekday spend-pacing warnings layered on top of `retry.usageAwareFallback` — shells out to `omp usage --json` on `turn_end` (plus a 5-minute idle fallback timer while a session sits quiet) and warns (never falls back — that stays `usageAwareFallback`'s job) once real usage outruns the cumulative allocation in `daily-budget.json` through today's weekday |
+| `home/dot_omp/private_agent/daily-budget.json` | `~/.omp/agent/daily-budget.json` | two independent budgets, `usage` (%-of-7d-quota, for whichever providers `omp usage --json` actually reports — never a static list) and `cost` (a $ cap pooled across every other, pay-per-token provider by default); each is a global default schedule plus an optional per-provider `providers` override, read by the extension above. The runtime ledger it writes (`daily-budget-state.json`) is untracked state, not this file |
+| `home/dot_omp/private_agent/rules/output-style.md` | `~/.omp/agent/rules/output-style.md` | `alwaysApply: true` rule that shapes every omp response for an ADHD reader — answer first, numbered steps, one next action, no preamble or recap |
+| `home/dot_omp/private_agent/AGENTS.md` | `~/.omp/agent/AGENTS.md` | omp's native global context file (highest-priority discovery provider — shadows every other tool's user-level context). Holds the same ADHD output-style guidance as `rules/output-style.md` above, since it's a personal preference rather than an omp-specific one; `dot_claude/symlink_CLAUDE.md.tmpl` below points straight at this file, so it's the one source of truth |
+| `home/dot_omp/private_agent/create_private_models.yml` | `~/.omp/agent/models.yml` (created once, mode 0600) | credentials and custom provider ids — trial models, self-hosted endpoints, a second identity for an existing account; see [omp model routing](./AGENTS.md#omp-model-routing) in `AGENTS.md` |
+| `home/dot_omp/private_agent/create_private_config.local.yml` | `~/.omp/agent/config.local.yml` (created once, mode 0600) | a `modelRoles`/`retry.fallbackChains` overlay `zshrc` loads via `PI_CONFIG_FILES`, deep-merged on top of the shared `config.yml` |
+| `home/dot_claude/settings.json` | `~/.claude/settings.json` | [Claude Code](https://claude.com/product/claude-code) CLI global settings — push/input-needed notifications, `theme: auto`, `skipDangerousModePermissionPrompt`, `tui: fullscreen`, and `PreToolUse`/`PostToolUse`/`PostToolUseFailure` hooks (all matcher `Bash`) that pipe `atuin hook claude-code` the same way `dot_omp/private_agent/extensions/atuin.ts` does for omp; the rest of `~/.claude` is sessions, an oauth/telemetry cache, a machine ID, backups, and the `skills/` symlinks the cross-agent skill install manages |
+| `home/dot_claude/symlink_CLAUDE.md.tmpl` | `~/.claude/CLAUDE.md` → `~/.omp/agent/AGENTS.md` | a symlink to the applied `dot_omp/private_agent/AGENTS.md` above — Claude Code's global user memory reuses the exact same content rather than carrying a second copy. The `claude` discovery provider is disabled in `dot_omp/private_agent/config.yml`, so omp itself reads `AGENTS.md` directly and never this path |
 | `home/dot_dstack/server/create_private_config.yml` | `~/.dstack/server/config.yml` (created once, mode 0600) | [dstack](https://dstack.ai) GPU-cloud task/dev-environment orchestrator config — `dstack` itself installs via `uv tool install` (see [packages.yaml](#bootstrap-a-new-machine) below) |
 | `home/Library/LaunchAgents/ai.dstack.server.plist` | `~/Library/LaunchAgents/ai.dstack.server.plist` (macOS) | `RunAtLoad`+`KeepAlive` LaunchAgent that starts `dstack server` at login and restarts it if it dies; loaded by `run_onchange_after_70-services.sh.tmpl`, never by chezmoi's own file-write step, so a throwaway-destination `just smoke` run never touches the real launchd namespace |
 | `home/dot_config/systemd/user/dstack-server.service` | `~/.config/systemd/user/dstack-server.service` (Linux) | the same job as the plist above, as a systemd `--user` unit (`Restart=on-failure`, `WantedBy=default.target`); same split from chezmoi's file-write step into the dedicated services script |
@@ -136,7 +131,7 @@ applied state entirely.
 | `home/.chezmoiignore` | not applied — chezmoi reads it directly | OS-conditional exclusions: `.hammerspoon`/`Library` off Linux, `.config/systemd` off macOS, the Tailscale shim unless the App Store app is installed, `.gitconfig-work` unless `workGitDir` is set |
 | `home/.chezmoiexternal.toml` | not applied — chezmoi reads it directly | antidote's git-repo clone (`~/.antidote`) and, Linux only, the Geist Mono Nerd Font release archive (macOS gets the same font from a cask instead) |
 | `Justfile` | not applied — invoked by `just` and CI | single source of truth for every check — `.github/workflows/ci.yml` calls its recipes instead of duplicating them; see [Justfile and CI](#justfile-and-ci) |
-| `.pre-commit-config.yaml` | not applied — read by `pre-commit` | gitleaks plus the local `just leakguard` hook; `run_once_after_90-repo-hooks.sh.tmpl` runs `pre-commit install` on apply so a fresh clone gets both |
+| `.pre-commit-config.yaml` | not applied — read by `pre-commit` | gitleaks plus the local `just leakguard` hook; `run_onchange_after_90-repo-hooks.sh.tmpl` runs `pre-commit install` on apply so a fresh clone gets both |
 | `.markdownlint.yaml` | not applied — read by nvim's `markdownlint` linter and `just fix-md` | shared markdown lint rules: MD013 (line-length) and MD041 (require a top-level heading) off, since neither matches this repo's own conventions |
 
 ## Bootstrap a new machine
@@ -182,14 +177,7 @@ manifest edit re-triggers only the scripts whose rendered text actually changed.
 used for the two installers that self-update and for the `pre-commit install` call, where
 re-running on every apply would be wasted work rather than a correctness fix.
 
-Every script pulls in `home/.chezmoitemplates/output.sh.tmpl` — a `.chezmoitemplates`
-partial, not applied on its own — as its first line after `set -euo pipefail`. It defines
-`ok`/`added`/`updated`/`skipped`/`warned`/`failed` (colour + glyph, `NO_COLOR`/non-tty
-aware) and `run_quiet <label> <cmd…>`, which redirects a noisy installer's own stdout/
-stderr to a temp file and only replays it (indented, tail -12) if the command failed.
-`CHEZMOI_VERBOSE=1 chezmoi apply` shows every command's raw output instead. This is the
-same structured-status/quiet-by-default design the old `install.sh` used, ported into
-chezmoi's script model instead of duplicated across all thirteen scripts.
+dot_omp/private_agent/
 
 | Script | Platform | What it does |
 | --- | --- | --- |
@@ -205,12 +193,12 @@ chezmoi's script model instead of duplicated across all thirteen scripts.
 | `run_onchange_after_60-agents.sh.tmpl` | both | installs/links `via: herdr` plugins, `via: omp` plugins, upserts `via: gh` extensions, installs `via: skill` cross-agent skills, and re-links `~/.omp/agent/skills` from every installed herdr plugin's own `skills/`/`.agents/skills/` directory |
 | `run_onchange_after_70-services.sh.tmpl` | both | darwin: loads the dstack LaunchAgent if not already loaded (caddy's and dnsmasq's own LaunchAgents are deliberately *not* auto-loaded here — see their inventory rows above); linux: `systemctl --user enable --now dstack-server.service` |
 | `run_onchange_after_80-nvchad.sh.tmpl` | both | hashes `linked/nvim/lazy-lock.json` at runtime against the last hash it wrote, and runs `nvim --headless "+Lazy! restore" +qa` only when that hash changed — see [NvChad's lockfile](#nvchads-lockfile--apply-restores-it-lazy-sync-moves-it) |
-| `run_once_after_90-repo-hooks.sh.tmpl` | both | `pre-commit install` in the repo's own working tree, guarded on the binary and on `.git` existing |
+| `run_onchange_after_90-repo-hooks.sh.tmpl` | both | `pre-commit install` in the repo's own working tree, re-run whenever `.pre-commit-config.yaml` changes; warns instead of silently skipping when `pre-commit` isn't on PATH yet |
 
 ### Remote installs — `just remote`
 
 ```sh
-just remote andyhite-fab
+just remote <host>
 ```
 
 Replaces the old `install.sh --host` driver. `just remote <host>` warns if the local tree
@@ -222,12 +210,7 @@ always ends up in a state some git ref actually describes.
 
 ### Completions
 
-`zshrc` puts `~/.local/share/zsh/site-functions` first on `fpath` so a completion
-generated from the installed binary beats a distro's stale copy. `run_onchange_after_50-
-completions.sh.tmpl` writes one per `packages.yaml` entry that carries a
-`postInstall: [{ zshCompletion: [<argv>] }]` step — the argv is run and its stdout becomes
-`~/.local/share/zsh/site-functions/_<name>`. Adding a completion for a new tool is that one
-line on its manifest entry, never a second file or a hand-maintained table.
+dot_omp/private_agent/
 
 `zshrc` also `source`s `<(carapace _carapace)` after antidote loads fzf-tab — carapace
 ships built-in specs for roughly a thousand CLIs and feeds them through the same fzf-tab
@@ -250,31 +233,13 @@ it actually writes something new, so the next shell rebuilds once.
 
 ### The `create_private_` secrets
 
-Nine tracked entries, one convention: `create_private_dot_zshrc.local`,
-`create_private_dot_gitconfig.local`, `private_dot_ssh/create_private_config.local`,
-`dot_omp/agent/create_private_models.yml`, `dot_omp/agent/create_private_config.local.yml`,
-`dot_dstack/server/create_private_config.yml`,
-`dot_config/caddy/create_private_Caddyfile.local`, and
-`dot_config/dnsmasq/create_private_dnsmasq.local.conf` are written at mode 0600 the first
-time `chezmoi apply` runs, and left alone on every run after that — a filled-in file is
-never clobbered by a re-apply. Each one holds real secrets or per-machine values that have
-no business in a public repo. `create_private_dot_gitconfig-work.tmpl` is the ninth, and
-the one exception to "hand-filled": it's rendered from the three `promptStringOnce`
-answers (`workName`, `workEmail`) instead, since work identity isn't a secret — see
-[Work identity](./AGENTS.md#work-identity) in `AGENTS.md`.
+dot_omp/private_agent/
 
 The two config templates among the first six exist because of how their tracked file reads
 the copy back, not just as a place to dump overrides:
 
-- `dot_gitconfig.tmpl` ends with `[include]` / `path = ~/.gitconfig.local`. Git applies
-  repeated keys in file order, so an include at the very end wins over every default set
-  above it — `~/.gitconfig.local` doesn't need to know what it's overriding, it just wins
-  by coming last.
-- `private_dot_ssh/config` *starts* with `Include ~/.ssh/config.local`, before any `Host`
-  block. ssh takes the first value it finds for a given option, so the include has to come
-  first or a later `Host github.com` block would shadow it instead of losing to it. A
-  missing include target isn't an error in `ssh_config`, so this line is safe on a machine
-  that hasn't applied yet.
+- dot_omp/private_agent/
+- dot_omp/private_agent/
 
 `create_private_dot_zshrc.local` needs no such trick — `zshrc` just sources
 `~/.zshrc.local` near the top, before the tool blocks that read values like `AWS_PROFILE`.
@@ -288,23 +253,9 @@ null: a validation warning for `models.yml`, a hard startup error for `config.lo
 [the omp section](#omp--one-tracked-config-two-machines-different-accounts) for what goes
 in each.
 
-`dot_dstack/server/create_private_config.yml` follows the same convention, landing at
-`~/.dstack/server/config.yml` — the rest of `~/.dstack` (the sqlite db, server/job/runner
-logs, a generated ssh keypair) is state dstack writes itself, so only this one file is
-templated. It ships with the `main` project defined but no backend configured — dstack's
-docs require the project to exist even with zero backends — plus a commented RunPod block
-showing where a real `api_key` goes.
+dot_omp/private_agent/
 
-`dot_config/caddy/create_private_Caddyfile.local` and
-`dot_config/dnsmasq/create_private_dnsmasq.local.conf` are two more of these — the eighth
-and ninth. They didn't use to qualify: caddy and dnsmasq used to run via `brew services`,
-which reads config from `/opt/homebrew/etc`, outside chezmoi's destination directory
-entirely, so the copy-once-at-0600 guarantee had to be reproduced by hand in
-`run_onchange_after_70-services.sh.tmpl`. Now that both run under this repo's own
-LaunchAgents instead (see [Caddy](#caddy--local-https-for-internal-only-dev-hostnames) and
-[dnsmasq](#dnsmasq--wildcard-local-dns-via-macoss-per-domain-resolver) below), their
-configs live under `~/.config` like everything else chezmoi manages, and get the same
-`create_private_` treatment as the rest of this section.
+dot_omp/private_agent/
 
 ### mise
 
@@ -314,14 +265,7 @@ rewriting `PATH` on every prompt instead of installing shims — a version chang
 `~/.config/mise/config.toml` is live in the shell you're already sitting in, with no
 `reshim` step.
 
-`home/dot_config/mise/config.toml.tmpl` renders one `"tool" = "version"` line per
-`via: mise` entry in `packages.yaml`, and pins the five runtimes to exact versions on
-purpose — `node = "26.7.0"`, not `"latest"` — so a machine doesn't silently drift to
-whatever happened to be current the day someone applied. This lands at mise's **global**
-config, `~/.config/mise/config.toml`, which mise resolves by walking up from the current
-directory to `$HOME` and beyond — the same "nearest file wins" property `~/.tool-versions`
-used to provide, so a project with its own `.tool-versions`/`mise.toml` still wins inside
-that project.
+dot_omp/private_agent/
 
 A trailing `t` on a python version — `3.14.7t` versus the `3.14.7` pinned here — selects
 the free-threaded (no-GIL) build. That's a distinct, opt-in variant, not a typo, so don't
@@ -362,20 +306,7 @@ one does.
 
 ### Git — rebase-first, with hunk and delta
 
-`dot_gitconfig.tmpl` is deliberately rebase-oriented (`pull.rebase`, `rebase.autoStash`,
-`rebase.autoSquash`, `rebase.updateRefs`, `rerere.enabled`, `rerere.autoupdate`) so
-review fixups belong spread across existing commits rather than piled into one "address
-review" commit at the tip. **delta** is the pager that finally renders those settings:
-`core.pager = delta || less` and `interactive.diffFilter = delta --color-only || cat`.
-The `|| less` / `|| cat` fallbacks are mandatory — git runs both through `sh -c`, so a
-missing delta on a fresh machine falls through instead of bricking every `git diff`/`log`/
-`show` and `git add -p`. `syntax-theme = none` disables delta's own syntax highlighting:
-`delta --list-syntax-themes` ships only a light `GitHub` entry and no dark one, so there is
-no bundled delta theme that matches GitHub Dark Default — delta is the one surface in this
-repo that cannot match the palette at all, rather than approximating it.
-`dot_config/lazygit/config.yml` reuses the same `[delta]` block with `pager: delta --dark
---paging=never` — `--paging=never` is load-bearing because lazygit already scrolls the
-diff panel itself; a delta that also spawned `less` would deadlock the panel for input.
+dot_omp/private_agent/
 
 **hunk** owns `core.pager` and `diff.tool`. It sniffs stdin: a patch-like diff opens
 the full-screen review UI, anything else (a `git log --oneline`, a non-diff `git show`)
@@ -387,31 +318,20 @@ is missing, which the stdin-based fallback can't help with since hunk has to alr
 be running to sniff anything. `git review` (`!hunk diff`) reads a whole changeset in
 one stream instead of git's per-file difftool pairing.
 
-**delta** keeps exactly two jobs a full-screen TUI can't do: `interactive.diffFilter =
-delta --color-only || cat` for `git add -p`, which parses delta's output line-for-line
-to know what got staged, and lazygit's `diffRenderers.command = delta --dark
---paging=never`, which renders into a panel lazygit itself owns rather than a
-terminal delta would have to take over. `dot_config/hunk/config.toml`
-(`~/.config/hunk/config.toml`) sets `theme = "github-dark-default"` — hunk is
-Shiki-backed and actually ships a theme with that exact id — plus
-`line_numbers = true` to match delta's gutter and `agent_notes = true`, since this
-machine's diffs are read almost entirely as agent-authored changesets rather than
-opting the notes rail in per session.
+dot_omp/private_agent/
 
 **gitleaks** and **pre-commit** are both deliberate. `.pre-commit-config.yaml` runs
 gitleaks at commit time for tokens, keys, and credential-shaped strings; the local
 `just leakguard` hook is the other half, running the same work-identifier grep CI uses.
 Gitleaks has no idea those strings matter — they look like ordinary words — and
-leakguard would not catch a real API key. `run_once_after_90-repo-hooks.sh.tmpl` runs
-`pre-commit install` so neither hook requires a manual opt-in on a fresh clone.
+leakguard would not catch a real API key. `run_onchange_after_90-repo-hooks.sh.tmpl` runs
+`pre-commit install` so neither hook requires a manual opt-in on a fresh clone, and
+`just gitleaks` runs the same scanner over committed content in CI, where a commit made
+with `--no-verify` or from a machine without hooks would otherwise arrive unscanned.
 
 ### Shell — carapace, fd, uv, and Linux clipboards
 
-**carapace** initializes in `zshrc` after antidote loads fzf-tab (`source <(carapace
-_carapace)` with `CARAPACE_BRIDGES='zsh,fish,bash,inshellisense'`). It is skipped in
-`TERM=dumb` / non-interactive shells for the same reason starship and fzf key bindings
-are. See [Completions](#completions) for how it coexists with the generated
-`_omp`/`_herdr`/`_tree-sitter`/`_mise` files.
+dot_omp/private_agent/
 
 **fd** backs `FZF_DEFAULT_COMMAND` and telescope's `find_files` picker. mise's registry
 entry resolves to the real `fd` binary on both platforms, so the old Debian
@@ -446,16 +366,7 @@ occasional.
 
 ### btop — GitHub Dark Default theme, and the config-rewrite trap
 
-`dot_config/btop/` is applied whole to `~/.config/btop/`: `btop.conf` sets `color_theme =
-"github-dark-default"` and `dot_config/btop/themes/github-dark-default.theme` maps the
-same hex values as `dot_config/starship.toml`'s `[palettes.github_dark_default]` and
-`dot_config/atuin/themes/github-dark-default.toml` — Ghostty's actual rendered ANSI
-colors. btop bundles 41 themes, none of them a GitHub theme, so a custom file is the only
-way to run this palette here — there's no bundled candidate to fall back to instead.
-`main_bg` in the theme is Ghostty's actual terminal background (`#0d1117`, GitHub Dark
-Default) — btop always paints its own background pixels, so matching the real terminal is
-what avoids a visible seam around the window, the same distinction
-`dot_config/herdr/config.toml`'s contrast-repair block had to make.
+dot_omp/private_agent/
 
 `btop.conf` also sets `save_config_on_exit = false`, and that one isn't taste. btop's own
 default is `true`, and on quit it rewrites its **entire** config file — every key, not
@@ -477,23 +388,9 @@ a host-level decision, not a dotfiles one.
 
 ### Caddy — local HTTPS for internal-only dev hostnames
 
-`dot_config/caddy/Caddyfile` is deliberately thin — `local_certs` and one `import` line —
-because a real site block always names a real internal hostname and a real IP, neither of
-which belongs in a public repo. `local_certs` is what makes that possible at all: it mints
-certs from Caddy's own built-in CA instead of asking Let's Encrypt, which could never
-issue for a hostname that isn't publicly resolvable. `caddy trust` installs that CA into
-your keychain once, and every site the imported file defines is trusted with no browser
-warning from then on.
+dot_omp/private_agent/
 
-The imported file, `~/.config/caddy/Caddyfile.local`, is created once from
-`dot_config/caddy/create_private_Caddyfile.local` — inert until you uncomment a block and
-fill in a real hostname and IP, same contract as
-`private_dot_ssh/create_private_config.local`. `import Caddyfile.local` (no leading `/`)
-resolves relative to the Caddyfile doing the importing, not the process's working
-directory, so it always finds the sibling file regardless of who starts caddy or from
-where. A single regex-matched wildcard block there can stand in for a whole family of
-hostnames — `<service>-<port>` — without a new site block per port; the template shows the
-pattern.
+dot_omp/private_agent/
 
 Caddy starts via this repo's own `Library/LaunchAgents/dev.caddy.plist`, not
 `brew services` — caddy installs from mise (`aqua:caddyserver/caddy`), which ships no
@@ -517,19 +414,9 @@ resolver you name instead of the system default, and dnsmasq answers every hostn
 it — including ones that don't exist yet — with a single `address=/.<domain>/127.0.0.1`
 line.
 
-`dot_config/dnsmasq/dnsmasq.conf.tmpl` binds `127.0.0.1` on port `5453`, not the standard
-`53`, so the LaunchAgent that starts it never needs root — macOS's own resolver keeps port
-53 regardless, since `/etc/resolver` only redirects the one domain named there, not the
-whole system. Its final line, `conf-file=~/.config/dnsmasq/dnsmasq.local.conf`, is the
-actual domain list, deliberately not this tracked file: real internal hostnames don't
-belong in a public repo. Unlike Caddy's `import`, dnsmasq has no notion of "relative to
-this file", and the LaunchAgent sets no working directory, so that one line is templated
-with `{{ .chezmoi.homeDir }}` rather than tracked as a literal path — the only templated
-value in an otherwise-plain config.
+dot_omp/private_agent/
 
-`dnsmasq.local.conf` is created once from
-`dot_config/dnsmasq/create_private_dnsmasq.local.conf`, same `create_private_` contract as
-everything else in this section.
+dot_omp/private_agent/
 
 Wiring a new domain in is two steps this repo can't do for you, since the domain name
 itself is the machine-local part:
@@ -553,11 +440,7 @@ needs `launchctl kickstart -k gui/$(id -u)/dev.dnsmasq` (or unload/reload the sa
 
 ### omp — one tracked config, two machines, different accounts
 
-`dot_omp/agent/config.yml` is applied to `~/.omp/agent/config.yml` and shared by every
-machine. `modelRoles` and `retry.fallbackChains` in it name only the two built-in
-provider ids every machine is expected to authenticate — `anthropic` (subscription
-primary, from `modelRoles`) and `cursor` (subscription, employer-billed on both
-machines) — as one thin fallback tier:
+dot_omp/private_agent/
 
 ```yaml
 default:
@@ -584,14 +467,7 @@ session beats every environment variable:
 4  login-sourced stored key
 ```
 
-So exporting `OPENAI_API_KEY` on a box that has ever run `/login openai-codex` does
-nothing for the bare `openai-codex` id — the subscription keeps paying, silently, and
-nothing warns you. Pinning a built-in id's credential (`providers.openai.apiKey` in
-`~/.omp/agent/models.yml`) replaces the one credential that id resolves to; it works when
-nothing else on the machine needs that id's other credential at the same time. Two
-credit tiers for the same upstream account, both wanted as distinct ordered fallback
-tiers, need two distinct provider ids instead — see `dot_omp/agent/create_private_models.yml`
-for that pattern (self-hosted or trial providers use it too).
+dot_omp/private_agent/
 
 **A machine's own model routing lives in `~/.omp/agent/config.local.yml`, not
 `config.yml`.** `zshrc` exports `PI_CONFIG_FILES` pointing at it so omp layers it as a
@@ -638,11 +514,7 @@ custom id has no guarantee every machine defines it, so it belongs in that machi
 `config.local.yml` overlay instead, where an undefined reference only warns on the one
 machine that added it.
 
-`~/.omp/agent/models.yml` is created from `dot_omp/agent/create_private_models.yml` on
-every machine, so the mechanism is discoverable even where a given machine only uses part
-of it. Both it and `config.local.yml` ship inert but not empty — `providers: {}` and `{}`
-respectively — because omp validates each file's root as an object and a copy trimmed to
-pure comments parses as null.
+dot_omp/private_agent/
 
 That leaves nothing per-machine in `config.yml` at all, which is the point: one tracked
 file with a deliberately thin default, every machine, and the only differences are which
@@ -650,13 +522,7 @@ providers each one has authenticated and what it chose to layer on top locally.
 
 ### omp compaction — a fold is priced in cache, not tokens
 
-`compaction` in `dot_omp/agent/config.yml` is tuned against measured spend rather than
-comfort. Across 61k Anthropic messages, 44% of the bill came from requests carrying a
-cached prefix over 200k tokens, and Anthropic's 1M window charges no long-context
-premium — so every extra cached token was a straight linear cost with nothing bought
-back. Both knobs below exist to keep that prefix small, against the one cost a fold
-actually has: rewriting the head of the history invalidates the prompt cache from that
-point forward, plus one summarizer call.
+dot_omp/private_agent/
 
 `thresholdPercent: 40` is an explicit percent-of-window trigger where omp's own default is
 `-1` (reserve-based, which only fires once the window is nearly full). It read 55 for as
@@ -676,18 +542,12 @@ back up, instead of paying the oversized prefix on the next turn and folding aft
 
 ### Atuin
 
-`dot_config/atuin/config.toml` holds overrides only; run `atuin default-config` to see
-the full annotated template. It exists mainly so `atuin setup` never runs: that wizard is
-what asks about Atuin AI and the daemon. With the answers committed, mise's own atuin
-install has nothing left to ask interactively.
+dot_omp/private_agent/
 
 Sync is never configured: this history stays on the machine, so there's no account state
 to set up and nothing to prompt for.
 
-`dot_omp/agent/extensions/atuin.ts` records commands omp runs through its `bash` tool
-into the same history, tagged `--author pi` — omp is a distribution of pi, and "pi" is
-one of the five names in Atuin's `KNOWN_AGENTS`, which is what makes the agent
-pseudo-filters work:
+dot_omp/private_agent/
 
 ```sh
 atuin search --author pi            # just the agent
@@ -764,6 +624,11 @@ published copy over one of those replaces the link — the checkout keeps existi
 being what runs. `run_onchange_after_60-agents.sh.tmpl` always runs `herdr plugin link` for
 a `local:` entry, never `herdr plugin install`, so this can't happen by accident here.
 
+#### Removed plugins — historical record
+
+Nothing below is installed or tracked any more; it stays because each removal
+taught something about plugin teardown that the next removal will need.
+
 Four plugins used to be listed and aren't any more. `ribbons-digital/pi-herd` hardcoded
 `--name` and `--session-id` into every harness launch, and omp — the agent this setup
 drives — hard-errors on `unknown flags: --name, --session-id`; it also shipped a Pi-only
@@ -812,12 +677,9 @@ local-only meant mirror was never installed anywhere else. `prefix+alt+n`, `pref
 `prefix+alt+v` and `prefix+alt+s` are free again, and the palette lost ten of its
 thirty-three actions with it.
 
-With two plugins and four registered actions between them, keybindings stopped
-being a per-plugin question and became one decision: `dot_config/herdr/palette/palette.sh`,
-bound to `prefix+p` — free because this config moved herdr's own `previous_tab` off it
-and onto `prefix+shift+tab` — builds its fzf list at run time from `herdr plugin action
-list`, so every action of every installed plugin is one fuzzy search away whether or not
-it has a key. Only the ones reached for constantly earn a `[[keys.command]]` entry;
+#### Current plugins and the palette
+
+dot_omp/private_agent/
 
 `andyhite.ticket-worktree` — the `prefix+t` binding — lives in this repo at
 `linked/herdr-plugins/ticket-worktree` and is registered through its `packages.yaml`
@@ -864,11 +726,7 @@ command = "herdr plugin action invoke left --plugin vim-herdr-navigation"
 session-modal terminal. Plugin actions invoked this way are short control commands with
 no output worth watching, so `shell` is the right call almost every time.
 
-Some plugin READMEs still document
-`type = "plugin_action"` with a combined `<plugin>.<action>` command string
-instead of this. That form is stale: `herdr --default-config` on 0.8.0 documents only
-`shell`/`pane`/`popup`, and `plugin_action` isn't one of them. Use the `shell`-plus-CLI
-form above regardless of what a given plugin's own docs say.
+dot_omp/private_agent/
 
 ### lin — mise's cargo backend, both platforms
 
@@ -892,13 +750,7 @@ tracked source of truth, one entry per skill name, and the state the CLI generat
 alongside it — `~/.agents/.skill-lock.json`, content hashes and install/update
 timestamps — stays untracked.
 
-`run_onchange_after_60-agents.sh.tmpl` runs `mise exec -- npx skills add <id> --skill
-<name> -g -y` for each entry — `-g` writes one canonical copy of the skill into
-`~/.agents/skills` and symlinks every agent the CLI detects at that tree, instead of
-installing into a single project; `-y` accepts its prompts so this can run with no tty
-attached. omp needs no install target of its own here — it picks skills up through its
-`agents` skill provider, reading `~/.agents/skills` directly rather than needing anything
-copied into `~/.omp/agent/skills`.
+dot_omp/private_agent/
 
 (`~/.omp/agent/skills` is a separate, narrower thing: the same script also symlinks any
 skill an installed Herdr plugin ships in its own `skills/` directory there — unrelated to
@@ -962,15 +814,11 @@ papers over this with a guessed default set — install what you actually use:
 :TSInstall python lua bash
 ```
 
-or declare an `ensure_installed` list in `lua/configs/mason.lua` /
-`lua/configs/treesitter.lua` once you know what those are.
+dot_omp/private_agent/
 
 ### Ghostty over SSH — `TERM=xterm-ghostty` doesn't exist on most remotes
 
-Ghostty's `TERM` is `xterm-ghostty`, and most remote hosts don't have that terminfo
-entry — without a fix, anything that opens a real terminal (`nvim` included) fails with
-`Error opening terminal: xterm-ghostty` the moment you SSH in. `dot_config/ghostty/config`
-sets:
+dot_omp/private_agent/
 
 ```
 shell-integration-features = cursor,sudo,title,ssh-env,ssh-terminfo
@@ -995,19 +843,7 @@ infocmp -x xterm-ghostty | ssh host -- tic -x -
 
 ### Hammerspoon — per-Space Ghostty toggle, Ghostty's own is app-wide
 
-Ghostty's built-in global show/hide keybind (`global:ctrl+enter=toggle_visibility`) is
-app-wide: run one Ghostty window per macOS Space and it always jumps to whichever window
-was most recently focused, instead of showing/hiding the one on the Space you're actually
-on — see [ghostty-org/ghostty#11084](https://github.com/ghostty-org/ghostty/discussions/11084).
-There's no Ghostty-side fix, so `dot_hammerspoon/init.lua` replaces the keybind
-entirely: an `hs.window.filter` scoped to Ghostty with `currentSpace = true` finds the
-window that belongs to the current Space (minimized or hidden windows included — they're
-Space-agnostic in macOS, so a naive `visible`-only filter would miss one and spawn a
-duplicate instead of restoring it), then hides the whole app (`hs.application:hide()` —
-the same instant, no-genie-animation mechanism as Cmd+H, which is what Ghostty's own
-toggle already used and the one part of it that was never broken) if that window is
-focused, unhides and focuses it otherwise, or runs `ghostty +new-window` if the Space has
-none.
+dot_omp/private_agent/
 
 Cask, not brew, and macOS-only in every sense — Hammerspoon has no Linux port and no
 headless use, so its `packages.yaml` entry names `darwin` only (same treatment as Docker
@@ -1045,21 +881,14 @@ themselves; CI's setup steps install them once before any recipe runs.
 | `just templates` | every `*.tmpl` under `home/` renders for both darwin and linux with no prompt answers supplied |
 | `just scripts` | every `.chezmoiscripts/*.sh.tmpl` renders for both platforms and passes `shellcheck -S warning` |
 | `just zsh-syntax` | `zsh -n` on `dot_zshenv`, `dot_zshrc`, and the rendered `create_private_dot_zshrc.local` |
-| `just leakguard` | work identifiers and committed `"ssh_connections":` blocks in tracked content — the sole remaining guard now that Zed writes the key into project-local settings instead |
+| `just leakguard` | work identifiers and committed Zed `ssh_connections` blocks in tracked content — the sole remaining guard now that Zed writes the key into project-local settings instead |
+| `just gitleaks` | token-shaped secrets in a `git archive HEAD` export — the generic scanner half leakguard's literal pattern can never cover, and the CI backstop for a commit that bypassed the pre-commit hook |
 | `just brewfile` | prints the Brewfile `run_onchange_after_20-brew-bundle.sh.tmpl` would generate — there is no tracked Brewfile to read directly |
-| `just check` | `data`, `templates`, `scripts`, `zsh-syntax`, `leakguard` — the fast gate before every commit |
+| `just check` | `data`, `templates`, `scripts`, `zsh-syntax`, `leakguard`, `gitleaks` — the fast gate before every commit |
 | `just smoke` | applies the whole tree into a throwaway destination twice with `--exclude scripts,externals`; the second run must leave `chezmoi verify` clean |
 | `just remote <host>` | applies this repo's chezmoi state on a remote host over ssh — see [Remote installs](#remote-installs----just-remote) above |
 
-Run `just check` and `just smoke` locally before pushing — same as `AGENTS.md`. CI runs
-three jobs: **lint** (`data`, `templates`, `scripts`, `zsh-syntax`, `leakguard`, on
-`ubuntu-latest`), **apply** (`just smoke` plus explicit target-shape assertions on Linux —
-`.zshrc`/`.gitconfig`/`.omp/agent/config.yml` exist as regular files, every
-`create_private_` target exists and is not a symlink, `Library/` is absent), and
-**darwin** (a real `macos-latest` runner asserting the inverse — the LaunchAgent plist and
-the lazygit `Library/Application Support` symlink exist, `.config/systemd` is absent).
-`darwin` replaces the old CI's stub-`uname` trick for faking macOS on an Ubuntu runner —
-this is the check that trick could never actually perform.
+dot_omp/private_agent/
 
 Changes land as a direct push to `main`. CI runs on every push, on every branch, so the
 checks still report whether a change went straight to `main` or through a branch first.

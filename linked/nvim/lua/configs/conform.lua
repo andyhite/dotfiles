@@ -1,7 +1,7 @@
 --- Python splits two ways across the repos on this machine: culora, training,
---- photo-culling and comfyui-andypack all configure [tool.ruff], while circuit
---- enforces isort + black through .pre-commit-config.yaml. Pick per project so
---- the editor never fights the hook.
+--- photo-culling and comfyui-andypack all configure [tool.ruff], while the
+--- work monorepo enforces isort + black through .pre-commit-config.yaml. Pick
+--- per project so the editor never fights the hook.
 ---@param bufnr integer
 ---@return string[]
 local function python_formatters(bufnr)
@@ -54,12 +54,12 @@ local options = {
     bash = { "shfmt" },
 
     -- Go is deliberately absent: gopls runs gofmt and organises imports
-    -- itself, matching circuit's go-fmt / go-imports pre-commit hooks.
+    -- itself, matching the work monorepo's go-fmt / go-imports pre-commit hooks.
   },
 
   formatters = {
     isort = {
-      -- circuit's pre-commit passes --profile black explicitly; its
+      -- The work monorepo's pre-commit passes --profile black explicitly; its
       -- pyproject [tool.isort] sets line_length and known_first_party but
       -- not the profile, so pass it here to keep editor and hook identical.
       prepend_args = { "--profile", "black" },

@@ -1,5 +1,5 @@
 # Single source of truth for the checks ci.yml runs. Recipes assume their
-# dependencies (chezmoi, shellcheck, jq, zsh) are already on PATH — they
+# dependencies (chezmoi, shellcheck, jq, zsh, gitleaks) are already on PATH —
 # install nothing, same as a CI runner's steps after its setup lines.
 #
 # Multi-line recipes below are `#!/usr/bin/env bash` scripts rather than
@@ -130,15 +130,31 @@ zsh-syntax:
 leakguard:
     #!/usr/bin/env bash
     set -euo pipefail
-    pattern='circuit''[-.]ai|andyhite''-fab|mole''cula|OXY''GEN|"ssh_connections"[[:space:]]*:'
+    pattern='circ''uit|andyhite''-fab|mole''cula|OXY''GEN|"ssh_connections"[[:space:]]*:'
     if git grep -nIi -E "$pattern" -- . \
-        ':!README.md' \
-        ':!.github/workflows/ci.yml' \
         ':!Justfile'; then
       echo "::error::work identifier or ssh_connections block found in committed content — see the matches above"
       exit 1
     fi
     echo "ok  no work identifiers committed"
+
+# The generic half of the secret gate: leakguard above knows this repo's few
+# work identifiers and nothing else — no token shapes, no key blocks. Until
+# now that half only existed as the pre-commit gitleaks hook, which never runs
+# in CI: a commit made with --no-verify, from a machine whose hooks were never
+# installed, or through GitHub's web UI reached origin with zero secret
+# scanning. Scans a `git archive HEAD` export, not the working tree, so live
+# gitignored files (herdr plugin *.env credentials under linked/) can never
+# produce findings and the scan covers exactly what the commit ships.
+[doc("Scan committed content for token-shaped secrets with gitleaks")]
+gitleaks:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmp="$(mktemp -d)"
+    trap 'rm -rf "$tmp"' EXIT
+    git archive HEAD | tar -x -C "$tmp"
+    gitleaks dir "$tmp" --no-banner --redact
+    echo "ok  no token-shaped secrets in committed content"
 
 # There is no tracked Brewfile any more, so this is the only way to read
 # what `brew bundle` will actually be handed.
@@ -158,7 +174,7 @@ fix-md:
 # dependency here: it does real filesystem work, so it's a separate, slower
 # step rather than baked into the default gate.
 [doc("Every check fast enough to run on every commit")]
-check: data templates scripts zsh-syntax leakguard
+check: data templates scripts zsh-syntax leakguard gitleaks
 
 # --exclude scripts,externals is mandatory: without it a smoke run would
 # execute brew bundle and sudo apt-get install against the real machine.

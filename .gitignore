@@ -10,21 +10,23 @@
 *.bak.*
 **/*.log
 
-# Herdr plugins write runtime logs into their own config dirs — whatever a
-# plugin decides to drop beside its config. The config in that tree is worth
-# tracking; the logs aren't.
-linked/herdr-plugin-config/**/*.log
+# linked/herdr-plugin-config is symlinked from ~/.config/herdr/plugins/config,
+# so whatever a plugin writes — runtime logs, provider.env with a real
+# OPENAI_API_KEY, any credential file under a name nobody predicted — lands
+# physically inside this repo. Allowlist form, not a blocklist of known
+# secret names: a new plugin's credentials.json or token cache defaults to
+# ignored instead of being one `git add -A` away from a commit. Only the
+# per-plugin config.toml (and the .gitkeep that keeps the dir) is tracked;
+# keep a redacted provider.env.example in the plugin's own repo if a template
+# is needed.
+linked/herdr-plugin-config/**
+!linked/herdr-plugin-config/**/
+!linked/herdr-plugin-config/.gitkeep
+!linked/herdr-plugin-config/**/config.toml
 
 # omp takes a lock next to its config while writing through the symlink. It's
 # transient (and empty), so it shows up as a stray untracked file after any
 # in-app settings change.
 linked/omp-extensions/*.lock
-home/dot_omp/agent/*.lock
+home/dot_omp/private_agent/*.lock
 
-# Herdr plugin secrets. linked/herdr-plugin-config is symlinked from
-# ~/.config/herdr/plugins/config, so a plugin's API keys physically land inside
-# this repo — provider.env for tab-smart-rename holds an OPENAI_API_KEY. Never
-# tracked. Keep a redacted provider.env.example in the plugin's own repo if a
-# template is needed; this file is per-machine.
-linked/herdr-plugin-config/**/provider.env
-linked/herdr-plugin-config/**/*.env

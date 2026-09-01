@@ -89,30 +89,13 @@ Linux branch somewhere else. Nothing else to touch:
 
 ## Adding a config file
 
-One edit: the file under `home/` in chezmoi source naming (`dot_`, `private_`,
-`create_private_`, `symlink_`, `.tmpl` — see chezmoi's own naming reference), or under
-`linked/` when its tool writes into it (see "Copy mode vs. `linked/`" above). There is no
-`links` array anywhere to keep in sync — the source path *is* the target mapping, and
-`.chezmoiroot` (`home`) is what keeps everything outside `home/` and `linked/` out of the
-target state entirely.
+dot_omp/private_agent/
 
 ## Secrets
 
-Nothing machine-specific or credential-bearing is tracked. The escape hatch is a
-`create_private_` source entry: chezmoi writes it at mode 0600 the first time `chezmoi
-apply` runs, and never touches it again — so a re-apply can never clobber a filled-in file.
-The six that exist today: `create_private_dot_zshrc.local`,
-`create_private_dot_gitconfig.local`, `private_dot_ssh/create_private_config.local`,
-`dot_omp/agent/create_private_models.yml`, `dot_omp/agent/create_private_config.local.yml`,
-`dot_dstack/server/create_private_config.yml`. `create_private_dot_gitconfig-work.tmpl` is
-the seventh, but it's templated rather than hand-filled — see "omp model routing" below for
-the pattern and "Work identity" for this specific one.
+dot_omp/private_agent/
 
-CI greps committed content for work identifiers and for Zed's `ssh_connections` key
-(`just leakguard`), and fails the build on a match. Real hostnames, work domains, and
-employer names belong in a `create_private_` target once it's applied — never in a comment,
-a template default, or a commit message. `~/.config/chezmoi/` (chezmoi's own config, which
-holds the three `promptStringOnce` answers below) is never tracked either.
+dot_omp/private_agent/
 
 ## Work identity
 
@@ -125,22 +108,9 @@ outside the repo. A blank `workGitDir` means "no work identity on this machine" 
 
 ## omp model routing
 
-`home/dot_omp/agent/config.yml` is shared by every machine, so `modelRoles` and
-`retry.fallbackChains` in it deliberately name only `anthropic` and `cursor` — the two
-built-in provider ids every machine is expected to authenticate — not `openai`/
-`openai-codex`, which not every machine does. A built-in id the machine can't authenticate
-is skipped silently; a custom provider id in the shared config would warn once per role at
-every startup on any machine that doesn't define it, which is exactly why custom providers
-never go there.
+dot_omp/private_agent/
 
-A machine's own routing lives outside the shared file, in two `create_private_` targets:
-`~/.omp/agent/models.yml` (credentials and custom provider ids — trial models, self-hosted
-endpoints, a second identity for an existing account) and `~/.omp/agent/config.local.yml`
-(a `modelRoles`/`retry.fallbackChains` overlay `zshrc` loads via `PI_CONFIG_FILES`,
-deep-merged on top of the shared config). Both ship inert (`providers: {}` and `{}`)
-because omp validates each file's root as an object — a copy trimmed to pure comments
-parses as null, which is a startup warning for `models.yml` and a hard startup error for
-`config.local.yml`. See the two `create_private_` source files themselves for the patterns.
+dot_omp/private_agent/
 
 ## packages.yaml is load-bearing
 
@@ -161,7 +131,7 @@ with what it does. Match that: write the sentence that stops the next reader fro
 ## Pre-commit hooks
 
 `.pre-commit-config.yaml` runs gitleaks plus the local `just leakguard` hook.
-`run_once_after_90-repo-hooks.sh.tmpl` runs `pre-commit install` on `chezmoi apply`, so a
+`run_onchange_after_90-repo-hooks.sh.tmpl` runs `pre-commit install` on `chezmoi apply`, so a
 fresh clone gets them after its first apply. A commit can be rejected by a hook — fix the
 finding, never pass `--no-verify`.
 

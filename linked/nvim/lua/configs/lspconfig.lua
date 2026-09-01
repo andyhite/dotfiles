@@ -7,14 +7,14 @@ local servers = {
   "ts_ls", -- typescript / javascript / bun
   "eslint", -- flat-config eslint in most repos
   -- oxlint is workspace_required with .oxlintrc.json root markers, so it
-  -- only starts in circuit/frontend, where those 18 configs live.
+  -- only starts in the work monorepo's frontend, where those 18 configs live.
   "oxlint",
   "tailwindcss", -- plotroom uses prettier-plugin-tailwindcss
 
   -- languages
   -- basedpyright over pyright: verified it honours [tool.pyright] -- which
   -- culora, training and photo-culling set -- as well as [tool.basedpyright]
-  -- which circuit sets and runs in pre-commit. One server covers both.
+  -- which the work monorepo sets and runs in pre-commit. One server covers both.
   "basedpyright", -- python types
   "ruff", -- python lint / format, gated below
   "gopls", -- go
@@ -33,9 +33,9 @@ local servers = {
 }
 
 -- Only start ruff where the project opts in. culora, training,
--- photo-culling and comfyui-andypack all declare [tool.ruff]; circuit lints
--- with pylint and formats with black + isort, so running ruff there would
--- duplicate pylint's findings under a different rule set.
+-- photo-culling and comfyui-andypack all declare [tool.ruff]; the work
+-- monorepo lints with pylint and formats with black + isort, so running ruff
+-- there would duplicate pylint's findings under a different rule set.
 vim.lsp.config("ruff", {
   root_dir = function(bufnr, on_dir)
     local fname = vim.api.nvim_buf_get_name(bufnr)

@@ -7,11 +7,15 @@
 {{ if eq .chezmoi.os "linux" -}}
 # macOS gets this font from the font-geist-mono-nerd-font cask. Linux has no
 # package for it, so pull the release archive directly; run_onchange_after_45
-# refreshes the font cache once it lands.
+# refreshes the font cache once it lands. Pinned to a tag with a checksum —
+# `releases/latest` can change content under the same URL, which would let a
+# compromised upstream release land here silently. Bump tag and checksum
+# together (sha256sum the new zip) when updating.
 [".local/share/fonts/GeistMonoNerdFont"]
     type = "archive"
     format = "zip"
-    url = "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/GeistMono.zip"
+    url = "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.5.1/GeistMono.zip"
+    checksum.sha256 = "4799a6c340f3993cea7f59c256c723afb3e70233471ea9042d92f153b87ef83e"
     exact = true
     refreshPeriod = "8760h"
 {{ end -}}

@@ -20,7 +20,7 @@ Include ~/.ssh/config.local
 # IdentitiesOnly stops ssh from offering every key already in the agent before
 # the one named here. Without it, whichever identity the agent happens to offer
 # first wins the handshake, so a push to an andyhite repo could authenticate as
-# andyhite-circuit and 403.
+# the work account and 403.
 #
 # UseKeychain is deliberately absent: it's a macOS-only keyword, and OpenSSH on
 # Linux rejects the whole config with "Bad configuration option" rather than
@@ -29,7 +29,7 @@ Include ~/.ssh/config.local
 Host github.com
   HostName github.com
   AddKeysToAgent yes
-  IdentityFile ~/.ssh/github_circuit
+  IdentityFile ~/.ssh/github_work
   IdentitiesOnly yes
 
 Host github.com-personal
@@ -42,8 +42,10 @@ Host hf.co
   HostName hf.co
   AddKeysToAgent yes
   IdentityFile ~/.ssh/huggingface
+  IdentitiesOnly yes
 
 Host runpod.io
   HostName runpod.io
   AddKeysToAgent yes
   IdentityFile ~/.ssh/runpod
+  IdentitiesOnly yes

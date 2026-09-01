@@ -24,5 +24,7 @@
 #   - a `[url "https://<token>@host/"] insteadOf = https://host/` rewrite for
 #     a private registry or self-hosted git server
 #   - an extra [credential "https://..."] helper for a host gh doesn't cover
-# This file is gitignored (*.local) and lives outside the repo once copied to
-# ~/.gitconfig.local, so secrets here never end up in a commit.
+# Only the ~/.gitconfig.local copy is safe for real values: chezmoi writes it
+# once and never reads it back, and it lives outside the repo. THIS source
+# file is tracked — there is deliberately no `*.local` gitignore rule (see
+# .gitignore at the repo root) — so a token pasted here would be committed.
