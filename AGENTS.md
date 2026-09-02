@@ -10,6 +10,23 @@ See "Copy mode vs. `linked/`" below for which is which.
 per tool, plus an inventory table of every tracked path. This file covers *how to change
 things here*.
 
+## Running git commands
+
+`core.pager` in `dot_gitconfig.tmpl` is `hunk pager || less`, deliberately — it gives a
+real terminal session a full review UI on `git diff`/`show` and plain scrollback on `git
+log`, and that's correct, wanted behavior for a human at a keyboard. It's also a hang trap
+for automation: a script or agent that runs `git log`/`diff`/`show` attached to a real pty
+(not a plain pipe) but never sends a keystroke will sit forever at the pager's prompt once
+output overflows one screen — indistinguishable from a real hang from the outside, but it's
+just the pager correctly waiting for input nobody will send. Plain non-tty command output
+(the common case for a tool call without an explicit pty) is unaffected: git only invokes a
+pager when stdout is a terminal, so this only bites pty-attached automation.
+
+Any git command run non-interactively — from a script, hook, or an agent explicitly
+allocating a pty — MUST bypass the pager: `git --no-pager log`, or `GIT_PAGER=cat`. Don't
+"fix" this by changing `core.pager` itself; that would trade away the interactive review UX
+for a problem that only exists at pty-attached call sites.
+
 ## Editing a tracked file
 
 Two ways, same result:
