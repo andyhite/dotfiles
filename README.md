@@ -75,6 +75,7 @@ Applied with [chezmoi](https://chezmoi.io) and [mise](https://mise.jdx.dev). See
 | `home/dot_omp/private_agent/extensions/symlink_atuin.ts.tmpl` | `~/.omp/agent/extensions/atuin.ts` → `linked/omp-extensions/atuin.ts` | records omp's `bash` commands into Atuin history |
 | `home/dot_omp/private_agent/extensions/symlink_daily-budget.ts.tmpl` | `~/.omp/agent/extensions/daily-budget.ts` → `linked/omp-extensions/daily-budget.ts` | weekday spend-pacing warnings |
 | `home/dot_omp/private_agent/daily-budget.json` | `~/.omp/agent/daily-budget.json` | usage/cost budget schedule read by the extension above |
+| `home/dot_omp/private_agent/create_private_daily-budget.local.json` | `~/.omp/agent/daily-budget.local.json` (created once, mode 0600) | machine-local `daily-budget.json` overlay (e.g. a smaller `cost.dailyCapUsd`) |
 | `home/dot_omp/private_agent/rules/output-style.md` | `~/.omp/agent/rules/output-style.md` | output-style rule for omp responses |
 | `home/dot_omp/private_agent/AGENTS.md` | `~/.omp/agent/AGENTS.md` | omp's global context file |
 | `home/dot_omp/private_agent/create_private_models.yml` | `~/.omp/agent/models.yml` (created once, mode 0600) | credentials and custom provider ids |

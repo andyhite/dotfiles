@@ -50,6 +50,15 @@
  * once actual usage overruns today's effective allowance, so the
  * fallback/quota wall stops being a surprise.
  *
+ * `~/.omp/agent/daily-budget.local.json` is an optional, machine-local
+ * overlay on top of the tracked `daily-budget.json` — the same deep-merge
+ * contract `config.local.yml` already uses for omp's own config.yml: only
+ * the keys present in the overlay override anything, everything else still
+ * comes from the shared file. `chezmoi apply` creates it once, empty
+ * (`{}`), and never touches it again, so e.g. a laptop can shrink
+ * `cost.dailyCapUsd` to $25/day while a beefier always-on box keeps the
+ * shared $250 default untouched.
+ *
  * There is no documented extension API to read a provider's live usage
  * report in-process (`pi.registerProvider`'s `usage.fetchUsage` only lets you
  * *supply* one), so this shells out to `omp usage --json` — the same data
@@ -69,6 +78,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 const CONFIG_PATH = join(homedir(), ".omp", "agent", "daily-budget.json");
+const LOCAL_CONFIG_PATH = join(homedir(), ".omp", "agent", "daily-budget.local.json");
 const STATE_PATH = join(homedir(), ".omp", "agent", "daily-budget-state.json");
 
 const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
@@ -248,13 +258,47 @@ interface NotifyUI {
   setWidget(key: string, lines: string[], options?: { placement?: "aboveEditor" | "belowEditor" }): void;
 }
 
+// Merges `overlay` onto `base`: plain objects merge key by key (recursively,
+// so e.g. overriding one weekday of `cost.dailyCapUsd` doesn't lose the
+// others), any other value — number, string, array — is a leaf and the
+// overlay's value replaces the base's outright. Same semantics
+// `config.local.yml` already uses to overlay omp's own config.yml, so a
+// machine only has to write the keys it wants to change.
+function deepMerge(base: unknown, overlay: unknown): unknown {
+  if (
+    typeof base === "object" &&
+    base !== null &&
+    !Array.isArray(base) &&
+    typeof overlay === "object" &&
+    overlay !== null &&
+    !Array.isArray(overlay)
+  ) {
+    const result: Record<string, unknown> = { ...(base as Record<string, unknown>) };
+    for (const [key, value] of Object.entries(overlay as Record<string, unknown>)) {
+      result[key] = key in result ? deepMerge(result[key], value) : value;
+    }
+    return result;
+  }
+  return overlay;
+}
+
 function loadConfig(): BudgetConfig | undefined {
   if (!existsSync(CONFIG_PATH)) return undefined;
+  let config: unknown;
   try {
-    return JSON.parse(readFileSync(CONFIG_PATH, "utf8")) as BudgetConfig;
+    config = JSON.parse(readFileSync(CONFIG_PATH, "utf8"));
   } catch {
     return undefined;
   }
+  if (existsSync(LOCAL_CONFIG_PATH)) {
+    try {
+      config = deepMerge(config, JSON.parse(readFileSync(LOCAL_CONFIG_PATH, "utf8")));
+    } catch {
+      // Malformed local overlay: run on the shared config rather than
+      // failing the whole widget over one machine's bad hand-edit.
+    }
+  }
+  return config as BudgetConfig;
 }
 
 function loadState(): DailyState {
