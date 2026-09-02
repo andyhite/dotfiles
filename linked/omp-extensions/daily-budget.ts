@@ -76,6 +76,64 @@ type Weekday = (typeof WEEKDAYS)[number];
 
 type WeekdayMap = Record<Weekday, number>;
 
+// Weekday schedules in daily-budget.json are authored against a Central-time
+// workweek, so day/week boundaries are pinned to that zone rather than
+// whatever TZ the omp process happens to run under (a remote session, a
+// container, a laptop that's roamed to another zone) — otherwise the same
+// config would pace against a different wall-clock day depending on where
+// omp is running. `America/Chicago` (not a fixed UTC-6 offset) so the
+// boundary still follows CDT/CST across the DST transition.
+const BUDGET_TZ = "America/Chicago";
+
+// UTC-minus-offset (ms) of `BUDGET_TZ` at `ms`, e.g. -18000000 for CDT,
+// -21600000 for CST. `Intl`'s `shortOffset` is the only piece of the
+// platform that resolves a zone's DST-dependent offset for an arbitrary
+// instant without pulling in a tz database of our own.
+function chicagoOffsetMs(ms: number): number {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: BUDGET_TZ, timeZoneName: "shortOffset" }).formatToParts(
+    ms,
+  );
+  const raw = parts.find((p) => p.type === "timeZoneName")?.value ?? "GMT+0";
+  const match = /GMT([+-])(\d{1,2})(?::(\d{2}))?/.exec(raw);
+  if (!match) return 0;
+  const sign = match[1] === "-" ? -1 : 1;
+  return sign * (Number(match[2]) * 60 + Number(match[3] ?? "0")) * 60_000;
+}
+
+// `ms` decomposed into the date/time-of-day a Central-time wall clock would
+// show, for date arithmetic (month/week rollover) that must count real
+// Chicago calendar days rather than raw 24h ms chunks.
+function chicagoParts(ms: number): { y: number; mo: number; d: number; h: number; mi: number; s: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: BUDGET_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(ms);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  return { y: get("year"), mo: get("month"), d: get("day"), h: get("hour"), mi: get("minute"), s: get("second") };
+}
+
+// Inverse of `chicagoParts`: the epoch ms of the given Central-time wall-clock
+// reading. Builds a UTC guess from the raw components, then corrects it by
+// that guess's own offset — accurate except inside the one hour of a DST
+// transition itself, which this widget's day/week/month boundaries never
+// need to resolve to the minute.
+function fromChicagoParts(y: number, mo: number, d: number, h = 0, mi = 0, s = 0): number {
+  const utcGuess = Date.UTC(y, mo - 1, d, h, mi, s);
+  return utcGuess - chicagoOffsetMs(utcGuess);
+}
+
+// Epoch ms of Central-time local midnight for the calendar day containing `ms`.
+function chicagoDayStartMs(ms: number): number {
+  const { y, mo, d } = chicagoParts(ms);
+  return fromChicagoParts(y, mo, d);
+}
+
 // A provider-specific schedule that supersedes its category's global
 // default. For `usage` this changes which allocationPct paces the track and,
 // optionally, which of the provider's several reported limits it paces
@@ -169,8 +227,8 @@ interface UsageReport {
 // remembering. Cost buckets ("cost:combined" for the shared pool,
 // "cost:<providerId>" for an override) have no such report, so their
 // carryover is computed and stored explicitly when a day rolls over.
-// `warnedDayStartMs` dedupes the overrun notification to once per local
-// calendar day.
+// `warnedDayStartMs` dedupes the overrun notification to once per
+// Central-time calendar day.
 interface Ledger {
   windowStartMs?: number;
   dayBaselineStartMs?: number;
@@ -209,22 +267,26 @@ function loadState(): DailyState {
 }
 
 function weekdayOf(ms: number): Weekday {
-  // Names the Date→weekday-enum mapping so callers read a domain concept,
-  // not a raw array index.
-  return WEEKDAYS[new Date(ms).getDay()];
+  // Reads the weekday off a Central-time wall clock (not the host's local
+  // zone) so it matches the workweek daily-budget.json's schedules assume.
+  const short = new Intl.DateTimeFormat("en-US", { timeZone: BUDGET_TZ, weekday: "short" }).format(ms);
+  return short.slice(0, 3).toLowerCase() as Weekday;
 }
 
-// Most recent Monday-local-midnight at or before `ms`. The cost cap's
+// Most recent Monday-midnight (Central time) at or before `ms`. The cost cap's
 // carryover resets here each week (unlike the quota providers', which
 // resets whenever each provider's own rolling window happens to roll) —
 // there is no provider-reported window to key a reset off for cost, so a
 // fixed calendar week gives it one instead of accumulating forever.
 function weekStartMs(ms: number): number {
-  const d = new Date(ms);
-  d.setHours(0, 0, 0, 0);
-  const daysSinceMonday = (d.getDay() + 6) % 7;
-  d.setDate(d.getDate() - daysSinceMonday);
-  return d.getTime();
+  const { y, mo, d } = chicagoParts(ms);
+  const daysSinceMonday = (WEEKDAYS.indexOf(weekdayOf(ms)) + 6) % 7;
+  // Calendar-only arithmetic (never read as a real instant) so subtracting
+  // days handles month/year rollover before the result is reattached to the
+  // real Central-time offset via `fromChicagoParts`.
+  const civil = new Date(Date.UTC(y, mo - 1, d));
+  civil.setUTCDate(civil.getUTCDate() - daysSinceMonday);
+  return fromChicagoParts(civil.getUTCFullYear(), civil.getUTCMonth() + 1, civil.getUTCDate());
 }
 
 // Cumulative allocated percentage from the window's own start through today.
@@ -251,13 +313,14 @@ function cumulativeAllocationPct(allocationPct: WeekdayMap, windowStartMs: numbe
 // billing cycle is a real calendar month, so date-arithmetic is the only
 // way to recover its start.
 function monthBeforeMs(ms: number): number {
-  const d = new Date(ms);
-  const day = d.getDate();
-  d.setDate(1);
-  d.setMonth(d.getMonth() - 1);
-  const daysInTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-  d.setDate(Math.min(day, daysInTargetMonth));
-  return d.getTime();
+  const { y, mo, d, h, mi, s } = chicagoParts(ms);
+  // Same calendar-only-arithmetic technique as `weekStartMs`: step the civil
+  // month back on a UTC-flavored `Date` used purely for its date math, then
+  // reattach the real Central-time offset and original time-of-day.
+  const civil = new Date(Date.UTC(y, mo - 1, 1));
+  civil.setUTCMonth(civil.getUTCMonth() - 1);
+  const daysInTargetMonth = new Date(Date.UTC(civil.getUTCFullYear(), civil.getUTCMonth() + 1, 0)).getUTCDate();
+  return fromChicagoParts(civil.getUTCFullYear(), civil.getUTCMonth() + 1, Math.min(d, daysInTargetMonth), h, mi, s);
 }
 
 // A schedule derived from the matched limit's own reported window — every
@@ -531,7 +594,7 @@ function checkBudgets(config: BudgetConfig, ui: NotifyUI): void {
 
   const state = loadState();
   const now = Date.now();
-  const todayStartMs = new Date(now).setHours(0, 0, 0, 0);
+  const todayStartMs = chicagoDayStartMs(now);
   const segments: BudgetSegment[] = [];
 
   // Quota-window providers are whichever ones `omp usage --json` actually
