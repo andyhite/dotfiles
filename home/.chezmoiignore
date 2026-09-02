@@ -3,9 +3,7 @@
 Library
 .config/caddy
 .config/dnsmasq
-{{ end }}
-{{ if ne .chezmoi.os "linux" }}
-.config/systemd
+.dstack
 {{ end }}
 {{ if not (and (eq .chezmoi.os "darwin") (stat "/Applications/Tailscale.app/Contents/MacOS/Tailscale")) }}
 .local/bin/tailscale

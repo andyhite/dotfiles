@@ -107,9 +107,11 @@ jobs:
           test -f "$dest/.zshrc.local" && test ! -L "$dest/.zshrc.local"
           test -f "$dest/.omp/agent/models.yml" && test ! -L "$dest/.omp/agent/models.yml"
           test -f "$dest/.omp/agent/config.local.yml" && test ! -L "$dest/.omp/agent/config.local.yml"
-          test -f "$dest/.dstack/server/config.yml" && test ! -L "$dest/.dstack/server/config.yml"
 
-          test -f "$dest/.config/systemd/user/dstack-server.service"
+          # dstack is macOS-only now — neither its config tree nor the old
+          # Linux systemd unit should exist on this platform.
+          test ! -e "$dest/.dstack"
+          test ! -e "$dest/.config/systemd"
 
           # The Darwin-only Library/ tree must not exist on this platform —
           # this is the check today's single-OS CI runner used to be unable
@@ -117,9 +119,8 @@ jobs:
           test ! -e "$dest/Library"
 
   # A real macOS runner, replacing the stub-uname trick the old CI used to
-  # fake Darwin on Ubuntu. Asserts the inverse of the apply job: the paths
-  # that only exist on macOS are present, and the Linux-only systemd unit is
-  # absent.
+  # fake Darwin on Ubuntu. Asserts the paths that only exist on macOS,
+  # including dstack's config and LaunchAgent — dstack is darwin-only now.
   darwin:
     runs-on: macos-latest
     steps:
@@ -136,5 +137,6 @@ jobs:
             --override-data '{"workName":"","workEmail":"","workGitDir":""}'
 
           test -e "$dest/Library/LaunchAgents/ai.dstack.server.plist"
+          test -f "$dest/.dstack/server/config.yml" && test ! -L "$dest/.dstack/server/config.yml"
           test -L "$dest/Library/Application Support/lazygit/config.yml"
           test ! -e "$dest/.config/systemd"

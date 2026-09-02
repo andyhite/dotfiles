@@ -81,9 +81,8 @@ Applied with [chezmoi](https://chezmoi.io) and [mise](https://mise.jdx.dev). See
 | `home/dot_omp/private_agent/create_private_config.local.yml` | `~/.omp/agent/config.local.yml` (created once, mode 0600) | machine-local `modelRoles`/`retry.fallbackChains` overlay |
 | `home/dot_claude/settings.json` | `~/.claude/settings.json` | [Claude Code](https://claude.com/product/claude-code) CLI global settings |
 | `home/dot_claude/symlink_CLAUDE.md.tmpl` | `~/.claude/CLAUDE.md` → `~/.omp/agent/AGENTS.md` | symlink to the applied omp `AGENTS.md` |
-| `home/dot_dstack/server/create_private_config.yml` | `~/.dstack/server/config.yml` (created once, mode 0600) | [dstack](https://dstack.ai) GPU-cloud orchestrator config |
+| `home/dot_dstack/server/create_private_config.yml` | `~/.dstack/server/config.yml` (created once, mode 0600, macOS) | [dstack](https://dstack.ai) GPU-cloud orchestrator config |
 | `home/Library/LaunchAgents/ai.dstack.server.plist` | `~/Library/LaunchAgents/ai.dstack.server.plist` (macOS) | LaunchAgent that starts `dstack server` at login |
-| `home/dot_config/systemd/user/dstack-server.service` | `~/.config/systemd/user/dstack-server.service` (Linux) | same job, as a systemd `--user` unit |
 | `home/dot_local/bin/executable_tailscale` | `~/.local/bin/tailscale` | PATH shim for the Mac App Store build of Tailscale |
 
 ### Repo scripts, checks & docs
@@ -130,7 +129,7 @@ Thirteen scripts under `home/.chezmoiscripts/` run in numbered order:
 | `run_onchange_after_45-fontcache.sh.tmpl` | linux | `fc-cache -f` on the Nerd Font directory |
 | `run_onchange_after_50-completions.sh.tmpl` | both | generates zsh completions for tools carapace doesn't cover |
 | `run_onchange_after_60-agents.sh.tmpl` | both | installs `via: herdr`/`via: omp`/`via: gh`/`via: skill` entries |
-| `run_onchange_after_70-services.sh.tmpl` | both | starts the dstack service |
+| `run_onchange_after_70-services.sh.tmpl` | darwin | starts the dstack service |
 | `run_onchange_after_80-nvchad.sh.tmpl` | both | restores the NvChad plugin lockfile if it changed |
 | `run_onchange_after_90-repo-hooks.sh.tmpl` | both | `pre-commit install` in this repo |
 

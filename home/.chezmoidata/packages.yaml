@@ -144,7 +144,9 @@ packages:
   # required — the bare package omits the server's dependencies and
   # `dstack server` fails at startup with "missing server dependencies".
   # uv itself comes from mise (aqua:astral-sh/uv), so this runs after mise.
-  - { name: dstack, all: { via: uv, id: "dstack[server]" } }
+  # macOS only: this repo's dstack automation (LaunchAgent, ~/.dstack/server
+  # config) only targets Mac hosts, so Linux boxes never get dstack installed.
+  - { name: dstack, darwin: { via: uv, id: "dstack[server]" } }
 
   # ── Upstream installers ───────────────────────────────────────────────────
   # Both self-update (`omp update`, `claude update`) and omp is a ~120MB
