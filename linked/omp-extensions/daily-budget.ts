@@ -700,8 +700,22 @@ function checkBudgets(config: BudgetConfig, ui: NotifyUI): void {
     // "today's base allocation +/- whatever rolled forward": an under-pace
     // day leaves usedPct behind the cumulative target, which shows up as
     // extra headroom today; an over-pace day does the opposite.
+    //
+    // `windowStartMs` is derived from the provider's own server-computed
+    // `resetsAt`, which is not stable to the millisecond between calls —
+    // the very same response can report two sibling limits' `resetsAt` a
+    // few dozen ms apart. A real window roll moves `windowStartMs` by
+    // roughly the window's own duration (hours to weeks); anything under
+    // this tolerance is jitter, not a roll, so comparing with exact `!==`
+    // would spuriously re-stamp the baseline to the live value on ordinary
+    // noise (or a race between this machine's several concurrent omp
+    // sessions, which all poll and rewrite the same shared state file) and
+    // silently pin "today's used" at 0% for the rest of the day.
+    const WINDOW_ROLL_TOLERANCE_MS = 5 * 60 * 1000;
     const entry = state[key] ?? {};
-    if (entry.windowStartMs !== windowStartMs || entry.dayBaselineStartMs !== todayStartMs) {
+    const windowRolled =
+      entry.windowStartMs === undefined || Math.abs(entry.windowStartMs - windowStartMs) > WINDOW_ROLL_TOLERANCE_MS;
+    if (windowRolled || entry.dayBaselineStartMs !== todayStartMs) {
       entry.windowStartMs = windowStartMs;
       entry.dayBaselineStartMs = todayStartMs;
       entry.dayBaselineUsedPct = usedPct;
