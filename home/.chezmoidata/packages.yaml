@@ -148,6 +148,17 @@ packages:
   # config) only targets Mac hosts, so Linux boxes never get dstack installed.
   - { name: dstack, darwin: { via: uv, id: "dstack[server]" } }
 
+  # ── npx-run installers ───────────────────────────────────────────────────
+  # Puppeteer's browser download is not a package: it drops Chrome for
+  # Testing into ~/.cache/puppeteer, with no binary on PATH and no mise
+  # registry entry, brew formula, or apt package to install instead. `npx`
+  # itself re-checks that cache and no-ops when the browser is already
+  # there, so running the command unconditionally on every packages.yaml
+  # change (rather than gating it behind a `command -v` check like the
+  # `installer` via) is correct, not wasteful. Needs node on PATH, hence
+  # `cmd` runs after mise installs node/npx, not before.
+  - { name: puppeteer, all: { via: npx, cmd: "browsers install chrome" } }
+
   # ── Upstream installers ───────────────────────────────────────────────────
   # Both self-update (`omp update`, `claude update`) and omp is a ~120MB
   # download, so these are installed once and then left alone. mise has a claude

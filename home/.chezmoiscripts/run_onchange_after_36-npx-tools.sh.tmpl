@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+{{ template "output.sh.tmpl" . }}
+heading "npx tools"
+
+# node (and its npx shim) comes from mise, installed by
+# run_onchange_after_30-mise-install — a machine where that script failed or
+# was skipped should not fail the whole apply here too.
+if ! command -v npx >/dev/null 2>&1; then
+  warned "npx" "not on PATH — skipping npx-run tools"
+  exit 0
+fi
+
+{{ range $.packages -}}
+{{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
+{{-   if $spec }}{{ if eq $spec.via "npx" }}
+{{-     $id := (index $spec "id") | default .name }}
+run_quiet {{ .name | squote }} npx --yes {{ $id | squote }} {{ $spec.cmd }} && ok {{ .name | squote }}
+{{ end }}{{ end }}
+{{- end }}

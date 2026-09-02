@@ -42,7 +42,7 @@ data:
     chezmoi execute-template --source "$PWD" '{{"{{"}} .packages | toJson {{"}}"}}' \
       | jq -e '
           def specs: [.all, .darwin, .linux] | map(select(. != null));
-          def binary_managers: ["mise","brew","cask","apt","uv","installer"];
+          def binary_managers: ["mise","brew","cask","apt","uv","installer","npx"];
           def agent_managers:  ["herdr","omp","gh","skill"];
           (length > 0)
           and (map(.name) | length == (unique | length))
@@ -52,8 +52,10 @@ data:
             and all(specs[];
                   (.via | IN(binary_managers[], agent_managers[]))
               and (if .via == "installer" then (has("url") and has("shell")) else true end)
+              and (if .via == "npx"       then has("cmd")                    else true end)
               and (if .via != "mise"      then (has("version") | not)         else true end)
-              and (if .via != "cask"      then (has("args")    | not)         else true end))
+              and (if .via != "cask"      then (has("args")    | not)         else true end)
+              and (if .via != "npx"       then (has("cmd")     | not)         else true end))
             # a `/` in a name means "not an executable", and only the four
             # agent-artifact managers may use one
             and ((.name | test("/")) == (specs | any(.via | IN(agent_managers[]))))
