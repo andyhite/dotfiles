@@ -196,6 +196,11 @@ packages:
   # half is the ctrl+h/j/k/l bindings in dot_config/herdr/config.toml, the
   # nvim half is linked/nvim/lua/herdr-nav.lua.
   - { name: herdr/vim-herdr-navigation, all: { via: herdr, id: paulbkim-dev/vim-herdr-navigation } }
+  # Full install (annotate terminal text, review documents/folders, and
+  # review the agent's last reply via Plannotator TUI; comments become the
+  # agent's next message). Keybindings are required by the plugin's own
+  # docs — see dot_config/herdr/config.toml's herdr-annotate section.
+  - { name: herdr/herdr-annotate, all: { via: herdr, id: plannotator/herdr-annotate } }
   - { name: herdr/ticket-worktree,      all: { via: herdr, id: "local:linked/herdr-plugins/ticket-worktree" } }
 
   # ── gh extensions ─────────────────────────────────────────────────────────

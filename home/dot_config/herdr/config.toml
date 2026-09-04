@@ -390,3 +390,40 @@ command = "$HOME/.config/herdr/layout/fold-columns.sh"
 key = "prefix+t"
 type = "shell"
 command = "herdr plugin pane open --plugin andyhite.ticket-worktree --entrypoint modal"
+
+## herdr-annotate (plannotator/herdr-annotate, full install) — comment on
+## terminal text, review Markdown documents/folders, and review the focused
+## agent's last reply, all through Plannotator TUI; comments become the
+## agent's next message on Send. The plugin's own docs show `type =
+## "plugin_action"` bindings, but that form is dead on 0.8 (see the note
+## above `keys.command`) — `herdr plugin action invoke <id> --plugin
+## annotate` is the working equivalent, same as vim-herdr-navigation above.
+## Action ids and the "annotate" plugin id come from the plugin's own
+## herdr-plugin.toml manifest.
+##
+## prefix+a/prefix+shift+a/prefix+m/prefix+o/prefix+shift+o are all unbound
+## above and in herdr's own defaults.
+[[keys.command]]
+key = "prefix+a"
+type = "shell"
+command = "herdr plugin action invoke capture --plugin annotate"
+
+[[keys.command]]
+key = "prefix+shift+a"
+type = "shell"
+command = "herdr plugin action invoke copy-context --plugin annotate"
+
+[[keys.command]]
+key = "prefix+m"
+type = "shell"
+command = "herdr plugin action invoke manage --plugin annotate"
+
+[[keys.command]]
+key = "prefix+o"
+type = "shell"
+command = "herdr plugin action invoke open --plugin annotate"
+
+[[keys.command]]
+key = "prefix+shift+o"
+type = "shell"
+command = "herdr plugin action invoke last --plugin annotate"
