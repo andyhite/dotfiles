@@ -192,6 +192,11 @@ packages:
   # occasional.
   - { name: gh/gh-poi, all: { via: gh, id: seachicken/gh-poi } }
 
+  # ── omp plugins ───────────────────────────────────────────────────────────
+  # Built as a Pi extension, but omp can install any npm-packaged Pi
+  # extension directly — no separate omp-specific packaging needed.
+  - { name: omp/pi-extension, all: { via: omp, id: "npm:@plannotator/pi-extension" } }
+
   # ── Cross-agent skills ────────────────────────────────────────────────────
   # Canonical copies land in ~/.agents/skills; the CLI symlinks each agent's own
   # skills directory into that tree.
