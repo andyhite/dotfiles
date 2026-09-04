@@ -54,7 +54,7 @@ data:
               and (if .via == "installer" then (has("url") and has("shell")) else true end)
               and (if .via == "npx"       then has("cmd")                    else true end)
               and (if .via != "mise"      then (has("version") | not)         else true end)
-              and (if .via != "cask"      then (has("args")    | not)         else true end)
+              and (if (.via != "cask" and .via != "installer") then (has("args")    | not)         else true end)
               and (if .via != "npx"       then (has("cmd")     | not)         else true end))
             # a `/` in a name means "not an executable", and only the four
             # agent-artifact managers may use one

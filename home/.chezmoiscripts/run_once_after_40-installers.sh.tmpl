@@ -11,9 +11,16 @@ heading "One-time installers"
 {{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
 {{-   if $spec }}{{ if eq $spec.via "installer" }}
 if ! command -v {{ .name | squote }} >/dev/null 2>&1; then
+{{-   $args := index $spec "args" }}
+{{-   if $args }}
+  run_quiet {{ .name | squote }} sh -c "curl -fsSL {{ (index $spec "url") | squote }} | {{ index $spec "shell" }} -s -- {{ range $args }}{{ . | squote }} {{ end }}" \
+    && added {{ .name | squote }} \
+    || warned {{ .name | squote }} "download failed — re-run to retry"
+{{-   else }}
   run_quiet {{ .name | squote }} sh -c "curl -fsSL {{ (index $spec "url") | squote }} | {{ index $spec "shell" }}" \
     && added {{ .name | squote }} \
     || warned {{ .name | squote }} "download failed — re-run to retry"
+{{-   end }}
 else
   ok {{ .name | squote }} "already installed"
 fi
