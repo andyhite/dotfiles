@@ -10,14 +10,27 @@ if ! command -v uv >/dev/null 2>&1; then
   exit 0
 fi
 
+# `command -v` would wrongly call a tool "installed" when it's on PATH from
+# somewhere else — pipx, brew, a manual install — that `uv tool upgrade`
+# doesn't know about and fails on ("<tool> is not installed"). `uv tool
+# list` is uv's own registry, so this checks the thing `uv tool upgrade`
+# actually reads. Top-level lines are `<name> v<version>`; indented `-
+# <entrypoint>` lines follow, so matching only awk's first field against a
+# bare name (never "-") can't accidentally match one of those.
+#
+# `--force` on install: packages.yaml is the one manifest of what should be
+# installed and how (see this repo's AGENTS.md), so a same-named shim left
+# by some other installer (pipx, a manual `pip install --user`, …) loses to
+# uv here rather than aborting the whole apply with "Executable already
+# exists: <tool> (use --force to overwrite)".
 {{ range $.packages -}}
 {{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
 {{-   if $spec }}{{ if eq $spec.via "uv" }}
 {{-     $id := (index $spec "id") | default .name }}
-if command -v {{ .name | squote }} >/dev/null 2>&1; then
+if uv tool list 2>/dev/null | awk '{print $1}' | grep -qx {{ .name | squote }}; then
   run_quiet {{ .name | squote }} uv tool upgrade {{ .name | squote }} && updated {{ .name | squote }}
 else
-  run_quiet {{ .name | squote }} uv tool install {{ $id | squote }} && added {{ .name | squote }}
+  run_quiet {{ .name | squote }} uv tool install --force {{ $id | squote }} && added {{ .name | squote }}
 fi
 {{ end }}{{ end }}
 {{- end }}
