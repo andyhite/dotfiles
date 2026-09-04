@@ -147,6 +147,9 @@ packages:
   # macOS only: this repo's dstack automation (LaunchAgent, ~/.dstack/server
   # config) only targets Mac hosts, so Linux boxes never get dstack installed.
   - { name: dstack, darwin: { via: uv, id: "dstack[server]" } }
+  # Markdown formatter/linter; no Homebrew formula and no apt package. uv
+  # itself comes from mise (aqua:astral-sh/uv), so this runs after mise.
+  - { name: mdformat, all: { via: uv } }
 
   # ── npx-run installers ───────────────────────────────────────────────────
   # Puppeteer's browser download is not a package: it drops Chrome for
