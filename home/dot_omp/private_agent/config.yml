@@ -6,9 +6,9 @@ modelRoles:
   default: anthropic/claude-sonnet-5:medium
   plan: anthropic/claude-opus-5:high
   slow: anthropic/claude-opus-5:max
-  task: anthropic/claude-sonnet-5:medium
-  smol: anthropic/claude-haiku-4-5:medium
-  commit: anthropic/claude-haiku-4-5:low
+  task: anthropic/claude-sonnet-5:low
+  smol: anthropic/claude-haiku-4-5:low
+  commit: anthropic/claude-haiku-4-5:minimal
   tiny: anthropic/claude-haiku-4-5:minimal
   vision: anthropic/claude-sonnet-5:medium
   designer: anthropic/claude-opus-5:high
@@ -78,7 +78,7 @@ task:
   isolation:
     commits: generic
     merge: patch
-    mode: auto
+    enabled: true
 personality: none
 retry:
   usageAwareFallback: true
@@ -185,3 +185,7 @@ composer:
   shape: claude
 disabledExtensions:
   []
+isolation:
+  backend: auto
+codexResets:
+  autoRedeem: "yes"
