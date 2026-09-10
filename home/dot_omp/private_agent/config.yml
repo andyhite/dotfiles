@@ -30,7 +30,7 @@ statusLine:
   preset: custom
   separator: slash
   showHookStatus: true
-  compactThinkingLevel: true
+  compactThinkingLevel: false
   transparent: true
   sessionAccent: true
   leftSegments:
