@@ -2,7 +2,7 @@
 onboarding = false
 
 [ui.toast]
-delivery = "herdr"
+delivery = "terminal"
 
 [theme]
 ## herdr ships no bundled GitHub theme (built-ins: catppuccin, terminal,
@@ -108,6 +108,7 @@ sidebar_max_width = 36
 
 # ── Sidebar rows ─────────────────────────────────────────────────────────────
 
+status_indicators = "symbols"
 [ui.sidebar.agents]
 rows = [
   ["state_icon", "workspace", "tab"],
