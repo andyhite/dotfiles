@@ -6,3 +6,46 @@
 # whatever you were doing — same call the herdr skill makes for background
 # split panes. Uncomment to switch to the new worktree immediately instead.
 # focus = true
+
+# ── Branch naming ────────────────────────────────────────────────────────
+# Per-provider branch/worktree name template plus a Conventional-Commits
+# type mapping. `format` tokens: {type} (feat/fix/… — auto-detected below,
+# overridable in the modal's type chip with ←/→), {key} (lowercase ticket
+# key), {slug} (kebab-case ticket title, once known). A token with nothing
+# to fill it, and the separator next to it, is dropped automatically.
+#
+# `default_type` is used until a real type is detected, and whenever
+# detection fails outright — no `acli`/`lin` on PATH, not authenticated,
+# offline, or an unrecognized key. `[jira.types]`/`[linear.types]` map that
+# provider's own vocabulary to a token, case-insensitively:
+#   - Jira: the work item's issue-type name (`acli jira workitem view`).
+#   - Linear: its first label's name (Linear has no separate "type" field;
+#     `lin issues get`). Unmapped names fall back to default_type too.
+#
+# `[default]` covers a bare key typed with no recognizable ticket URL, so
+# the provider — and therefore its real type — can't be looked up at all.
+
+[jira]
+format = "{type}/{key}-{slug}"
+default_type = "chore"
+
+[jira.types]
+Bug = "fix"
+Task = "feat"
+Story = "feat"
+Epic = "feat"
+"Sub-task" = "chore"
+
+[linear]
+format = "{type}/{key}-{slug}"
+default_type = "feat"
+
+[linear.types]
+Bug = "fix"
+Feature = "feat"
+Improvement = "feat"
+Chore = "chore"
+
+[default]
+format = "{type}/{key}"
+default_type = "chore"

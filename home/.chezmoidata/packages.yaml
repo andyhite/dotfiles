@@ -55,6 +55,16 @@ packages:
   # crates.io package is `lincli`; `linear-cli` is a different project by a
   # different author. cargo backend, so it needs rust (below).
   - { name: lin,        all: { via: mise, id: "cargo:lincli" } }
+  - name: acli
+    all: { via: mise }
+    postInstall: [{ zshCompletion: [acli, completion, zsh] }]
+  # macOS ships bash 3.2 (Apple froze it there over the GPLv3 relicense) and
+  # never updates it; herdr-plugins/ticket-worktree/modal.sh needs bash 4+
+  # (associative arrays, `${x,,}`/`${x^^}` case conversion) to read its
+  # config.toml and derive branch names. Linux distros already ship bash 5
+  # as /bin/bash, so this is darwin-only — Homebrew's bin dir precedes
+  # /bin on PATH via dot_zshrc's `brew shellenv`, so this shadows it there.
+  - { name: bash, darwin: { via: brew } }
 
   # ── Runtimes, exact pins ──────────────────────────────────────────────────
   # Exact versions on purpose — a machine should not silently drift to

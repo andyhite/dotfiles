@@ -8,13 +8,16 @@
 # Declaring this as a manifest `[[panes]]` entry with `placement = "popup"`
 # gets the TTY for free; opening it is what makes it session-modal.
 #
-# Flow: one form — a text field, a live branch preview, and Create / Cancel
-# buttons on a single screen — then parse a ticket key (and, for Linear, a
-# slug) out of the input -> `herdr worktree create` with a branch name derived
-# from that key -> `herdr agent start` an omp agent in the new worktree's root
-# pane -> `herdr pane send-text` the ticket back into that agent's input
-# WITHOUT submitting it, so the first prompt is queued but the user decides
-# when — or whether — to send it.
+# Flow: one form — a text field, a branch preview, a Conventional-Commits
+# type chip, and Create / Cancel buttons on a single screen — then parse a
+# ticket key (and, for Linear, a slug) out of the input; look up the
+# ticket's real type in the background via `acli` (Jira) or `lin` (Linear)
+# and populate the type chip once that lands, overridable at any time with
+# ←/→ -> `herdr worktree create` with a branch name built from
+# config.toml's per-provider template -> `herdr agent start` an omp agent
+# in the new worktree's root pane -> `herdr pane send-text` the ticket back
+# into that agent's input WITHOUT submitting it, so the first prompt is
+# queued but the user decides when — or whether — to send it.
 #
 # The form is hand-rolled ANSI rather than gum because gum has no form widget
 # that mixes a live-updating preview with buttons: `gum input` and `gum
@@ -60,34 +63,227 @@ else
   focus_flag="--no-focus"
 fi
 
+# ── Branch-naming config ─────────────────────────────────────────────────────
+# Minimal reader for config.toml's flat `[section]` / `[section.subsection]`
+# shape — not a general TOML parser: no arrays, no multiline strings, one
+# `key = "value"` per line. Good enough for the config this plugin owns.
+toml_block() {
+  # $1 file  $2 exact section header text, e.g. "jira" or "jira.types"
+  local file="$1" header="[$2]"
+  [ -f "$file" ] || return 0
+  awk -v want="$header" '
+    $0 == want { insec = 1; next }
+    /^\[/ { insec = 0 }
+    insec { print }
+  ' "$file"
+}
+toml_scalar() {
+  # $1 file  $2 section  $3 key -> last matching value, quotes stripped.
+  toml_block "$1" "$2" | sed -n "s/^[[:space:]]*$3[[:space:]]*=[[:space:]]*\"\\(.*\\)\"[[:space:]]*\$/\\1/p" | tail -1
+}
+toml_table() {
+  # $1 file  $2 section -> "key=value" lines, quotes stripped both sides.
+  local line k v
+  while IFS= read -r line; do
+    line="${line%%#*}"
+    [[ "$line" == *=* ]] || continue
+    k="${line%%=*}"
+    v="${line#*=}"
+    k="$(printf '%s' "$k" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//')"
+    v="$(printf '%s' "$v" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//')"
+    [ -n "$k" ] || continue
+    printf '%s=%s\n' "$k" "$v"
+  done < <(toml_block "$1" "$2")
+}
+
+# Per-provider branch template and Conventional-Commits type mapping. Tokens
+# in `format`: {type} (feat/fix/… — see TYPES below), {key} (lowercase
+# ticket key), {slug} (kebab-case ticket title, when known). `types` maps the
+# provider's own vocabulary — a Jira issue-type name, or a Linear label name
+# — case-insensitively to one of those tokens; anything unmapped, or a lookup
+# that fails outright (no CLI installed, not authenticated, offline), lands
+# on `default_type`. "default" covers a bare key with no recognizable URL, so
+# provider — and therefore the ticket's real type — is unknown.
+declare -A jira_types=() linear_types=()
+jira_format="$(toml_scalar "$config_file" jira format)"
+jira_default_type="$(toml_scalar "$config_file" jira default_type)"
+linear_format="$(toml_scalar "$config_file" linear format)"
+linear_default_type="$(toml_scalar "$config_file" linear default_type)"
+default_format="$(toml_scalar "$config_file" default format)"
+default_default_type="$(toml_scalar "$config_file" default default_type)"
+: "${jira_format:={type}/{key}-{slug}}"
+: "${jira_default_type:=chore}"
+: "${linear_format:={type}/{key}-{slug}}"
+: "${linear_default_type:=feat}"
+: "${default_format:={type}/{key}}"
+: "${default_default_type:=chore}"
+while IFS='=' read -r k v; do jira_types["$k"]="$v"; done < <(toml_table "$config_file" jira.types)
+while IFS='=' read -r k v; do linear_types["$k"]="$v"; done < <(toml_table "$config_file" linear.types)
+
 # ── Ticket parsing ───────────────────────────────────────────────────────────
 # Jira: .../browse/KEY-123. Linear: .../issue/KEY-123[/slug-words]. Anything
 # else falls back to the first KEY-123-shaped token anywhere in the input, so
-# a bare key (no URL at all) still works. Sets the three globals the form's
-# live preview and the create path both read, so what the preview promised is
-# literally what gets created.
+# a bare key (no URL at all) still works. `key`/`slug`/`provider` feed both
+# the live preview and the create path, so what the preview promised is
+# literally what gets created; `branch` itself comes from compute_branch(),
+# once the (possibly still-loading) type is known too.
 key=""
 slug=""
+provider=""
 branch=""
 parse_ticket() {
   local text="$1"
   key=""
   slug=""
-  branch=""
+  provider=""
   if [[ "$text" =~ atlassian\.net/browse/([A-Za-z][A-Za-z0-9]*-[0-9]+) ]]; then
     key="${BASH_REMATCH[1]}"
+    provider="jira"
   elif [[ "$text" =~ linear\.app/[^/]+/issue/([A-Za-z][A-Za-z0-9]*-[0-9]+)(/([a-z0-9]+(-[a-z0-9]+)*))? ]]; then
     key="${BASH_REMATCH[1]}"
     slug="${BASH_REMATCH[3]:-}"
+    provider="linear"
   elif [[ "$text" =~ ([A-Za-z][A-Za-z0-9]*-[0-9]+) ]]; then
     key="${BASH_REMATCH[1]}"
   fi
   [ -n "$key" ] || return 1
-  # Consistent format: ticket/<key>, or ticket/<key>-<slug> when Linear's URL
-  # handed us readable slug words for free.
-  branch="ticket/${key,,}"
-  [ -n "$slug" ] && branch="${branch}-${slug}"
   return 0
+}
+
+# Kebab-case, capped at 6 words / 40 chars so a long title doesn't produce an
+# unwieldy branch name.
+slugify() {
+  local s="${1,,}" IFS='-'
+  s="$(printf '%s' "$s" | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')"
+  # Splitting on the hyphens set as IFS above is the point: `s` is already
+  # sed-normalized to `[a-z0-9]` runs joined by single hyphens, so this
+  # can't glob and word-splits exactly into words.
+  # shellcheck disable=SC2206
+  local -a words=($s)
+  s="${words[*]:0:6}"
+  s="${s:0:40}"
+  s="${s%-}"
+  printf '%s' "$s"
+}
+
+# Maps a provider's own type/label vocabulary to a Conventional-Commits
+# token, case-insensitively, falling back to that provider's default_type.
+map_type() {
+  local provider="$1" src="${2,,}" k
+  case "$provider" in
+  jira)
+    if [ -n "$src" ]; then
+      for k in "${!jira_types[@]}"; do
+        [ "${k,,}" = "$src" ] && { printf '%s' "${jira_types[$k]}"; return; }
+      done
+    fi
+    printf '%s' "$jira_default_type"
+    ;;
+  linear)
+    if [ -n "$src" ]; then
+      for k in "${!linear_types[@]}"; do
+        [ "${k,,}" = "$src" ] && { printf '%s' "${linear_types[$k]}"; return; }
+      done
+    fi
+    printf '%s' "$linear_default_type"
+    ;;
+  *) printf '%s' "$default_default_type" ;;
+  esac
+}
+
+# Fills $branch from the current $key/$slug/$provider/$type_value using that
+# provider's format template. Empty tokens (no slug yet) leave a stray
+# separator behind — the trailing sed pass cleans that up rather than
+# threading conditional separators through every possible template shape.
+compute_branch() {
+  local fmt="$default_format"
+  case "$provider" in
+  jira) fmt="$jira_format" ;;
+  linear) fmt="$linear_format" ;;
+  esac
+  branch="$fmt"
+  branch="${branch//\{type\}/$type_value}"
+  branch="${branch//\{key\}/${key,,}}"
+  branch="${branch//\{KEY\}/${key^^}}"
+  branch="${branch//\{slug\}/$slug}"
+  branch="$(printf '%s' "$branch" | sed -E 's#-+$##; s#-+/#/#g; s#/-+#/#g; s#^-+##')"
+}
+
+# Background ticket-metadata lookup — run only in the child fetch_pid started
+# from the main loop, never inline: a network stall must not freeze
+# keystrokes. Prints `{"type_source":…,"title":…}` on success, nothing on any
+# failure (missing CLI, no auth, unknown key, offline) — every caller treats
+# empty as "couldn't detect, fall back to default_type".
+fetch_ticket_meta() {
+  local provider="$1" key="$2"
+  case "$provider" in
+  jira)
+    command -v acli >/dev/null 2>&1 || return 0
+    acli jira workitem view "$key" --fields issuetype,summary --json 2>/dev/null |
+      jq -c '{
+        type_source: (.fields.issuetype.name // .issuetype.name // .workItem.fields.issuetype.name // empty),
+        title: (.fields.summary // .summary // .workItem.fields.summary // empty)
+      }' 2>/dev/null
+    ;;
+  linear)
+    command -v lin >/dev/null 2>&1 || return 0
+    lin issues get "$key" --json 2>/dev/null |
+      jq -c '{
+        type_source: (.issue.labels.nodes[0].name // empty),
+        title: (.issue.title // empty)
+      }' 2>/dev/null
+    ;;
+  esac
+}
+
+# Every Conventional Commits type, feat/fix first since they're by far the
+# most common — the modal's type chip cycles this list, and a lookup miss in
+# either provider's `types` table falls back to `default_type`, not to
+# walking this list.
+TYPES=(feat fix chore docs style refactor perf test build ci revert)
+TYPES_COUNT=${#TYPES[@]}
+type_idx=0
+type_value="${TYPES[0]}"
+type_source=""
+type_overridden=0
+fetch_pid=""
+fetch_key=""
+fetch_provider=""
+fetch_tmpfile=""
+
+# Pulls a *finished* fetch job's result into type_source/type_value/slug.
+# Caller must already know the job has exited (kill -0 failed, or a settle
+# timeout gave up on it) — this only reaps and parses.
+absorb_fetch_result() {
+  local meta fetch_title i
+  wait "$fetch_pid" 2>/dev/null
+  meta="$(cat "$fetch_tmpfile" 2>/dev/null)"
+  rm -f "$fetch_tmpfile"
+  if [ "$fetch_key" = "$key" ]; then
+    type_source="$(printf '%s' "$meta" | jq -r '.type_source // empty' 2>/dev/null)"
+    fetch_title="$(printf '%s' "$meta" | jq -r '.title // empty' 2>/dev/null)"
+    if [ "$type_overridden" -eq 0 ]; then
+      type_value="$(map_type "$fetch_provider" "$type_source")"
+      for i in "${!TYPES[@]}"; do [ "${TYPES[$i]}" = "$type_value" ] && type_idx=$i; done
+    fi
+    [ -n "$fetch_title" ] && slug="$(slugify "$fetch_title")"
+  fi
+  fetch_pid=""
+}
+
+# Give a still-in-flight fetch a brief window to land before Enter finalizes
+# the branch — a fast paste-then-Enter can otherwise race the network call
+# and submit with the un-refined default type. Never blocks indefinitely:
+# past this budget (2s), submission proceeds with whatever type is current.
+settle_fetch() {
+  local waited=0
+  while [ -n "$fetch_pid" ] && kill -0 "$fetch_pid" 2>/dev/null && [ "$waited" -lt 20 ]; do
+    sleep 0.1
+    waited=$((waited + 1))
+  done
+  if [ -n "$fetch_pid" ] && ! kill -0 "$fetch_pid" 2>/dev/null; then
+    absorb_fetch_result
+  fi
 }
 
 # ── Form ─────────────────────────────────────────────────────────────────────
@@ -111,13 +307,13 @@ printf -v RULE '─%.0s' $(seq 1 $((FIELD_W + 2)))
 # Geometry of the frame draw() prints, in lines: the whole form, and which of
 # those lines carries the input box. Only the distance between them matters —
 # see the cursor placement at the end of draw().
-FORM_ROWS=10
+FORM_ROWS=11
 FIELD_ROW=4
 
 value=""    # what the user has typed
 cur=0       # cursor offset within $value
 scroll=0    # first visible character, for values wider than the field
-field=0     # 0 = input, 1 = Create, 2 = Cancel
+field=0     # 0 = input, 1 = type, 2 = Create, 3 = Cancel
 
 # Raw mode: one keypress at a time, nothing echoed, and the terminal restored
 # however this exits — including the die() paths below, which print to a
@@ -131,7 +327,7 @@ trap restore_tty EXIT
 stty raw -echo 2>/dev/null
 
 draw() {
-  local visible cursor_col create_style cancel_style preview box
+  local visible cursor_col create_style cancel_style preview box type_box type_note
 
   # Keep the cursor inside the window even when the value is longer than the
   # field — scroll by whole characters as it walks off either edge.
@@ -141,6 +337,7 @@ draw() {
   cursor_col=$((5 + cur - scroll))
 
   if parse_ticket "$value"; then
+    compute_branch
     preview="${OK}${branch}${OFF}"
   elif [ -z "$value" ]; then
     preview="${DIM}waiting for a ticket key…${OFF}"
@@ -150,10 +347,25 @@ draw() {
 
   create_style="$BTN_OFF"
   cancel_style="$BTN_OFF"
-  [ "$field" -eq 1 ] && create_style="$BTN_ON"
-  [ "$field" -eq 2 ] && cancel_style="$BTN_ON"
+  [ "$field" -eq 2 ] && create_style="$BTN_ON"
+  [ "$field" -eq 3 ] && cancel_style="$BTN_ON"
   box="$DIM"
   [ "$field" -eq 0 ] && box="$ACCENT"
+  type_box="$DIM"
+  [ "$field" -eq 1 ] && type_box="$ACCENT"
+
+  # What's driving the shown type: an in-flight lookup, an explicit
+  # override, a completed lookup, or (no ticket recognized/lookup failed)
+  # the provider's configured default.
+  if [ -n "$fetch_pid" ] && [ "$fetch_key" = "$key" ]; then
+    type_note="${DIM}detecting…${OFF}"
+  elif [ "$type_overridden" -eq 1 ]; then
+    type_note="${DIM}manual${OFF}"
+  elif [ -n "$type_source" ]; then
+    type_note="${DIM}from ${type_source}${OFF}"
+  else
+    type_note="${DIM}default${OFF}"
+  fi
 
   printf '\033[H\033[2J\033[?25l'
   printf '  %sPaste a Jira or Linear URL, or type a bare key like ENG-123.%s\r\n' "$DIM" "$OFF"
@@ -162,13 +374,15 @@ draw() {
   printf '  %s│%s %s%-*s%s %s│%s\r\n' "$box" "$OFF" "$TEXT" "$FIELD_W" "$visible" "$OFF" "$box" "$OFF"
   printf '  %s╰%s╯%s\r\n' "$box" "$RULE" "$OFF"
   printf '  %sbranch%s  %b\r\n' "$DIM" "$OFF" "$preview"
+  printf '  %stype%s    %s‹ %s%-8s%s %s›%s  %b\r\n' "$DIM" "$OFF" "$type_box" "$TEXT" "$type_value" "$OFF" "$type_box" "$OFF" "$type_note"
   printf '\r\n'
   printf '   %s  Create worktree  %s   %s  Cancel  %s\r\n' "$create_style" "$OFF" "$cancel_style" "$OFF"
   printf '\r\n'
-  printf '  %stab move · ↵ confirm · esc cancel%s' "$DIM" "$OFF"
+  printf '  %stab move · ‹›/type cycles · ↵ confirm · esc cancel%s' "$DIM" "$OFF"
 
-  # Only show a cursor while the text field owns focus; on a button there is
-  # nothing to point at and a stray block cursor reads as a rendering bug.
+  # Only show a cursor while the text field owns focus; on a button or the
+  # type chip there is nothing to point at and a stray block cursor reads as
+  # a rendering bug.
   #
   # Placed by walking UP from the last line drawn, never by absolute row: a
   # pane one row shorter than this frame scrolls the whole thing up by one,
@@ -228,16 +442,62 @@ read_key() {
 
 submitted=""
 while :; do
+  # Refresh key/slug/provider from the current value *before* drawing, so
+  # the poll/kickoff blocks below can settle type_value in time for this
+  # frame's draw() — draw() re-parses internally too, but only for its own
+  # branch/preview text; it never touches type_value itself.
+  parse_ticket "$value" >/dev/null 2>&1
+
+  # Poll a background metadata fetch that finished since the last frame, and
+  # let it (re)populate the auto-detected type/slug — unless the user has
+  # already overridden the type, in which case their choice stands.
+  if [ -n "$fetch_pid" ] && ! kill -0 "$fetch_pid" 2>/dev/null; then
+    absorb_fetch_result
+  fi
+
+  # On every distinct, fully-parsed key — including a bare key with no
+  # provider to ask — apply that provider's configured default_type right
+  # away, so the chip never sits on a stale type from a previous ticket.
+  # Then, if a provider is known, kick off a background fetch to refine it
+  # to the ticket's real type once that lands. Never inline/blocking — a
+  # network stall would otherwise freeze every keystroke — and a key edited
+  # again before the old fetch lands drops that stale in-flight lookup
+  # rather than racing it.
+  if [ -n "$key" ] && [ "$key" != "$fetch_key" ]; then
+    if [ -n "$fetch_pid" ]; then
+      kill "$fetch_pid" 2>/dev/null
+      wait "$fetch_pid" 2>/dev/null
+      rm -f "$fetch_tmpfile"
+    fi
+    type_source=""
+    type_overridden=0
+    fetch_key="$key"
+    fetch_provider="$provider"
+    fetch_pid=""
+    type_value="$(map_type "$provider" "")"
+    for i in "${!TYPES[@]}"; do [ "${TYPES[$i]}" = "$type_value" ] && type_idx=$i; done
+    if [ -n "$provider" ]; then
+      fetch_tmpfile="$(mktemp)"
+      fetch_ticket_meta "$provider" "$key" >"$fetch_tmpfile" 2>/dev/null &
+      fetch_pid=$!
+    fi
+  fi
+
   draw
+
   read_key || break
   case "$keyname" in
   esc) break ;;
-  tab | down) field=$(((field + 1) % 3)) ;;
-  shift-tab | up) field=$(((field + 2) % 3)) ;;
+  tab | down) field=$(((field + 1) % 4)) ;;
+  shift-tab | up) field=$(((field + 3) % 4)) ;;
   enter)
-    if [ "$field" -eq 2 ]; then
+    if [ "$field" -eq 3 ]; then
       break
     elif parse_ticket "$value"; then
+      # A fast paste-then-Enter can otherwise beat the network lookup —
+      # give it a brief, bounded window to land so the branch this creates
+      # uses the real detected type, not the still-unrefined default.
+      settle_fetch
       submitted="$value"
       break
     else
@@ -247,18 +507,28 @@ while :; do
     fi
     ;;
   left)
-    if [ "$field" -eq 0 ]; then
-      ((cur > 0)) && cur=$((cur - 1))
-    else
-      field=$((field == 1 ? 0 : 1))
-    fi
+    case "$field" in
+    0) ((cur > 0)) && cur=$((cur - 1)) ;;
+    1)
+      type_idx=$(((type_idx + TYPES_COUNT - 1) % TYPES_COUNT))
+      type_value="${TYPES[type_idx]}"
+      type_overridden=1
+      ;;
+    2) field=1 ;;
+    3) field=2 ;;
+    esac
     ;;
   right)
-    if [ "$field" -eq 0 ]; then
-      ((cur < ${#value})) && cur=$((cur + 1))
-    else
-      field=$((field == 1 ? 2 : 1))
-    fi
+    case "$field" in
+    0) ((cur < ${#value})) && cur=$((cur + 1)) ;;
+    1)
+      type_idx=$(((type_idx + 1) % TYPES_COUNT))
+      type_value="${TYPES[type_idx]}"
+      type_overridden=1
+      ;;
+    2) field=3 ;;
+    3) field=2 ;;
+    esac
     ;;
   home) [ "$field" -eq 0 ] && cur=0 ;;
   end) [ "$field" -eq 0 ] && cur=${#value} ;;
@@ -300,6 +570,12 @@ while :; do
   esac
 done
 
+# Drop any fetch still running when the user submits/cancels quickly — its
+# tmpfile would otherwise leak, and nothing reads its result once the raw
+# terminal session below is torn down.
+[ -n "$fetch_pid" ] && kill "$fetch_pid" 2>/dev/null
+[ -n "$fetch_tmpfile" ] && rm -f "$fetch_tmpfile"
+
 restore_tty
 trap - EXIT
 printf '\033[H\033[2J'
@@ -307,7 +583,13 @@ printf '\033[H\033[2J'
 [ -n "$submitted" ] || exit 0
 
 input="$submitted"
-parse_ticket "$input" || die "Couldn't find a ticket key (e.g. ENG-123) in '$input'."
+# key/slug/provider/type_value are already correct here — the loop only
+# ever sets `submitted` right after a successful parse_ticket, refined by
+# any completed/settled background fetch. Re-parsing `input` now would
+# reset slug/provider to what the bare URL alone implies, throwing away a
+# live-fetched title-derived slug that beats it. Just assert the invariant.
+[ -n "$key" ] || die "Couldn't find a ticket key (e.g. ENG-123) in '$input'."
+compute_branch
 key_upper="${key^^}"
 key_lower="${key,,}"
 
@@ -318,7 +600,26 @@ http://* | https://*) ticket_ref="$input" ;;
 *) ticket_ref="$key_upper" ;;
 esac
 
-create_resp="$("$herdr_bin" worktree create --cwd "$origin_cwd" --branch "$branch" --label "$key_upper" "$focus_flag" 2>&1)"
+# Group the new worktree under the repo's MAIN checkout workspace, not
+# whatever workspace happens to be active. `worktree create --cwd` alone
+# groups with the active workspace, which is wrong when prefix+t is pressed
+# from a pane in some other repo's tab, or from a linked worktree of this
+# same repo. `worktree list --cwd` walks real `git worktree` state (not just
+# open Herdr workspaces), so the main checkout is found even if it isn't
+# tagged with `.worktree` metadata in `workspace list` — that field is only
+# populated for workspaces herdr itself opened via the worktree flow.
+worktree_list_resp="$("$herdr_bin" worktree list --cwd "$origin_cwd" 2>/dev/null)"
+main_workspace_id="$(printf '%s' "$worktree_list_resp" | jq -r '
+  [.result.worktrees[] | select(.is_linked_worktree == false)][0].open_workspace_id // empty
+' 2>/dev/null)"
+
+if [ -n "$main_workspace_id" ]; then
+  create_resp="$("$herdr_bin" worktree create --workspace "$main_workspace_id" --branch "$branch" --label "$key_upper" "$focus_flag" 2>&1)"
+else
+  # Main checkout isn't open as a Herdr workspace right now — fall back to
+  # the origin pane's own cwd, same as before this fix.
+  create_resp="$("$herdr_bin" worktree create --cwd "$origin_cwd" --branch "$branch" --label "$key_upper" "$focus_flag" 2>&1)"
+fi
 pane_id="$(printf '%s' "$create_resp" | jq -r '.result.root_pane.pane_id // empty' 2>/dev/null)"
 [ -n "$pane_id" ] || die "worktree create failed: $create_resp"
 
