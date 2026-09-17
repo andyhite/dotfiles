@@ -24,6 +24,14 @@
 #
 # `[default]` covers a bare key typed with no recognizable ticket URL, so
 # the provider — and therefore its real type — can't be looked up at all.
+#
+# This templating is Jira/Linear only. A GitHub PR or branch URL (e.g.
+# https://github.com/org/repo/pull/123 or .../tree/some-branch) checks out
+# that EXISTING ref as-is — there's no new branch name to template and no
+# type to detect, so none of the settings below apply to it. `gh` (if
+# installed and authenticated) is used opportunistically to resolve a PR's
+# real head branch name; without it, a PR worktree's local branch is named
+# pr-<number> instead.
 
 [jira]
 format = "{type}/{key}-{slug}"

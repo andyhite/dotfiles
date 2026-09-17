@@ -2,7 +2,7 @@ id = "andyhite.ticket-worktree"
 name = "Ticket Worktree"
 version = "0.1.0"
 min_herdr_version = "0.8.0"
-description = "Create a branch + worktree from a Jira/Linear ticket URL and queue it as an unsubmitted prompt for a new omp agent"
+description = "Create a worktree from a Jira/Linear ticket, or a GitHub PR/branch URL, and queue it as an unsubmitted prompt for a new omp agent"
 platforms = ["linux", "macos"]
 
 # The whole plugin is this one popup. See modal.sh for why a manifest pane

@@ -3,21 +3,29 @@
 #
 # Bound to prefix+t in ../../config.toml as a `herdr plugin pane open`
 # popup, invoked directly rather than through `plugin action invoke`: reading
-# a ticket URL needs a real TTY, and a plugin ACTION runs on the server with
-# none — the same constraint ../../palette/palette.sh documents for fzf.
-# Declaring this as a manifest `[[panes]]` entry with `placement = "popup"`
-# gets the TTY for free; opening it is what makes it session-modal.
+# a ticket/PR/branch URL needs a real TTY, and a plugin ACTION runs on the
+# server with none — the same constraint ../../palette/palette.sh documents
+# for fzf. Declaring this as a manifest `[[panes]]` entry with
+# `placement = "popup"` gets the TTY for free; opening it is what makes it
+# session-modal.
 #
-# Flow: one form — a text field, a branch preview, a Conventional-Commits
-# type chip, and Create / Cancel buttons on a single screen — then parse a
-# ticket key (and, for Linear, a slug) out of the input; look up the
-# ticket's real type in the background via `acli` (Jira) or `lin` (Linear)
-# and populate the type chip once that lands, overridable at any time with
-# ←/→ -> `herdr worktree create` with a branch name built from
-# config.toml's per-provider template -> `herdr agent start` an omp agent
-# in the new worktree's root pane -> `herdr pane send-text` the ticket back
-# into that agent's input WITHOUT submitting it, so the first prompt is
-# queued but the user decides when — or whether — to send it.
+# Flow: one form — a text field, a branch preview, a chip (Conventional-
+# Commits type for a ticket, PR/branch for GitHub), and Create / Cancel
+# buttons on a single screen. Two distinct paths after that, both ending the
+# same way:
+#   - Jira/Linear/bare key: parse a ticket key (and, for Linear, a slug);
+#     look up the ticket's real type in the background via `acli` (Jira) or
+#     `lin` (Linear) and populate the type chip once that lands, overridable
+#     at any time with ←/→ -> `herdr worktree create` with a NEW branch name
+#     built from config.toml's per-provider template.
+#   - GitHub PR/branch URL: look up the PR's head branch in the background
+#     via `gh`, if installed -> `git fetch` the EXISTING ref straight into a
+#     local branch of the same name -> `herdr worktree create` checks that
+#     branch out as-is; no template, no type.
+# Either way: -> `herdr agent start` an omp agent in the new worktree's root
+# pane -> `herdr pane send-text` a prompt back into that agent's input
+# WITHOUT submitting it, so it's queued but the user decides when — or
+# whether — to send it.
 #
 # The form is hand-rolled ANSI rather than gum because gum has no form widget
 # that mixes a live-updating preview with buttons: `gum input` and `gum
@@ -120,23 +128,54 @@ default_default_type="$(toml_scalar "$config_file" default default_type)"
 while IFS='=' read -r k v; do jira_types["$k"]="$v"; done < <(toml_table "$config_file" jira.types)
 while IFS='=' read -r k v; do linear_types["$k"]="$v"; done < <(toml_table "$config_file" linear.types)
 
-# ── Ticket parsing ───────────────────────────────────────────────────────────
-# Jira: .../browse/KEY-123. Linear: .../issue/KEY-123[/slug-words]. Anything
+# ── Ticket / PR / branch parsing ────────────────────────────────────────────
+# Jira: .../browse/KEY-123. Linear: .../issue/KEY-123[/slug-words]. GitHub:
+# .../pull/123 (PR) or .../tree/branch-name (branch — captures everything
+# after `tree/`, since a branch name may itself contain slashes). Anything
 # else falls back to the first KEY-123-shaped token anywhere in the input, so
-# a bare key (no URL at all) still works. `key`/`slug`/`provider` feed both
-# the live preview and the create path, so what the preview promised is
-# literally what gets created; `branch` itself comes from compute_branch(),
-# once the (possibly still-loading) type is known too.
+# a bare key (no URL at all) still works. `key`/`slug`/`provider` (and, for
+# GitHub, `gh_*`) feed both the live preview and the create path, so what the
+# preview promised is literally what gets created; `branch` itself comes from
+# compute_branch() for a ticket, or straight from the parsed PR/branch for
+# GitHub — see the submit-time split near the end of this script.
 key=""
 slug=""
 provider=""
 branch=""
+gh_owner=""
+gh_repo=""
+gh_kind=""      # "pr" | "branch", set only when provider is "github"
+gh_number=""    # PR number, "pr" kind only
+gh_branch=""    # branch name, "branch" kind only
+gh_head_ref=""  # PR's actual head branch, filled in by the background fetch
 parse_ticket() {
   local text="$1"
   key=""
   slug=""
   provider=""
-  if [[ "$text" =~ atlassian\.net/browse/([A-Za-z][A-Za-z0-9]*-[0-9]+) ]]; then
+  gh_owner=""
+  gh_repo=""
+  gh_kind=""
+  gh_number=""
+  gh_branch=""
+  if [[ "$text" =~ github\.com/([A-Za-z0-9._-]+)/([A-Za-z0-9._-]+)/pull/([0-9]+) ]]; then
+    gh_owner="${BASH_REMATCH[1]}"
+    gh_repo="${BASH_REMATCH[2]%.git}"
+    gh_number="${BASH_REMATCH[3]}"
+    provider="github"
+    gh_kind="pr"
+    key="${gh_owner}/${gh_repo}#${gh_number}"
+  elif [[ "$text" =~ github\.com/([A-Za-z0-9._-]+)/([A-Za-z0-9._-]+)/tree/(.+)$ ]]; then
+    gh_owner="${BASH_REMATCH[1]}"
+    gh_repo="${BASH_REMATCH[2]%.git}"
+    gh_branch="${BASH_REMATCH[3]}"
+    gh_branch="${gh_branch%%\?*}"
+    gh_branch="${gh_branch%%#*}"
+    gh_branch="${gh_branch%/}"
+    provider="github"
+    gh_kind="branch"
+    key="${gh_owner}/${gh_repo}@${gh_branch}"
+  elif [[ "$text" =~ atlassian\.net/browse/([A-Za-z][A-Za-z0-9]*-[0-9]+) ]]; then
     key="${BASH_REMATCH[1]}"
     provider="jira"
   elif [[ "$text" =~ linear\.app/[^/]+/issue/([A-Za-z][A-Za-z0-9]*-[0-9]+)(/([a-z0-9]+(-[a-z0-9]+)*))? ]]; then
@@ -209,13 +248,15 @@ compute_branch() {
   branch="$(printf '%s' "$branch" | sed -E 's#-+$##; s#-+/#/#g; s#/-+#/#g; s#^-+##')"
 }
 
-# Background ticket-metadata lookup — run only in the child fetch_pid started
-# from the main loop, never inline: a network stall must not freeze
-# keystrokes. Prints `{"type_source":…,"title":…}` on success, nothing on any
-# failure (missing CLI, no auth, unknown key, offline) — every caller treats
-# empty as "couldn't detect, fall back to default_type".
+# Background metadata lookup — run only in the child fetch_pid started from
+# the main loop, never inline: a network stall must not freeze keystrokes.
+# Prints `{"type_source":…,"title":…,"head_ref":…}` on success, nothing on
+# any failure (missing CLI, no auth, unknown key/PR, offline) — every caller
+# treats empty as "couldn't detect": ticket callers fall back to
+# default_type, and the GitHub PR path falls back to a `pr-<number>` local
+# branch name instead of the PR's real head branch.
 fetch_ticket_meta() {
-  local provider="$1" key="$2"
+  local provider="$1" key="$2" gh_kind="$3" gh_owner="$4" gh_repo="$5" gh_number="$6"
   case "$provider" in
   jira)
     command -v acli >/dev/null 2>&1 || return 0
@@ -231,6 +272,17 @@ fetch_ticket_meta() {
       jq -c '{
         type_source: (.issue.labels.nodes[0].name // empty),
         title: (.issue.title // empty)
+      }' 2>/dev/null
+    ;;
+  github)
+    # Branch kind has nothing worth prefetching — the branch's existence and
+    # content are only confirmed by the real `git fetch` at submit time.
+    [ "$gh_kind" = "pr" ] || return 0
+    command -v gh >/dev/null 2>&1 || return 0
+    gh pr view "$gh_number" -R "${gh_owner}/${gh_repo}" --json title,headRefName 2>/dev/null |
+      jq -c '{
+        title: (.title // empty),
+        head_ref: (.headRefName // empty)
       }' 2>/dev/null
     ;;
   esac
@@ -251,22 +303,27 @@ fetch_key=""
 fetch_provider=""
 fetch_tmpfile=""
 
-# Pulls a *finished* fetch job's result into type_source/type_value/slug.
-# Caller must already know the job has exited (kill -0 failed, or a settle
-# timeout gave up on it) — this only reaps and parses.
+# Pulls a *finished* fetch job's result into type_source/type_value/slug (or,
+# for a GitHub PR, gh_head_ref). Caller must already know the job has exited
+# (kill -0 failed, or a settle timeout gave up on it) — this only reaps and
+# parses.
 absorb_fetch_result() {
   local meta fetch_title i
   wait "$fetch_pid" 2>/dev/null
   meta="$(cat "$fetch_tmpfile" 2>/dev/null)"
   rm -f "$fetch_tmpfile"
   if [ "$fetch_key" = "$key" ]; then
-    type_source="$(printf '%s' "$meta" | jq -r '.type_source // empty' 2>/dev/null)"
     fetch_title="$(printf '%s' "$meta" | jq -r '.title // empty' 2>/dev/null)"
-    if [ "$type_overridden" -eq 0 ]; then
-      type_value="$(map_type "$fetch_provider" "$type_source")"
-      for i in "${!TYPES[@]}"; do [ "${TYPES[$i]}" = "$type_value" ] && type_idx=$i; done
+    if [ "$fetch_provider" = "github" ]; then
+      gh_head_ref="$(printf '%s' "$meta" | jq -r '.head_ref // empty' 2>/dev/null)"
+    else
+      type_source="$(printf '%s' "$meta" | jq -r '.type_source // empty' 2>/dev/null)"
+      if [ "$type_overridden" -eq 0 ]; then
+        type_value="$(map_type "$fetch_provider" "$type_source")"
+        for i in "${!TYPES[@]}"; do [ "${TYPES[$i]}" = "$type_value" ] && type_idx=$i; done
+      fi
+      [ -n "$fetch_title" ] && slug="$(slugify "$fetch_title")"
     fi
-    [ -n "$fetch_title" ] && slug="$(slugify "$fetch_title")"
   fi
   fetch_pid=""
 }
@@ -327,7 +384,7 @@ trap restore_tty EXIT
 stty raw -echo 2>/dev/null
 
 draw() {
-  local visible cursor_col create_style cancel_style preview box type_box type_note
+  local visible cursor_col create_style cancel_style preview box type_box type_note type_label type_display
 
   # Keep the cursor inside the window even when the value is longer than the
   # field — scroll by whole characters as it walks off either edge.
@@ -337,12 +394,19 @@ draw() {
   cursor_col=$((5 + cur - scroll))
 
   if parse_ticket "$value"; then
-    compute_branch
-    preview="${OK}${branch}${OFF}"
+    if [ "$provider" = "github" ]; then
+      case "$gh_kind" in
+      pr) preview="${OK}${gh_head_ref:-pr-${gh_number}}${OFF} ${DIM}(PR #${gh_number} · ${gh_owner}/${gh_repo})${OFF}" ;;
+      branch) preview="${OK}${gh_branch}${OFF} ${DIM}(${gh_owner}/${gh_repo})${OFF}" ;;
+      esac
+    else
+      compute_branch
+      preview="${OK}${branch}${OFF}"
+    fi
   elif [ -z "$value" ]; then
-    preview="${DIM}waiting for a ticket key…${OFF}"
+    preview="${DIM}waiting for a ticket key or a GitHub PR/branch URL…${OFF}"
   else
-    preview="${DIM}no ENG-123-shaped key in that yet${OFF}"
+    preview="${DIM}no ticket key or GitHub PR/branch URL in that yet${OFF}"
   fi
 
   create_style="$BTN_OFF"
@@ -354,27 +418,38 @@ draw() {
   type_box="$DIM"
   [ "$field" -eq 1 ] && type_box="$ACCENT"
 
-  # What's driving the shown type: an in-flight lookup, an explicit
-  # override, a completed lookup, or (no ticket recognized/lookup failed)
-  # the provider's configured default.
-  if [ -n "$fetch_pid" ] && [ "$fetch_key" = "$key" ]; then
-    type_note="${DIM}detecting…${OFF}"
-  elif [ "$type_overridden" -eq 1 ]; then
-    type_note="${DIM}manual${OFF}"
-  elif [ -n "$type_source" ]; then
-    type_note="${DIM}from ${type_source}${OFF}"
+  # The chip is a Conventional-Commits type for a ticket (cyclable with
+  # ←/→) or a read-only PR/branch indicator for GitHub — there's no "type"
+  # to pick when the worktree just checks out a ref that already exists.
+  if [ "$provider" = "github" ]; then
+    type_label="kind"
+    type_display="${gh_kind:-github}"
+    type_note="${DIM}github — checks out the existing ref${OFF}"
   else
-    type_note="${DIM}default${OFF}"
+    type_label="type"
+    type_display="$type_value"
+    # What's driving the shown type: an in-flight lookup, an explicit
+    # override, a completed lookup, or (no ticket recognized/lookup failed)
+    # the provider's configured default.
+    if [ -n "$fetch_pid" ] && [ "$fetch_key" = "$key" ]; then
+      type_note="${DIM}detecting…${OFF}"
+    elif [ "$type_overridden" -eq 1 ]; then
+      type_note="${DIM}manual${OFF}"
+    elif [ -n "$type_source" ]; then
+      type_note="${DIM}from ${type_source}${OFF}"
+    else
+      type_note="${DIM}default${OFF}"
+    fi
   fi
 
   printf '\033[H\033[2J\033[?25l'
-  printf '  %sPaste a Jira or Linear URL, or type a bare key like ENG-123.%s\r\n' "$DIM" "$OFF"
+  printf '  %sPaste a Jira/Linear URL, a GitHub PR/branch URL, or a bare key.%s\r\n' "$DIM" "$OFF"
   printf '\r\n'
   printf '  %s╭%s╮%s\r\n' "$box" "$RULE" "$OFF"
   printf '  %s│%s %s%-*s%s %s│%s\r\n' "$box" "$OFF" "$TEXT" "$FIELD_W" "$visible" "$OFF" "$box" "$OFF"
   printf '  %s╰%s╯%s\r\n' "$box" "$RULE" "$OFF"
   printf '  %sbranch%s  %b\r\n' "$DIM" "$OFF" "$preview"
-  printf '  %stype%s    %s‹ %s%-8s%s %s›%s  %b\r\n' "$DIM" "$OFF" "$type_box" "$TEXT" "$type_value" "$OFF" "$type_box" "$OFF" "$type_note"
+  printf '  %s%-4s%s    %s‹ %s%-8s%s %s›%s  %b\r\n' "$DIM" "$type_label" "$OFF" "$type_box" "$TEXT" "$type_display" "$OFF" "$type_box" "$OFF" "$type_note"
   printf '\r\n'
   printf '   %s  Create worktree  %s   %s  Cancel  %s\r\n' "$create_style" "$OFF" "$cancel_style" "$OFF"
   printf '\r\n'
@@ -471,14 +546,19 @@ while :; do
     fi
     type_source=""
     type_overridden=0
+    gh_head_ref=""
     fetch_key="$key"
     fetch_provider="$provider"
     fetch_pid=""
-    type_value="$(map_type "$provider" "")"
-    for i in "${!TYPES[@]}"; do [ "${TYPES[$i]}" = "$type_value" ] && type_idx=$i; done
+    if [ "$provider" = "github" ]; then
+      type_value=""
+    else
+      type_value="$(map_type "$provider" "")"
+      for i in "${!TYPES[@]}"; do [ "${TYPES[$i]}" = "$type_value" ] && type_idx=$i; done
+    fi
     if [ -n "$provider" ]; then
       fetch_tmpfile="$(mktemp)"
-      fetch_ticket_meta "$provider" "$key" >"$fetch_tmpfile" 2>/dev/null &
+      fetch_ticket_meta "$provider" "$key" "$gh_kind" "$gh_owner" "$gh_repo" "$gh_number" >"$fetch_tmpfile" 2>/dev/null &
       fetch_pid=$!
     fi
   fi
@@ -510,9 +590,11 @@ while :; do
     case "$field" in
     0) ((cur > 0)) && cur=$((cur - 1)) ;;
     1)
-      type_idx=$(((type_idx + TYPES_COUNT - 1) % TYPES_COUNT))
-      type_value="${TYPES[type_idx]}"
-      type_overridden=1
+      if [ "$provider" != "github" ]; then
+        type_idx=$(((type_idx + TYPES_COUNT - 1) % TYPES_COUNT))
+        type_value="${TYPES[type_idx]}"
+        type_overridden=1
+      fi
       ;;
     2) field=1 ;;
     3) field=2 ;;
@@ -522,9 +604,11 @@ while :; do
     case "$field" in
     0) ((cur < ${#value})) && cur=$((cur + 1)) ;;
     1)
-      type_idx=$(((type_idx + 1) % TYPES_COUNT))
-      type_value="${TYPES[type_idx]}"
-      type_overridden=1
+      if [ "$provider" != "github" ]; then
+        type_idx=$(((type_idx + 1) % TYPES_COUNT))
+        type_value="${TYPES[type_idx]}"
+        type_overridden=1
+      fi
       ;;
     2) field=3 ;;
     3) field=2 ;;
@@ -583,22 +667,67 @@ printf '\033[H\033[2J'
 [ -n "$submitted" ] || exit 0
 
 input="$submitted"
-# key/slug/provider/type_value are already correct here — the loop only
-# ever sets `submitted` right after a successful parse_ticket, refined by
-# any completed/settled background fetch. Re-parsing `input` now would
-# reset slug/provider to what the bare URL alone implies, throwing away a
-# live-fetched title-derived slug that beats it. Just assert the invariant.
-[ -n "$key" ] || die "Couldn't find a ticket key (e.g. ENG-123) in '$input'."
-compute_branch
-key_upper="${key^^}"
-key_lower="${key,,}"
 
-# A bare key has no URL to hand the agent — only pass through what the user
-# actually typed as a link.
-case "$input" in
-http://* | https://*) ticket_ref="$input" ;;
-*) ticket_ref="$key_upper" ;;
-esac
+if [ "$provider" = "github" ]; then
+  # ── GitHub PR / branch checkout ──────────────────────────────────────────
+  # Both kinds check out a ref that already exists rather than naming a new
+  # one from a template, so none of the branch-naming config above applies.
+  # `herdr worktree create --branch NAME` only checks NAME out as-is when it
+  # already names a LOCAL branch — otherwise it creates a fresh one from
+  # --base/HEAD — and a plain `git fetch` only updates the origin/* remote-
+  # tracking ref, so a fetch refspec that writes straight to refs/heads/NAME
+  # is what actually materializes the local branch herdr's DWIM depends on.
+  # The leading `+` forces the update even when the remote ref moved
+  # non-fast-forward (a rebased PR, a force-pushed branch); git still
+  # refuses outright if NAME is checked out in some other worktree already.
+  origin_url="$(git -C "$origin_cwd" remote get-url origin 2>/dev/null)"
+  [ -n "$origin_url" ] || die "Couldn't resolve this repo's 'origin' remote — is it a GitHub checkout?"
+  origin_slug="$(printf '%s' "$origin_url" | sed -E 's#^(https://github\.com/|git@github\.com:|ssh://git@github\.com/)##; s#\.git$##')"
+  [ "${origin_slug,,}" = "${gh_owner,,}/${gh_repo,,}" ] ||
+    die "This launcher only works within its own repo; pasted URL points to '${gh_owner}/${gh_repo}', not '${origin_slug}'."
+
+  case "$gh_kind" in
+  pr)
+    local_branch="${gh_head_ref:-pr-${gh_number}}"
+    fetch_resp="$(git -C "$origin_cwd" fetch origin "+pull/${gh_number}/head:refs/heads/${local_branch}" 2>&1)" ||
+      die "Couldn't fetch PR #${gh_number}: $fetch_resp"
+    label="PR #${gh_number}"
+    name_base="pr-${gh_number}"
+    prompt_msg="Review PR #${gh_number} — ${input}"
+    ;;
+  branch)
+    local_branch="$gh_branch"
+    fetch_resp="$(git -C "$origin_cwd" fetch origin "+${gh_branch}:refs/heads/${gh_branch}" 2>&1)" ||
+      die "Couldn't fetch branch '${gh_branch}': $fetch_resp"
+    label="$gh_branch"
+    name_base="$(printf '%s' "$gh_branch" | tr '[:upper:]' '[:lower:]' | sed -E 's#[^a-z0-9]+#-#g; s#^-+##; s#-+$##')"
+    [[ "$name_base" =~ ^[a-z] ]] || name_base="b-${name_base}"
+    name_base="${name_base:0:32}"
+    name_base="${name_base%-}"
+    prompt_msg="Continue work on branch ${gh_branch} — ${input}"
+    ;;
+  esac
+  branch="$local_branch"
+else
+  # key/slug/provider/type_value are already correct here — the loop only
+  # ever sets `submitted` right after a successful parse_ticket, refined by
+  # any completed/settled background fetch. Re-parsing `input` now would
+  # reset slug/provider to what the bare URL alone implies, throwing away a
+  # live-fetched title-derived slug that beats it. Just assert the invariant.
+  [ -n "$key" ] || die "Couldn't find a ticket key (e.g. ENG-123) in '$input'."
+  compute_branch
+  key_upper="${key^^}"
+  key_lower="${key,,}"
+  # A bare key has no URL to hand the agent — only pass through what the
+  # user actually typed as a link.
+  case "$input" in
+  http://* | https://*) ticket_ref="$input" ;;
+  *) ticket_ref="$key_upper" ;;
+  esac
+  label="$key_upper"
+  name_base="$key_lower"
+  prompt_msg="Work on ${key_upper} — ${ticket_ref}"
+fi
 
 # Group the new worktree under the repo's MAIN checkout workspace, not
 # whatever workspace happens to be active. `worktree create --cwd` alone
@@ -614,23 +743,24 @@ main_workspace_id="$(printf '%s' "$worktree_list_resp" | jq -r '
 ' 2>/dev/null)"
 
 if [ -n "$main_workspace_id" ]; then
-  create_resp="$("$herdr_bin" worktree create --workspace "$main_workspace_id" --branch "$branch" --label "$key_upper" "$focus_flag" 2>&1)"
+  create_resp="$("$herdr_bin" worktree create --workspace "$main_workspace_id" --branch "$branch" --label "$label" "$focus_flag" 2>&1)"
 else
   # Main checkout isn't open as a Herdr workspace right now — fall back to
   # the origin pane's own cwd, same as before this fix.
-  create_resp="$("$herdr_bin" worktree create --cwd "$origin_cwd" --branch "$branch" --label "$key_upper" "$focus_flag" 2>&1)"
+  create_resp="$("$herdr_bin" worktree create --cwd "$origin_cwd" --branch "$branch" --label "$label" "$focus_flag" 2>&1)"
 fi
 pane_id="$(printf '%s' "$create_resp" | jq -r '.result.root_pane.pane_id // empty' 2>/dev/null)"
 [ -n "$pane_id" ] || die "worktree create failed: $create_resp"
 
-# Agent names must be unique and match [a-z][a-z0-9_-]{0,31}; key_lower
-# already satisfies the pattern, so only a name collision needs handling —
-# e.g. a second worktree for the same ticket while the first is still live.
+# Agent names must be unique and match [a-z][a-z0-9_-]{0,31}; name_base is
+# already built to satisfy the pattern, so only a name collision needs
+# handling — e.g. a second worktree for the same ticket/PR/branch while the
+# first is still live.
 existing_names="$("$herdr_bin" agent list 2>/dev/null | jq -r '.result.agents[].name // empty' 2>/dev/null)"
-name="$key_lower"
+name="$name_base"
 suffix=2
 while printf '%s\n' "$existing_names" | grep -qx "$name"; do
-  name="${key_lower}-${suffix}"
+  name="${name_base}-${suffix}"
   suffix=$((suffix + 1))
 done
 
@@ -638,11 +768,12 @@ start_resp="$("$herdr_bin" agent start "$name" --kind omp --pane "$pane_id" 2>&1
 printf '%s' "$start_resp" | jq -e '.result' >/dev/null 2>&1 ||
   die "Created ${branch} but agent start failed: $start_resp"
 
-# The whole point: land the ticket in the agent's input without sending it.
-"$herdr_bin" pane send-text "$pane_id" "Work on ${key_upper} — ${ticket_ref}" >/dev/null 2>&1 ||
+# The whole point: land the ticket/PR/branch context in the agent's input
+# without sending it.
+"$herdr_bin" pane send-text "$pane_id" "$prompt_msg" >/dev/null 2>&1 ||
   die "Created ${branch} and started ${name}, but couldn't queue the prompt."
 
 [ "$focus" = "true" ] && "$herdr_bin" agent focus "$name" >/dev/null 2>&1
 
-printf '\nCreated %s and queued %s for agent "%s" (unsubmitted).\n' "$branch" "$key_upper" "$name"
+printf '\nCreated %s and queued %s for agent "%s" (unsubmitted).\n' "$branch" "$label" "$name"
 sleep 1
