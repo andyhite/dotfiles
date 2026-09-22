@@ -30,6 +30,37 @@ cask "{{ (index $spec "id") | default .name }}"
 {{- end }}
 BREWFILE
 
+# Homebrew 6.0's Tap Trust feature refuses to load formula/cask Ruby from any
+# tap other than homebrew/core and homebrew/cask until it's explicitly
+# trusted — `brew bundle install` fails outright on a tap-qualified `id`
+# (e.g. "acsandmann/tap/rift") otherwise. Trusting is idempotent (recorded in
+# ~/.homebrew/trust.json or $XDG_CONFIG_HOME/homebrew/trust.json), so this
+# runs unconditionally rather than trying to detect prior trust.
+brew_trust_formulae=(
+{{- range $.packages }}
+{{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
+{{-   if $spec }}
+{{-     $id := (index $spec "id") | default "" }}
+{{-     if and (eq $spec.via "brew") (contains "/" $id) }}
+  "{{ $id }}"
+{{-     end }}
+{{-   end }}
+{{- end }}
+)
+brew_trust_casks=(
+{{- range $.packages }}
+{{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
+{{-   if $spec }}
+{{-     $id := (index $spec "id") | default "" }}
+{{-     if and (eq $spec.via "cask") (contains "/" $id) }}
+  "{{ $id }}"
+{{-     end }}
+{{-   end }}
+{{- end }}
+)
+[ ${#brew_trust_formulae[@]} -eq 0 ] || brew trust --formula "${brew_trust_formulae[@]}" >/dev/null
+[ ${#brew_trust_casks[@]} -eq 0 ] || brew trust --cask "${brew_trust_casks[@]}" >/dev/null
+
 if brew bundle check --file "$brewfile" >/dev/null 2>&1; then
   ok "homebrew" "up to date"
 else
