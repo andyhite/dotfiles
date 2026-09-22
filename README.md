@@ -56,14 +56,13 @@ Applied with [chezmoi](https://chezmoi.io) and [mise](https://mise.jdx.dev). See
 
 | Path | Target | What it is |
 | --- | --- | --- |
-| `home/dot_gitconfig.tmpl` | `~/.gitconfig` | git identity, LFS/xet filters, rebase-first defaults, hunk pager/difftool |
+| `home/dot_gitconfig.tmpl` | `~/.gitconfig` | git identity, LFS/xet filters, rebase-first defaults, delta pager/difftool |
 | `home/create_private_dot_gitconfig.local` | `~/.gitconfig.local` (created once, mode 0600) | work identity, private-registry credentials |
 | `home/create_private_dot_gitconfig-work.tmpl` | `~/.gitconfig-work` (created once, mode 0600; skipped when `workGitDir` is blank) | work git `[user] name`/`email` |
 | `home/dot_config/git/ignore` | `~/.config/git/ignore` | global gitignore |
 | `home/dot_config/gh/config.yml` | `~/.config/gh/config.yml` | gh CLI defaults and aliases |
 | `home/dot_config/lazygit/config.yml` | `~/.config/lazygit/config.yml` (Linux) | Lazygit config — exposed as `lg` |
 | `home/Library/Application Support/lazygit/symlink_config.yml.tmpl` | `~/Library/Application Support/lazygit/config.yml` → `home/dot_config/lazygit/config.yml` (macOS) | same file, macOS location |
-| `home/dot_config/hunk/config.toml` | `~/.config/hunk/config.toml` | Hunk review-stream viewer config — wired as `core.pager` and `diff.tool` |
 | `home/private_dot_ssh/config` | `~/.ssh/config` (mode 0600) | portable ssh identity config |
 | `home/private_dot_ssh/create_private_config.local` | `~/.ssh/config.local` (created once, mode 0600) | throwaway test hosts, machine-specific aliases |
 

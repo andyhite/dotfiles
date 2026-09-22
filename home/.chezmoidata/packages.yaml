@@ -49,7 +49,6 @@ packages:
   # aqua backend has no darwin build, so macOS stays on the brew formula
   # (which builds from source) while Linux uses mise's prebuilt binary.
   - { name: btop, darwin: { via: brew }, linux: { via: mise } }
-  - { name: hunk,       all: { via: mise } }
   - { name: chezmoi,    all: { via: mise } }
   # No mise registry entry — `mise registry | awk '$1=="lin"'` is empty. The
   # crates.io package is `lincli`; `linear-cli` is a different project by a
