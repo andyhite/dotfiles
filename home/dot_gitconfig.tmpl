@@ -145,8 +145,7 @@
 # split/stack layouts, and inline agent annotations — instead of a scrolling
 # stream. Pager mode sniffs stdin: patch-like content opens the review UI;
 # anything else (a bare `git log`, `git config --list`) is meant to just
-# stream, so it needs a text pager that never blocks waiting on a keypress —
-# see HUNK_TEXT_PAGER below for why that isn't hunk's own default.
+# page normally — see HUNK_TEXT_PAGER below for how that's wired to `less`.
 [core]
 	# The `|| less` fallback is mandatory and is NOT redundant with hunk's own
 	# plain-text fallback: that one picks a pager by CONTENT type, this one
@@ -156,15 +155,17 @@
 	# box the bootstrap script is provisioning. Two words survive `sh -c` fine.
 	#
 	# Hunk resolves its own text pager from HUNK_TEXT_PAGER, then PAGER, then
-	# `less -R` — and with neither of the first two set, a bare `git log`
-	# longer than one screen drops into `less` and sits at its `:` prompt
-	# until someone presses `q`, which reads as a dead shell rather than a
-	# pager patiently waiting for input nobody sent. `HUNK_TEXT_PAGER=cat`
-	# makes the non-diff path always just stream instead, matching what the
-	# comment above already promises; it only touches hunk's plain-text
-	# fallback, never the diff/show review UI, and ignores a value that
-	# resolves back to hunk so git can never recurse into `hunk pager` itself.
-	pager = HUNK_TEXT_PAGER=cat hunk pager || less
+	# `less -R` — explicitly pinning it to `less -FRX` here (rather than
+	# leaving it to fall through) keeps a bare `git log`/`git config --list`
+	# actually pageable with search, line-by-line scrolling, etc. `-F` quits
+	# immediately when the content fits on one screen, so short output still
+	# just streams. This used to be hardcoded to `cat` to dodge a pty-attached
+	# agent sitting at less's `:` prompt forever — that risk is real but
+	# belongs to whoever drives git non-interactively, not to every human
+	# `git log` on a real terminal; see "Running git commands" in this repo's
+	# AGENTS.md for the `git --no-pager …` / `GIT_PAGER=cat` convention that
+	# automation is expected to follow instead.
+	pager = HUNK_TEXT_PAGER='less -FRX' hunk pager || less -FRX
 [interactive]
 	# Delta, not hunk, and deliberately so: `add -p` parses this filter's output
 	# and needs it to line up 1:1 with what git generated, so the filter has to
