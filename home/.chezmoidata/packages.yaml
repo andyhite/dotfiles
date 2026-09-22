@@ -113,6 +113,11 @@ packages:
   - { name: cmake,   darwin: { via: brew } }
   # GNU make as `gmake`; Linux gets it from build-essential.
   - { name: gmake,   darwin: { via: brew, id: make } }
+  # Keyboard-driven tiling window manager (https://acsandmann.github.io/rift-docs/).
+  # Only on the author's own tap, not homebrew-core, so `id` is tap-qualified;
+  # `brew bundle` auto-taps `acsandmann/tap` from that name, no separate
+  # `tap` line needed.
+  - { name: rift, darwin: { via: brew, id: "acsandmann/tap/rift" } }
 
   # ── Linux-only, apt ───────────────────────────────────────────────────────
   # macOS ships zsh, curl and unzip; Xcode CLT covers the build toolchain.
