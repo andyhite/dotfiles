@@ -1,6 +1,4 @@
 providers:
-  webSearchOrder:
-    []
   memoryModel: online
 modelRoles:
   default: anthropic/claude-sonnet-5:medium
@@ -84,7 +82,7 @@ task:
     commits: generic
     merge: patch
     enabled: true
-personality: none
+personality: pragmatic
 retry:
   usageAwareFallback: true
   modelFallback: true
@@ -111,15 +109,15 @@ retry:
     advisor:
       - cursor/composer-2.5
   usageReservePolicy: confirm
-  usageReservePct: 5
+  usageReservePct: 10
 advisor:
   enabled: false
-interruptMode: immediate
-followUpMode: all
+interruptMode: wait
+followUpMode: one-at-a-time
 steeringMode: all
 loop:
   mode: reset
-doubleEscapeAction: tree
+doubleEscapeAction: none
 error:
   notify: "on"
 collab:
