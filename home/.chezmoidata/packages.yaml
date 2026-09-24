@@ -129,10 +129,6 @@ packages:
   # ── macOS casks ───────────────────────────────────────────────────────────
   - { name: ghostty,     darwin: { via: cask } }
   - { name: zed,         darwin: { via: cask } }
-  # macOS window/Space automation (Lua-scriptable) — drives
-  # dot_hammerspoon/init.lua's per-Space Ghostty toggle, working around the
-  # upstream app-wide toggle_visibility bug documented in that file.
-  - { name: hammerspoon, darwin: { via: cask } }
   # zed/settings.json names Geist and Geist Mono; ghostty and nvim both need the
   # Nerd Font build for glyphs. Linux gets the Nerd Font from
   # .chezmoiexternal.toml instead — there is no Linux package for it.

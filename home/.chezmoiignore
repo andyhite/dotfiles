@@ -1,5 +1,4 @@
 {{ if ne .chezmoi.os "darwin" }}
-.hammerspoon
 Library
 .config/caddy
 .config/dnsmasq

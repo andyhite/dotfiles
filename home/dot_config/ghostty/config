@@ -25,9 +25,8 @@ mouse-scroll-multiplier = discrete:1
 # Global show/hide used to be bound here (global:ctrl+enter=toggle_visibility),
 # but Ghostty's toggle is app-wide, not per-Space, so with one window per
 # macOS Space it always jumped to the most-recently-focused window instead of
-# showing/hiding the one on the current Space. Hammerspoon owns ctrl+enter
-# now — see ~/.hammerspoon/init.lua (tracked at home/dot_hammerspoon/init.lua
-# in the dotfiles repo).
+# showing/hiding the one on the current Space. No replacement is bound —
+# see https://github.com/ghostty-org/ghostty/discussions/11084.
 
 # Ghostty's own defaults bind plain Cmd+[ / Cmd+] to goto_split:previous/next,
 # and Cmd+Shift+[ / Cmd+Shift+] to native tab switching. `unbind` removes all
