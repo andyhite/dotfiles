@@ -1,16 +1,14 @@
-providers:
-  memoryModel: online
 modelRoles:
-  default: anthropic/claude-sonnet-5:medium
+  default: anthropic/claude-sonnet-5-5:medium
   plan: anthropic/claude-opus-5-5:high
   slow: anthropic/claude-opus-5-5:max
-  task: anthropic/claude-sonnet-5:low
+  task: anthropic/claude-sonnet-5-5:low
   smol: anthropic/claude-haiku-4-5:low
   commit: anthropic/claude-haiku-4-5:minimal
   tiny: anthropic/claude-haiku-4-5:minimal
-  vision: anthropic/claude-sonnet-5:medium
+  vision: anthropic/claude-sonnet-5-5:medium
   designer: anthropic/claude-opus-5-5:high
-  advisor: anthropic/claude-sonnet-5:medium
+  advisor: anthropic/claude-sonnet-5-5:medium
 modelProviderOrder:
   - anthropic
   - cursor
@@ -75,6 +73,7 @@ display:
   shimmer: classic
   showTokenUsage: true
   cacheMissMarker: true
+  showTurnTime: true
 task:
   showResolvedModelBadge: true
   eager: preferred
@@ -167,9 +166,9 @@ astGrep:
 computer:
   enabled: true
 debug:
-  enabled: false
-checkpoint:
   enabled: true
+checkpoint:
+  enabled: false
 github:
   enabled: true
 web_search:
@@ -177,7 +176,8 @@ web_search:
 todo:
   eager: preferred
 browser:
-  relay: true
+  relay: false
+  cdpUrl: http://127.0.0.1:9222
 plan:
   defaultOnStartup: false
   autosave: true
@@ -187,9 +187,14 @@ secrets:
   enabled: true
 composer:
   shape: claude
+  tokenRate: true
 disabledExtensions:
   []
 isolation:
   backend: auto
 codexResets:
-  autoRedeem: "yes"
+  autoRedeem: unset
+defaultThinkingLevel: high
+extendedContext: true
+tools:
+  xdevDocs: catalog
