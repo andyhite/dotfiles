@@ -114,6 +114,10 @@ already there. `home/.chezmoidata/packages.yaml` is the manifest for every insta
 thing — CLI tools, language runtimes, Homebrew casks, apt packages, uv tools, herdr
 plugins, gh extensions, cross-agent skills. See `AGENTS.md` for how to add an entry.
 
+Removing a skill from the manifest prevents future installs but does not uninstall its
+existing copy. Also run `mise exec -- npx --yes skills remove <skill-name> --global --yes`
+to remove the shared skill and its agent links.
+
 Thirteen scripts under `home/.chezmoiscripts/` run in numbered order:
 
 | Script | Platform | What it does |

@@ -239,6 +239,77 @@ if command -v go >/dev/null 2>&1; then
   export PATH="$PATH:${GOPATH:-$HOME/go}/bin"
 fi
 
+# ── Chrome for Testing ───────────────────────────────────────────────────────
+# Puppeteer's browser download (packages.yaml) lands in a versioned, arch-named
+# directory under ~/.cache/puppeteer with nothing on PATH, so the path changes
+# on every `npx puppeteer browsers install`. Resolve the newest install at call
+# time instead of hardcoding a version that goes stale. `(om[1])` = most recently
+# modified match; `N` makes a miss expand to nothing instead of a zsh glob error.
+# The launcher runs the executable directly, in the foreground, rather than
+# through `open -na`: `open` detaches the process, so Ctrl-C wouldn't stop it and
+# Chrome's stderr would vanish.
+# These use $OSTYPE, not `$_os`: `_os` is unset at the end of this file, so it's
+# empty by the time a function runs and every call would take the Linux branch.
+
+# Resolves the executable (not the .app bundle) into $REPLY.
+_cft_bin() {
+  local -a m
+  if [[ "$OSTYPE" == darwin* ]]; then
+    m=("$HOME"/.cache/puppeteer/chrome/*/chrome-mac-*/"Google Chrome for Testing.app"/Contents/MacOS/"Google Chrome for Testing"(N.om[1]))
+  else
+    m=("$HOME"/.cache/puppeteer/chrome/*/chrome-linux64/chrome(N.om[1]))
+  fi
+  [[ -n "$m" ]] || { echo "cft: Chrome for Testing not installed (npx puppeteer browsers install chrome)" >&2; return 1; }
+  REPLY="$m"
+}
+
+# Shared debugging flags. The profile lives outside Chrome's default one so
+# logins made in a headed `cft` persist for `cft headless` (headless can't show a
+# login page). --remote-allow-origins="*" is required since Chrome 111 or CDP
+# websocket clients from a browser origin are rejected. The two --disable-*
+# flags stop Chrome throttling tabs that are occluded/backgrounded, which
+# otherwise stalls automation running while you work in another window.
+# --disable-background-networking skips component-update/Safe Browsing pings a test
+# browser doesn't need. It does NOT silence the harmless `DEPRECATED_ENDPOINT` GCM
+# error at startup (CfT has no Google API keys); no flag tried removes that line.
+# --window-size is the default for both modes: headless otherwise gets 800x600.
+_cft_args=(
+  --remote-debugging-port=9222
+  --remote-allow-origins="*"
+  --user-data-dir="$HOME/.cache/cft-profile"
+  --no-first-run
+  --no-default-browser-check
+  --disable-backgrounding-occluded-windows
+  --disable-renderer-backgrounding
+  --disable-background-networking
+  --window-size=1440,900
+)
+
+# cft            headed window: log in here to create auth sessions in the profile.
+# cft headless   same config, no window: reuses the sessions saved by a headed run.
+# Anything after the mode is passed through to Chrome (e.g. a URL).
+cft() {
+  local -a mode=()
+  if [[ "$1" == headless ]]; then mode=(--headless=new); shift; fi
+  _cft_bin || return 1
+
+  # Chrome restores the previous window's bounds from two places in the profile and
+  # either one beats --window-size: `browser.window_placement` in Preferences, and
+  # the Sessions/ dir that session restore replays. A window resized once (or a run
+  # that left a tiny one behind) would otherwise stay that size forever. Clearing
+  # both while Chrome is not running makes the flag authoritative on every launch.
+  # Cookies and logins live in their own files, so auth sessions survive this;
+  # only the previous run's open tabs are not restored.
+  local profile="$HOME/.cache/cft-profile/Default"
+  rm -rf "$profile/Sessions"
+  if [[ -f "$profile/Preferences" ]] && command -v jq >/dev/null 2>&1; then
+    jq 'del(.browser.window_placement)' "$profile/Preferences" > "$profile/Preferences.tmp" &&
+      mv "$profile/Preferences.tmp" "$profile/Preferences"
+  fi
+
+  "$REPLY" "${mode[@]}" "${_cft_args[@]}" "$@"
+}
+
 # ── macOS-only fixups ────────────────────────────────────────────────────────
 if [[ "$_os" == "Darwin" ]]; then
   # Apple ships GNU make 3.81 (2006) as *both* `make` and `gnumake`, so the
