@@ -34,7 +34,7 @@
 # override replaces so reverting is a one-line diff away.
 #
 # modelRoles:
-#   task: fireworks/kimi-k2.7-code:medium      # was anthropic/claude-sonnet-5:low — trial
+#   task: fireworks/kimi-k2.7-code:medium      # was anthropic/claude-sonnet-5-5:low — trial
 #   smol: fireworks/minimax-m2.7:low           # was anthropic/claude-haiku-4-5:low
 
 # ── Example: add a fallback tier the shared config doesn't carry ────────────
@@ -48,5 +48,5 @@
 # retry:
 #   fallbackChains:
 #     default:
-#       - openai/gpt-5.6-terra:medium
+#       - openai/gpt-6-sol:medium
 #       - cursor/composer-2.5

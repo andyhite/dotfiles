@@ -229,6 +229,3 @@ packages:
   - { name: skill/i-have-adhd,  all: { via: skill, id: ayghri/i-have-adhd } }
   # Apple HIG-based UI review, used for macOS/Tauri design work.
   - { name: skill/apple-design, all: { via: skill, id: dickwu/apple-design-skill } }
-  # Strunk's 1918 Elements of Style, applied whenever the agent writes prose
-  # (docs, commit messages, error text) rather than code.
-  - { name: skill/writing-clearly-and-concisely, all: { via: skill, id: obra/the-elements-of-style } }
