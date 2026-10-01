@@ -74,11 +74,13 @@ Applied with [chezmoi](https://chezmoi.io) and [mise](https://mise.jdx.dev). See
 | `home/dot_omp/private_agent/extensions/symlink_daily-budget.ts.tmpl` | `~/.omp/agent/extensions/daily-budget.ts` → `linked/omp-extensions/daily-budget.ts` | weekday spend-pacing warnings |
 | `home/dot_omp/private_agent/daily-budget.json` | `~/.omp/agent/daily-budget.json` | usage/cost budget schedule read by the extension above |
 | `home/dot_omp/private_agent/create_private_daily-budget.local.json` | `~/.omp/agent/daily-budget.local.json` (created once, mode 0600) | machine-local `daily-budget.json` overlay (e.g. a smaller `cost.dailyCapUsd`) |
-| `home/dot_omp/private_agent/rules/output-style.md` | `~/.omp/agent/rules/output-style.md` | output-style rule for omp responses |
+| `home/dot_omp/private_agent/i-have-adhd.json` | `~/.omp/agent/i-have-adhd.json` | `alwaysOn`/`hideStatus` for the `i-have-adhd` omp plugin (ADHD-friendly output style, installed via `packages.yaml`); `hideStatus` drops its line under the composer |
+| `home/dot_config/ponytail/config.json` | `~/.config/ponytail/config.json` | `hideStatus: true` drops the ponytail plugin's line under the composer; the mode stays active |
 | `home/dot_omp/private_agent/AGENTS.md` | `~/.omp/agent/AGENTS.md` | omp's global context file |
 | `home/dot_omp/private_agent/create_private_models.yml` | `~/.omp/agent/models.yml` (created once, mode 0600) | credentials and custom provider ids |
 | `home/dot_omp/private_agent/create_private_config.local.yml` | `~/.omp/agent/config.local.yml` (created once, mode 0600) | machine-local `modelRoles`/`retry.fallbackChains` overlay |
 | `home/dot_claude/settings.json` | `~/.claude/settings.json` | [Claude Code](https://claude.com/product/claude-code) CLI global settings |
+| `home/dot_claude/empty_dot_i-have-adhd-always` | `~/.claude/.i-have-adhd-always` | empty flag that makes the `i-have-adhd` Claude Code plugin (enabled in `settings.json`) load its rules every session |
 | `home/dot_claude/symlink_CLAUDE.md.tmpl` | `~/.claude/CLAUDE.md` → `~/.omp/agent/AGENTS.md` | symlink to the applied omp `AGENTS.md` |
 | `home/dot_dstack/server/create_private_config.yml` | `~/.dstack/server/config.yml` (created once, mode 0600, macOS) | [dstack](https://dstack.ai) GPU-cloud orchestrator config |
 | `home/Library/LaunchAgents/ai.dstack.server.plist` | `~/Library/LaunchAgents/ai.dstack.server.plist` (macOS) | LaunchAgent that starts `dstack server` at login |

@@ -34,6 +34,11 @@ if command -v omp >/dev/null 2>&1; then
 {{ range $.packages -}}
 {{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
 {{-   if $spec }}{{ if eq $spec.via "omp" }}
+{{-     if index $spec "marketplace" }}
+  # `marketplace add` errors when the marketplace is already registered, and
+  # that must not abort the install below it (set -e) on every re-run.
+  omp plugin marketplace add {{ index $spec "marketplace" | squote }} >/dev/null 2>&1 || true
+{{-     end }}
   count=$((count + 1))
   run_quiet {{ .name | squote }} omp plugin install {{ (index $spec "id") | squote }} && updated {{ .name | squote }}
 {{ end }}{{ end }}

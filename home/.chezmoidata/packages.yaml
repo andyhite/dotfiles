@@ -221,11 +221,20 @@ packages:
   # Built as a Pi extension, but omp can install any npm-packaged Pi
   # extension directly — no separate omp-specific packaging needed.
   - { name: omp/pi-extension, all: { via: omp, id: "npm:@plannotator/pi-extension" } }
+  # Terse "lazy senior dev" mode. Config (hideStatus) lives in
+  # dot_config/ponytail/config.json.
+  - { name: omp/ponytail, all: { via: omp, id: "npm:@dietrichgebert/ponytail" } }
+
+  # Output-style plugin (ADHD-friendly responses). Ships an omp extension that
+  # injects its ruleset at session start; `alwaysOn` in
+  # ~/.omp/agent/i-have-adhd.json (see dot_omp/private_agent/) turns it on for
+  # every session. `marketplace` is added first because the plugin id only
+  # resolves against a registered marketplace.
+  - { name: omp/i-have-adhd, all: { via: omp, id: "i-have-adhd@i-have-adhd", marketplace: ayghri/i-have-adhd } }
 
   # ── Cross-agent skills ────────────────────────────────────────────────────
   # Canonical copies land in ~/.agents/skills; the CLI symlinks each agent's own
   # skills directory into that tree.
   - { name: skill/herdr,        all: { via: skill, id: herdrdev/herdr } }
-  - { name: skill/i-have-adhd,  all: { via: skill, id: ayghri/i-have-adhd } }
   # Apple HIG-based UI review, used for macOS/Tauri design work.
   - { name: skill/apple-design, all: { via: skill, id: dickwu/apple-design-skill } }
