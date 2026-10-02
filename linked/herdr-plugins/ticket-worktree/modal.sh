@@ -303,15 +303,22 @@ fetch_key=""
 fetch_provider=""
 fetch_tmpfile=""
 
-# Base-branch chip for NEW branches (ticket path). First entry is "" = herdr's
-# default (the origin pane's HEAD); the rest are the branches checked out in
-# this repo's herdr/git worktrees (detached/bare ones have no branch, so
-# they're skipped). ponytail: ←/→ cycling, no type-ahead.
-bases=("")
-while IFS= read -r b; do [ -n "$b" ] && bases+=("$b"); done < <("$herdr_bin" worktree list --cwd "$origin_cwd" 2>/dev/null | jq -r '.result.worktrees[].branch // empty' 2>/dev/null)
+# Base-branch chip for NEW branches (ticket path). Pre-selected to the branch
+# checked out in the space prefix+t was pressed from — `.worktree.checkout_path`
+# for a herdr-opened worktree, else the workspace cwd — so a ticket started
+# from a feature worktree branches off that feature, not off whatever HEAD
+# herdr resolves for the main-checkout workspace create runs against (see
+# below). Detached HEAD leaves it "" = herdr's default.
+# The rest are the branches checked out in this repo's herdr/git worktrees
+# (detached/bare ones have no branch, so they're skipped). ponytail: ←/→
+# cycling, no type-ahead.
+space_cwd="$(printf '%s' "$ctx" | jq -r '.worktree.checkout_path // .workspace_cwd // empty' 2>/dev/null)"
+current_branch="$(git -C "${space_cwd:-$origin_cwd}" branch --show-current 2>/dev/null)"
+bases=("$current_branch")
+while IFS= read -r b; do [ -n "$b" ] && [ "$b" != "$current_branch" ] && bases+=("$b"); done < <("$herdr_bin" worktree list --cwd "$origin_cwd" 2>/dev/null | jq -r '.result.worktrees[].branch // empty' 2>/dev/null)
 BASES_COUNT=${#bases[@]}
 base_idx=0
-base=""
+base="$current_branch"
 
 # Pulls a *finished* fetch job's result into type_source/type_value/slug (or,
 # for a GitHub PR, gh_head_ref). Caller must already know the job has exited
