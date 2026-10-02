@@ -303,6 +303,16 @@ fetch_key=""
 fetch_provider=""
 fetch_tmpfile=""
 
+# Base-branch chip for NEW branches (ticket path). First entry is "" = herdr's
+# default (the origin pane's HEAD); the rest are the branches checked out in
+# this repo's herdr/git worktrees (detached/bare ones have no branch, so
+# they're skipped). ponytail: ←/→ cycling, no type-ahead.
+bases=("")
+while IFS= read -r b; do [ -n "$b" ] && bases+=("$b"); done < <("$herdr_bin" worktree list --cwd "$origin_cwd" 2>/dev/null | jq -r '.result.worktrees[].branch // empty' 2>/dev/null)
+BASES_COUNT=${#bases[@]}
+base_idx=0
+base=""
+
 # Pulls a *finished* fetch job's result into type_source/type_value/slug (or,
 # for a GitHub PR, gh_head_ref). Caller must already know the job has exited
 # (kill -0 failed, or a settle timeout gave up on it) — this only reaps and
@@ -364,13 +374,13 @@ printf -v RULE '─%.0s' $(seq 1 $((FIELD_W + 2)))
 # Geometry of the frame draw() prints, in lines: the whole form, and which of
 # those lines carries the input box. Only the distance between them matters —
 # see the cursor placement at the end of draw().
-FORM_ROWS=11
+FORM_ROWS=12
 FIELD_ROW=4
 
 value=""    # what the user has typed
 cur=0       # cursor offset within $value
 scroll=0    # first visible character, for values wider than the field
-field=0     # 0 = input, 1 = type, 2 = Create, 3 = Cancel
+field=0     # 0 = input, 1 = type, 2 = base, 3 = Create, 4 = Cancel
 
 # Raw mode: one keypress at a time, nothing echoed, and the terminal restored
 # however this exits — including the die() paths below, which print to a
@@ -384,7 +394,7 @@ trap restore_tty EXIT
 stty raw -echo 2>/dev/null
 
 draw() {
-  local visible cursor_col create_style cancel_style preview box type_box type_note type_label type_display
+  local visible cursor_col create_style cancel_style preview box type_box base_box base_display type_note type_label type_display
 
   # Keep the cursor inside the window even when the value is longer than the
   # field — scroll by whole characters as it walks off either edge.
@@ -411,12 +421,19 @@ draw() {
 
   create_style="$BTN_OFF"
   cancel_style="$BTN_OFF"
-  [ "$field" -eq 2 ] && create_style="$BTN_ON"
-  [ "$field" -eq 3 ] && cancel_style="$BTN_ON"
+  [ "$field" -eq 3 ] && create_style="$BTN_ON"
+  [ "$field" -eq 4 ] && cancel_style="$BTN_ON"
   box="$DIM"
   [ "$field" -eq 0 ] && box="$ACCENT"
   type_box="$DIM"
   [ "$field" -eq 1 ] && type_box="$ACCENT"
+  base_box="$DIM"
+  [ "$field" -eq 2 ] && base_box="$ACCENT"
+  if [ "$provider" = "github" ]; then
+    base_display="n/a (checks out existing ref)"
+  else
+    base_display="${base:-default (current HEAD)}"
+  fi
 
   # The chip is a Conventional-Commits type for a ticket (cyclable with
   # ←/→) or a read-only PR/branch indicator for GitHub — there's no "type"
@@ -450,10 +467,11 @@ draw() {
   printf '  %s╰%s╯%s\r\n' "$box" "$RULE" "$OFF"
   printf '  %sbranch%s  %b\r\n' "$DIM" "$OFF" "$preview"
   printf '  %s%-4s%s    %s‹ %s%-8s%s %s›%s  %b\r\n' "$DIM" "$type_label" "$OFF" "$type_box" "$TEXT" "$type_display" "$OFF" "$type_box" "$OFF" "$type_note"
+  printf '  %sbase%s    %s‹ %s%s%s %s›%s\r\n' "$DIM" "$OFF" "$base_box" "$TEXT" "$base_display" "$OFF" "$base_box" "$OFF"
   printf '\r\n'
   printf '   %s  Create worktree  %s   %s  Cancel  %s\r\n' "$create_style" "$OFF" "$cancel_style" "$OFF"
   printf '\r\n'
-  printf '  %stab move · ‹›/type cycles · ↵ confirm · esc cancel%s' "$DIM" "$OFF"
+  printf '  %stab move · ‹› cycles type/base · ↵ confirm · esc cancel%s' "$DIM" "$OFF"
 
   # Only show a cursor while the text field owns focus; on a button or the
   # type chip there is nothing to point at and a stray block cursor reads as
@@ -568,10 +586,10 @@ while :; do
   read_key || break
   case "$keyname" in
   esc) break ;;
-  tab | down) field=$(((field + 1) % 4)) ;;
-  shift-tab | up) field=$(((field + 3) % 4)) ;;
+  tab | down) field=$(((field + 1) % 5)) ;;
+  shift-tab | up) field=$(((field + 4) % 5)) ;;
   enter)
-    if [ "$field" -eq 3 ]; then
+    if [ "$field" -eq 4 ]; then
       break
     elif parse_ticket "$value"; then
       # A fast paste-then-Enter can otherwise beat the network lookup —
@@ -596,8 +614,14 @@ while :; do
         type_overridden=1
       fi
       ;;
-    2) field=1 ;;
+    2)
+      if [ "$provider" != "github" ]; then
+        base_idx=$(((base_idx + BASES_COUNT - 1) % BASES_COUNT))
+        base="${bases[base_idx]}"
+      fi
+      ;;
     3) field=2 ;;
+    4) field=3 ;;
     esac
     ;;
   right)
@@ -610,8 +634,14 @@ while :; do
         type_overridden=1
       fi
       ;;
-    2) field=3 ;;
-    3) field=2 ;;
+    2)
+      if [ "$provider" != "github" ]; then
+        base_idx=$(((base_idx + 1) % BASES_COUNT))
+        base="${bases[base_idx]}"
+      fi
+      ;;
+    3) field=4 ;;
+    4) field=3 ;;
     esac
     ;;
   home) [ "$field" -eq 0 ] && cur=0 ;;
@@ -743,11 +773,11 @@ main_workspace_id="$(printf '%s' "$worktree_list_resp" | jq -r '
 ' 2>/dev/null)"
 
 if [ -n "$main_workspace_id" ]; then
-  create_resp="$("$herdr_bin" worktree create --workspace "$main_workspace_id" --branch "$branch" --label "$label" "$focus_flag" 2>&1)"
+  create_resp="$("$herdr_bin" worktree create --workspace "$main_workspace_id" --branch "$branch" --label "$label" ${base:+--base "$base"} "$focus_flag" 2>&1)"
 else
   # Main checkout isn't open as a Herdr workspace right now — fall back to
   # the origin pane's own cwd, same as before this fix.
-  create_resp="$("$herdr_bin" worktree create --cwd "$origin_cwd" --branch "$branch" --label "$label" "$focus_flag" 2>&1)"
+  create_resp="$("$herdr_bin" worktree create --cwd "$origin_cwd" --branch "$branch" --label "$label" ${base:+--base "$base"} "$focus_flag" 2>&1)"
 fi
 pane_id="$(printf '%s' "$create_resp" | jq -r '.result.root_pane.pane_id // empty' 2>/dev/null)"
 [ -n "$pane_id" ] || die "worktree create failed: $create_resp"
