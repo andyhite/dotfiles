@@ -12,28 +12,14 @@ modelRoles: &anthropicRoles
   vision: anthropic/claude-sonnet-5-5:medium
   designer: anthropic/claude-opus-5-5:high
   advisor: anthropic/claude-sonnet-5-5:medium
-# A preset switch clears every role it leaves out, so each preset names all of them,
-# `designer` included. `openai` mirrors `anthropic` tier for tier on GPT-6, at the same
-# thinking levels: astra for opus, 6.1-sol for sonnet, luna for haiku. Exceptions: luna
-# has no `minimal`, so commit/tiny run `low`. GPT-6 has no terra; a 5.6-era id here
-# still resolves but silently runs the previous generation. On a machine without
-# openai-codex auth the switch is a no-op, not a half-applied setup.
+# A preset switch clears every role it leaves out, so a preset names all of them,
+# `designer` included. Only `anthropic` lives here: it needs nothing but the built-in
+# subscription login. Presets that depend on per-machine auth (e.g. `openai` on
+# openai-codex) go in ~/.omp/agent/config.local.yml; omp lists both files' presets
+# together, and a same-named preset there replaces this one whole.
 modelPresets:
   anthropic:
     modelRoles: *anthropicRoles
-    defaultThinkingLevel: high
-  openai:
-    modelRoles:
-      default: openai-codex/gpt-6.1-sol:medium
-      plan: openai-codex/gpt-6-astra:high
-      slow: openai-codex/gpt-6-astra:max
-      task: openai-codex/gpt-6.1-sol:low
-      smol: openai-codex/gpt-6-luna:low
-      commit: openai-codex/gpt-6-luna:low
-      tiny: openai-codex/gpt-6-luna:low
-      vision: openai-codex/gpt-6.1-sol:medium
-      designer: openai-codex/gpt-6-astra:high
-      advisor: openai-codex/gpt-6.1-sol:medium
     defaultThinkingLevel: high
 modelProviderOrder:
   - anthropic
@@ -112,27 +98,10 @@ retry:
   usageAwareFallback: true
   modelFallback: true
   fallbackRevertPolicy: cooldown-expiry
-  fallbackChains:
-    default:
-      - cursor/composer-2.5
-    plan:
-      - cursor/composer-2.5
-    slow:
-      - cursor/composer-2.5
-    task:
-      - cursor/composer-2.5
-    smol:
-      - cursor/composer-2.5
-    commit:
-      - cursor/composer-2.5
-    tiny:
-      - cursor/composer-2.5
-    vision:
-      []
-    designer:
-      - cursor/composer-2.5
-    advisor:
-      - cursor/composer-2.5
+  # No fallbackChains here: a chain is only as good as the providers a machine has
+  # authenticated, so each machine sets its own in ~/.omp/agent/config.local.yml.
+  # Without one (the schema default is `{}`), a chat role that keeps failing has no other
+  # model to move to; same-model retries still apply.
   usageReservePolicy: confirm
   usageReservePct: 10
 advisor:

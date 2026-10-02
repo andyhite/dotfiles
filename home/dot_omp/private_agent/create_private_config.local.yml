@@ -2,20 +2,18 @@
 # time it runs, then never touched again. Mode 0600 already, from the
 # source name's `private_` attribute.
 # zshrc exports PI_CONFIG_FILES pointing at that copy, which omp layers as a
-# CLI config overlay on top of the shared, tracked ~/.omp/agent/config.yml
-# (symlinked from dotfiles' omp/agent/config.yml). The overlay is a deep
-# merge of settings objects: only the keys present here override anything —
-# every other setting, including untouched modelRoles/fallbackChains entries,
-# still comes from the shared config.yml.
+# CLI config overlay on top of the shared ~/.omp/agent/config.yml (copied from
+# dotfiles by chezmoi). The overlay is a deep merge of settings objects: only
+# the keys present here override anything — every other setting, including
+# untouched modelRoles entries, still comes from the shared config.yml.
 #
-# This is the file a machine edits to run its own model routing — trial a
-# model only it has a key for, add a fallback tier the shared config doesn't
-# carry, point a role at a custom provider from
-# ~/.omp/agent/models.yml — without touching the tracked config.yml
-# that every machine shares. The tracked file carries a deliberately thin
-# default (anthropic primary, cursor as the one shared fallback tier — no
-# openai/openai-codex, since not every machine authenticates those); this
-# file is where a machine that does adds them back in.
+# This is the file a machine edits to run its own model routing: its fallback
+# chains, presets for providers only it authenticates, a trial model, a role
+# pointed at a custom provider from ~/.omp/agent/models.yml. The shared file
+# carries only anthropic primaries and the `anthropic` preset; it has no
+# fallback chains at all, because a chain is only as good as the providers a
+# machine has logged into. Until this file sets some, a failing role has no
+# other model to move to.
 #
 # It has to stay a valid object even with nothing overridden: omp validates
 # the overlay's root as an object, and PI_CONFIG_FILES pointing at a missing
@@ -37,16 +35,27 @@
 #   task: fireworks/kimi-k2.7-code:medium      # was anthropic/claude-sonnet-5-5:low — trial
 #   smol: fireworks/minimax-m2.7:low           # was anthropic/claude-haiku-4-5:low
 
-# ── Example: add a fallback tier the shared config doesn't carry ────────────
-# Whole chains replace, not merge, per role — the merge is a deep merge of
-# YAML mappings, and a YAML list is a leaf value, not a mapping, so listing a
-# role here replaces the shared config.yml's list for that role entirely
-# rather than appending to it. This machine authenticates `openai`, so it
-# puts it ahead of the shared cursor-only tier — anthropic (primary, from
-# modelRoles) -> openai -> cursor:
+# ── Example: fallback chains and a matching preset ──────────────────────────
+# A role's chain is a YAML list, so a higher layer replaces it whole rather
+# than appending. A preset must name every role — switching clears the rest —
+# and presets here are listed alongside the shared `anthropic` one. This
+# machine authenticates the openai-codex subscription, so chains run anthropic
+# (primary, from modelRoles) -> openai-codex -> cursor, and an `openai` preset
+# makes that middle tier primary. Anchoring each selector once keeps the
+# preset and the chains' first tier from drifting apart:
 #
+# modelPresets:
+#   openai:
+#     modelRoles:
+#       default: &solMedium openai-codex/gpt-6.1-sol:medium
+#       plan: &astraHigh openai-codex/gpt-6-astra:high
+#       # …every other role, the same way
+#     defaultThinkingLevel: high
 # retry:
 #   fallbackChains:
 #     default:
-#       - openai/gpt-6-sol:medium
+#       - *solMedium
+#       - cursor/composer-2.5
+#     plan:
+#       - *astraHigh
 #       - cursor/composer-2.5

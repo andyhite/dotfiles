@@ -78,7 +78,7 @@ Applied with [chezmoi](https://chezmoi.io) and [mise](https://mise.jdx.dev). See
 | `home/dot_config/ponytail/config.json` | `~/.config/ponytail/config.json` | `hideStatus: true` drops the ponytail plugin's line under the composer; the mode stays active |
 | `home/dot_omp/private_agent/AGENTS.md` | `~/.omp/agent/AGENTS.md` | omp's global context file |
 | `home/dot_omp/private_agent/create_private_models.yml` | `~/.omp/agent/models.yml` (created once, mode 0600) | credentials and custom provider ids |
-| `home/dot_omp/private_agent/create_private_config.local.yml` | `~/.omp/agent/config.local.yml` (created once, mode 0600) | machine-local `modelRoles`/`retry.fallbackChains` overlay |
+| `home/dot_omp/private_agent/create_private_config.local.yml` | `~/.omp/agent/config.local.yml` (created once, mode 0600) | machine-local `retry.fallbackChains`, `modelPresets`, and `modelRoles` overlay |
 | `home/dot_claude/settings.json` | `~/.claude/settings.json` | [Claude Code](https://claude.com/product/claude-code) CLI global settings |
 | `home/dot_claude/empty_dot_i-have-adhd-always` | `~/.claude/.i-have-adhd-always` | empty flag that makes the `i-have-adhd` Claude Code plugin (enabled in `settings.json`) load its rules every session |
 | `home/dot_claude/symlink_CLAUDE.md.tmpl` | `~/.claude/CLAUDE.md` → `~/.omp/agent/AGENTS.md` | symlink to the applied omp `AGENTS.md` |
