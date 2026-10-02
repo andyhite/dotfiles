@@ -24,9 +24,80 @@ modelPresets:
 modelProviderOrder:
   - anthropic
   - cursor
+# omp reads <cwd>/.env on startup with no off switch, so any project that defines
+# OPENAI_API_KEY, CEREBRAS_API_KEY, ... silently makes that provider available to
+# omp. Disabling the id is the only gate checked before credentials. Kept out:
+# anthropic and openai-codex (stored OAuth outranks env keys), cursor, and
+# huggingface/openrouter (keys exported in ~/.zshrc.local on purpose). Local
+# engines (ollama, lm-studio, llama.cpp, vllm) need no key and stay usable.
+# ponytail: hand-kept list of every env-keyed provider in omp 18.4.10; a provider
+# omp adds later is not covered until it's added here.
 disabledProviders:
   - amazon-bedrock
   - bedrock-mantle
+  - abliteration
+  - aiand
+  - aimlapi
+  - alibaba-coding-plan
+  - alibaba-token-plan
+  - baseten
+  - cerebras
+  - charm-hyper
+  - cline-pass
+  - cloudflare-ai-gateway
+  - commandcode
+  - coreweave
+  - deepinfra
+  - deepseek
+  - devin
+  - firepass
+  - fireworks
+  - github-copilot
+  - gitlab-duo
+  - gitlab-duo-agent
+  - gmi-cloud
+  - google
+  - groq
+  - helmcode
+  - kilo
+  - litellm
+  - meta
+  - minimax
+  - minimax-code
+  - minimax-code-cn
+  - mistral
+  - moonshot
+  - nanogpt
+  - novita
+  - nvidia
+  - ollama-cloud
+  - openai
+  - opencode-go
+  - opencode-zen
+  - qianfan
+  - qwen-portal
+  - sakana
+  - siliconflow
+  - siliconflow-cn
+  - singularityapi-dev
+  - singularityapi-tech
+  - stepfun
+  - synthetic
+  - together
+  - umans
+  - venice
+  - vercel-ai-gateway
+  - wafer-serverless
+  - xai
+  - xai-oauth
+  - xiaomi
+  - xiaomi-token-plan-ams
+  - xiaomi-token-plan-cn
+  - xiaomi-token-plan-sgp
+  - yolo-auto
+  - zai
+  - zenmux
+  - zhipu-coding-plan
 symbolPreset: nerd
 theme:
   dark: dark-github
