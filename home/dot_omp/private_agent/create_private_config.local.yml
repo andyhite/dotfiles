@@ -7,13 +7,12 @@
 # the keys present here override anything — every other setting, including
 # untouched modelRoles entries, still comes from the shared config.yml.
 #
-# This is the file a machine edits to run its own model routing: its fallback
-# chains, presets for providers only it authenticates, a trial model, a role
-# pointed at a custom provider from ~/.omp/agent/models.yml. The shared file
-# carries only anthropic primaries and the `anthropic` preset; it has no
-# fallback chains at all, because a chain is only as good as the providers a
-# machine has logged into. Until this file sets some, a failing role has no
-# other model to move to.
+# This is the file a machine edits for its own model routing: presets for
+# providers only it authenticates, a trial model, a role pointed at a custom
+# provider from ~/.omp/agent/models.yml. The shared file carries only
+# anthropic primaries and the `anthropic` preset, with model fallback off — a
+# quota wall is a manual `/modelpreset switch`, so a preset here is how this
+# machine gets somewhere to switch to.
 #
 # It has to stay a valid object even with nothing overridden: omp validates
 # the overlay's root as an object, and PI_CONFIG_FILES pointing at a missing
@@ -35,27 +34,15 @@
 #   task: fireworks/kimi-k2.7-code:medium      # was anthropic/claude-sonnet-5-5:low — trial
 #   smol: fireworks/minimax-m2.7:low           # was anthropic/claude-haiku-4-5:low
 
-# ── Example: fallback chains and a matching preset ──────────────────────────
-# A role's chain is a YAML list, so a higher layer replaces it whole rather
-# than appending. A preset must name every role — switching clears the rest —
-# and presets here are listed alongside the shared `anthropic` one. This
-# machine authenticates the openai-codex subscription, so chains run anthropic
-# (primary, from modelRoles) -> openai-codex -> cursor, and an `openai` preset
-# makes that middle tier primary. Anchoring each selector once keeps the
-# preset and the chains' first tier from drifting apart:
+# ── Example: a preset for a provider this machine authenticates ─────────────
+# A preset must name every role — switching clears the rest — and presets
+# here are listed alongside the shared `anthropic` one. This machine has the
+# openai-codex subscription, so `openai` maps each role to its GPT-6 tier:
 #
 # modelPresets:
 #   openai:
 #     modelRoles:
-#       default: &solMedium openai-codex/gpt-6.1-sol:medium
-#       plan: &astraHigh openai-codex/gpt-6-astra:high
+#       default: openai-codex/gpt-6.1-sol:medium
+#       plan: openai-codex/gpt-6-astra:high
 #       # …every other role, the same way
 #     defaultThinkingLevel: high
-# retry:
-#   fallbackChains:
-#     default:
-#       - *solMedium
-#       - cursor/composer-2.5
-#     plan:
-#       - *astraHigh
-#       - cursor/composer-2.5

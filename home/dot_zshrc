@@ -119,7 +119,7 @@ fi
 
 # omp's own per-machine overlay is separate from the block above: chezmoi creates
 # ~/.omp/agent/config.local.yml once on every machine (never committed), so a
-# machine can set its own fallback chains and presets, or override modelRoles, on
+# machine can add its own model presets, or override modelRoles, on
 # top of the shared ~/.omp/agent/config.yml without editing it. Guard
 # on existence rather than exporting unconditionally — PI_CONFIG_FILES
 # pointing at a missing file is a hard error for omp, not a silent skip.

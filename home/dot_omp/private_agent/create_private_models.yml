@@ -7,14 +7,14 @@
 # tracking. Mode 0600 already, from the source name's `private_` attribute.
 #
 # `modelRoles` in the shared config.yml names only omp's built-in `anthropic`
-# provider, and the fallback chains and machine-specific presets in
-# ~/.omp/agent/config.local.yml normally name built-in ids too (`openai-codex`,
-# `openai`, `cursor`), so this file starts with nothing to define. A machine
+# provider, and the machine-specific presets in ~/.omp/agent/config.local.yml
+# normally name built-in ids too (`openai-codex`, `openai`, `cursor`), so this
+# file starts with nothing to define. A machine
 # that only uses built-in providers needs no changes here at all —
 # `providers: {}` below is the whole file.
 #
 # For machine-specific *model routing* — which model each role resolves to,
-# what a role falls back to on failure, which presets exist — see
+# which presets exist — see
 # ~/.omp/agent/config.local.yml instead: it overlays the shared config.yml
 # without touching credentials.
 

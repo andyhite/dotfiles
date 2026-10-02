@@ -95,15 +95,16 @@ task:
     enabled: true
 personality: pragmatic
 retry:
-  usageAwareFallback: true
-  modelFallback: true
-  fallbackRevertPolicy: cooldown-expiry
-  # No fallbackChains here: a chain is only as good as the providers a machine has
-  # authenticated, so each machine sets its own in ~/.omp/agent/config.local.yml.
-  # Without one (the schema default is `{}`), a chat role that keeps failing has no other
-  # model to move to; same-model retries still apply.
-  usageReservePolicy: confirm
-  usageReservePct: 10
+  # No model fallback: a silent mid-task hop to another provider changes behavior,
+  # drops the prompt cache, and its last tier (cursor) is metered spend. A quota wall
+  # is a deliberate `/modelpreset switch <name>` instead. Same-model retries still
+  # ride out transient 429s/overloads. usageAwareFallback and the usageReserve* knobs
+  # only steer toward fallback models, so with none they are dead config: left at
+  # their defaults.
+  modelFallback: false
+  # Wait out an authoritative quota reset rather than failing past maxDelayMs, so
+  # unattended runs resume on their own. Abortable, but it can hold subagents for hours.
+  waitForUsageReset: true
 advisor:
   enabled: false
 interruptMode: wait
