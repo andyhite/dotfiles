@@ -25,11 +25,12 @@ modelProviderOrder:
   - anthropic
   - cursor
 # omp reads <cwd>/.env on startup with no off switch, so any project that defines
-# OPENAI_API_KEY, CEREBRAS_API_KEY, ... silently makes that provider available to
-# omp. Disabling the id is the only gate checked before credentials. Kept out:
-# anthropic and openai-codex (stored OAuth outranks env keys), cursor, and
-# huggingface/openrouter (keys exported in ~/.zshrc.local on purpose). Local
-# engines (ollama, lm-studio, llama.cpp, vllm) need no key and stay usable.
+# CEREBRAS_API_KEY, FIREWORKS_API_KEY, ... silently makes that provider available
+# to omp. Disabling the id is the only gate checked before credentials. Kept out:
+# anthropic and openai-codex (stored OAuth outranks env keys), cursor,
+# huggingface/openrouter (keys exported in ~/.zshrc.local on purpose), and openai
+# (wanted, so a project's OPENAI_API_KEY does reach omp). Local engines (ollama,
+# lm-studio, llama.cpp, vllm) need no key and stay usable.
 # ponytail: hand-kept list of every env-keyed provider in omp 18.4.10; a provider
 # omp adds later is not covered until it's added here.
 disabledProviders:
@@ -71,7 +72,6 @@ disabledProviders:
   - novita
   - nvidia
   - ollama-cloud
-  - openai
   - opencode-go
   - opencode-zen
   - qianfan
