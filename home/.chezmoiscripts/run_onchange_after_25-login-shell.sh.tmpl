@@ -1,0 +1,32 @@
+{{ if eq .chezmoi.os "darwin" -}}
+#!/usr/bin/env bash
+set -euo pipefail
+{{ template "output.sh.tmpl" . }}
+heading "login shell"
+
+# Runs after 20-brew-bundle, which installs Homebrew's zsh. Apple's /bin/zsh
+# is frozen at 5.9 from 2022; pointing the login shell at brew's keeps
+# Terminal/Ghostty/ssh logins on the same zsh `brew upgrade` tracks.
+zsh="$(brew --prefix)/bin/zsh"
+if [ ! -x "$zsh" ]; then
+  warned "zsh" "$zsh missing — brew bundle must run first"
+  exit 0
+fi
+
+# chsh refuses any shell not listed in /etc/shells, and that file is
+# root-owned, hence the one sudo here. Interactive on purpose: a dotfiles
+# apply should never cache or bypass the password prompt.
+if ! grep -qx "$zsh" /etc/shells; then
+  say "adding $zsh to /etc/shells (sudo)"
+  echo "$zsh" | sudo tee -a /etc/shells >/dev/null
+  added "/etc/shells" "$zsh"
+fi
+
+current="$(dscl . -read "$HOME" UserShell | awk '{print $2}')"
+if [ "$current" = "$zsh" ]; then
+  ok "login shell" "$zsh"
+else
+  chsh -s "$zsh"
+  updated "login shell" "$current → $zsh (takes effect on next login)"
+fi
+{{ end -}}

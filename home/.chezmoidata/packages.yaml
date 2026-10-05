@@ -106,6 +106,13 @@ packages:
   - { name: wget,    darwin: { via: brew }, linux: { via: apt } }
   - { name: rsync,   darwin: { via: brew }, linux: { via: apt } }
   - { name: tree,    darwin: { via: brew }, linux: { via: apt } }
+  # macOS ships curl, unzip and zsh too, but frozen at whatever Apple last
+  # shipped — Homebrew's stay current. zsh is also made the login shell by
+  # run_onchange_after_25-login-shell.
+  - { name: curl,    darwin: { via: brew }, linux: { via: apt } }
+  - { name: unzip,   darwin: { via: brew }, linux: { via: apt } }
+  - { name: zsh,     darwin: { via: brew }, linux: { via: apt } }
+  - { name: ag,      darwin: { via: brew, id: the_silver_searcher }, linux: { via: apt, id: silversearcher-ag } }
   # Hugging Face hub CLI (`hf download`, `hf auth login`); the formula is `hf`,
   # not the pip package name.
   - { name: hf,      darwin: { via: brew } }
@@ -123,10 +130,7 @@ packages:
   - { name: gmake,   darwin: { via: brew, id: make } }
 
   # ── Linux-only, apt ───────────────────────────────────────────────────────
-  # macOS ships zsh, curl and unzip; Xcode CLT covers the build toolchain.
-  - { name: zsh,        linux: { via: apt } }
-  - { name: curl,       linux: { via: apt } }
-  - { name: unzip,      linux: { via: apt } }
+  # Xcode CLT covers the build toolchain.
   - { name: cc,         linux: { via: apt, id: build-essential } }
   - { name: pkg-config, linux: { via: apt } }
   - { name: fc-cache,   linux: { via: apt, id: fontconfig } }   # Nerd Font external
@@ -169,6 +173,10 @@ packages:
   # Markdown formatter/linter; no Homebrew formula and no apt package. uv
   # itself comes from mise (aqua:astral-sh/uv), so this runs after mise.
   - { name: mdformat, all: { via: uv } }
+  # Godot's gdformat/gdlint/gdparse/gdradon. Name is the PyPI package, not an
+  # executable: `uv tool list` reports the package, which is what the uv
+  # script matches against to decide install vs upgrade.
+  - { name: gdtoolkit, all: { via: uv } }
 
   # ── npx-run installers ───────────────────────────────────────────────────
   # Puppeteer's browser download is not a package: it drops Chrome for
@@ -190,6 +198,9 @@ packages:
     all: { via: installer, url: "https://omp.sh/install", shell: sh }
     postInstall: [{ zshCompletion: [omp, completions, zsh] }]
   - { name: claude, all: { via: installer, url: "https://claude.ai/install.sh", shell: bash } }
+  - name: codex
+    all: { via: installer, url: "https://chatgpt.com/codex/install.sh", shell: sh }
+    postInstall: [{ zshCompletion: [codex, completion, zsh] }]
   # Self-updates via `pi update self`; the installer pins transitive deps from a
   # lockfile, which the mise npm/aqua backends don't, and a mise shim would fight
   # `pi update`.

@@ -120,7 +120,7 @@ Removing a skill from the manifest prevents future installs but does not uninsta
 existing copy. Also run `mise exec -- npx --yes skills remove <skill-name> --global --yes`
 to remove the shared skill and its agent links.
 
-Fourteen scripts under `home/.chezmoiscripts/` run in numbered order:
+Fifteen scripts under `home/.chezmoiscripts/` run in numbered order:
 
 | Script | Platform | What it does |
 | --- | --- | --- |
@@ -128,6 +128,7 @@ Fourteen scripts under `home/.chezmoiscripts/` run in numbered order:
 | `run_onchange_before_06-homebrew.sh.tmpl` | darwin | fails with install instructions if `brew` isn't on `PATH` |
 | `run_onchange_before_10-mise.sh.tmpl` | both | installs mise itself if missing |
 | `run_onchange_after_20-brew-bundle.sh.tmpl` | darwin | `brew bundle` against every `via: brew`/`via: cask` entry |
+| `run_onchange_after_25-login-shell.sh.tmpl` | darwin | makes Homebrew's zsh the login shell (`/etc/shells` + `chsh`) |
 | `run_onchange_after_30-mise-install.sh.tmpl` | both | `mise install --yes` for every `via: mise` entry |
 | `run_onchange_after_35-uv-tools.sh.tmpl` | both | installs/upgrades every `via: uv` entry |
 | `run_onchange_after_36-npx-tools.sh.tmpl` | both | runs every `via: npx` entry (Chrome for Testing via puppeteer) |
