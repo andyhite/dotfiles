@@ -176,6 +176,10 @@ packages:
     all: { via: installer, url: "https://omp.sh/install", shell: sh }
     postInstall: [{ zshCompletion: [omp, completions, zsh] }]
   - { name: claude, all: { via: installer, url: "https://claude.ai/install.sh", shell: bash } }
+  # Self-updates via `pi update self`; the installer pins transitive deps from a
+  # lockfile, which the mise npm/aqua backends don't, and a mise shim would fight
+  # `pi update`.
+  - { name: pi, all: { via: installer, url: "https://pi.dev/install.sh", shell: sh } }
   # Non-interactive install with the three extra skills (compound,
   # setup-goal, visual-explainer) made model-invocable in addition to the
   # default user-invoked-only skills; --extras installs those skills.
