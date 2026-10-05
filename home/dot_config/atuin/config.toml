@@ -133,7 +133,7 @@ dir = "~/.local/share/atuin/logs"
 
 [theme]
 ## Resolves to themes/github-dark-default.toml alongside this file, keeping
-## atuin in the same GitHub Dark Default as starship, herdr, nvim, btop, hunk,
+## atuin in the same GitHub Dark Default as starship, herdr, nvim, btop,
 ## lazygit, and Ghostty. Set `debug = true` to have atuin warn about
 ## unparseable colors on startup.
 name = "github-dark-default"

@@ -194,7 +194,7 @@ startup:
   changelogMode: summary
   quiet: true
 features:
-  unexpectedStopDetection: smart
+  unexpectedStopDetection: mechanical
 compaction:
   handoffSaveToDisk: true
   thresholdPercent: 40

@@ -49,9 +49,9 @@ export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 # rewriting PATH on each prompt instead of installing shims — so a version
 # change takes effect in the shell you're standing in, with no `reshim` step.
 #
-# Pins live in ~/.tool-versions (symlinked from this repo). mise walks parent
-# directories to find config, so that file is the default for everything under
-# $HOME while a project's own .tool-versions or mise.toml still wins inside it.
+# Pins live in ~/.config/mise/config.toml, rendered from packages.yaml. mise
+# walks parent directories to find config, so that file is the default for
+# everything under $HOME while a project's own mise.toml still wins inside it.
 command -v mise >/dev/null 2>&1 && eval "$(mise activate zsh)"
 
 # ── Completion ──────────────────────────────────────────────────────────────

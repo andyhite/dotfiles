@@ -96,11 +96,19 @@ packages:
   # a mise shim: replacing the system git is not worth the blast radius.
   - { name: git,     darwin: { via: brew }, linux: { via: apt } }
   - { name: git-lfs, darwin: { via: brew }, linux: { via: apt } }
+  # dot_gitconfig.tmpl registers git-xet as the `xet` LFS custom transfer agent,
+  # so a clone of any xet-backed repo fails without it. Homebrew formula only;
+  # no mise registry entry (`mise registry | awk '$1=="git-xet"'` is empty).
+  - { name: git-xet, darwin: { via: brew } }
   # Not a dependency of anything this repo runs — no script here calls it.
   # It's here because `-c` and `--mirror` cover the resumable and recursive
   # downloads curl makes you hand-roll.
   - { name: wget,    darwin: { via: brew }, linux: { via: apt } }
   - { name: rsync,   darwin: { via: brew }, linux: { via: apt } }
+  - { name: tree,    darwin: { via: brew }, linux: { via: apt } }
+  # Hugging Face hub CLI (`hf download`, `hf auth login`); the formula is `hf`,
+  # not the pip package name.
+  - { name: hf,      darwin: { via: brew } }
 
   # ── macOS-only ───────────────────────────────────────────────────────────
   # caddy and dnsmasq back this repo's own LaunchAgents (see
@@ -143,6 +151,12 @@ packages:
   # Docker.app installed outside Homebrew, and a plain cask install aborts
   # with "It seems there is already an App at...".
   - { name: docker-desktop, darwin: { via: cask, args: "adopt: true" } }
+  # Desktop apps. Raycast.app on the first Mac was a direct download, so it
+  # needs the same `adopt: true` as docker-desktop; github is GitHub Desktop.
+  - { name: raycast,   darwin: { via: cask, args: "adopt: true" } }
+  - { name: github,    darwin: { via: cask } }
+  - { name: mouseless, darwin: { via: cask } }
+  - { name: godot,     darwin: { via: cask } }
 
   # ── uv tools ──────────────────────────────────────────────────────────────
   # No Homebrew formula and no apt package on either OS. The `[server]` extra is

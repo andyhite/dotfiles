@@ -17,18 +17,27 @@ mkdir -p "$statedir"
 hash="$(shasum -a 256 "$lockfile" 2>/dev/null | awk '{print $1}')"
 if [ -f "$statefile" ] && [ "$(cat "$statefile")" = "$hash" ]; then
   ok "nvchad plugins" "up to date"
-  exit 0
+else
+  # The retry policy is deliberate: on failure the hash stays unwritten and the
+  # apply carries on with a warning — a transient plugin/network failure should
+  # not fail the whole apply, and every later `chezmoi apply` reattempts the
+  # restore until one succeeds and records the hash. A restore that keeps
+  # failing therefore keeps warning, which is the signal to run
+  # `nvim "+Lazy! restore"` interactively and read the real error.
+  if run_quiet "nvchad plugins" nvim --headless "+Lazy! restore" +qa; then
+    updated "nvchad plugins" "restored"
+    printf '%s' "$hash" >"$statefile"
+  else
+    warned "nvchad plugins" "restore failed — retrying on the next apply"
+  fi
 fi
 
-# The retry policy is deliberate: on failure the hash stays unwritten and the
-# apply carries on with a warning — a transient plugin/network failure should
-# not fail the whole apply, and every later `chezmoi apply` reattempts the
-# restore until one succeeds and records the hash. A restore that keeps
-# failing therefore keeps warning, which is the signal to run
-# `nvim "+Lazy! restore"` interactively and read the real error.
-if run_quiet "nvchad plugins" nvim --headless "+Lazy! restore" +qa; then
-  updated "nvchad plugins" "restored"
-  printf '%s' "$hash" >"$statefile"
+# LSP servers, formatters and linters live in Mason's own tree, not in
+# packages.yaml — a fresh machine has none of them until something runs
+# :MasonInstallAll. lua/mason-sync.lua is that command made synchronous; it
+# no-ops once everything is present. Same warn-don't-fail policy as above.
+if run_quiet "mason packages" nvim --headless -c 'lua require("mason-sync")()' +qa; then
+  ok "mason packages" "in sync"
 else
-  warned "nvchad plugins" "restore failed — retrying on the next apply"
+  warned "mason packages" "install failed — run :MasonInstallAll in nvim"
 fi

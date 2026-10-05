@@ -120,7 +120,7 @@ Removing a skill from the manifest prevents future installs but does not uninsta
 existing copy. Also run `mise exec -- npx --yes skills remove <skill-name> --global --yes`
 to remove the shared skill and its agent links.
 
-Thirteen scripts under `home/.chezmoiscripts/` run in numbered order:
+Fourteen scripts under `home/.chezmoiscripts/` run in numbered order:
 
 | Script | Platform | What it does |
 | --- | --- | --- |
@@ -130,6 +130,7 @@ Thirteen scripts under `home/.chezmoiscripts/` run in numbered order:
 | `run_onchange_after_20-brew-bundle.sh.tmpl` | darwin | `brew bundle` against every `via: brew`/`via: cask` entry |
 | `run_onchange_after_30-mise-install.sh.tmpl` | both | `mise install --yes` for every `via: mise` entry |
 | `run_onchange_after_35-uv-tools.sh.tmpl` | both | installs/upgrades every `via: uv` entry |
+| `run_onchange_after_36-npx-tools.sh.tmpl` | both | runs every `via: npx` entry (Chrome for Testing via puppeteer) |
 | `run_once_after_40-installers.sh.tmpl` | both | installs every `via: installer` entry |
 | `run_onchange_after_45-fontcache.sh.tmpl` | linux | `fc-cache -f` on the Nerd Font directory |
 | `run_onchange_after_50-completions.sh.tmpl` | both | generates zsh completions for tools carapace doesn't cover |

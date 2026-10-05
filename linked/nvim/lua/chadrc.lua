@@ -20,6 +20,12 @@ M.base46 = {
 	-- },
 }
 
+-- :MasonInstallAll derives its list from configs/lspconfig.lua, configs/conform.lua
+-- and configs/lint.lua through NvChad's lspconfig-name → mason-name table. oxlint
+-- is enabled in lspconfig.lua but absent from that table, so it's named here or
+-- a fresh machine never gets it.
+M.mason = { pkgs = { "oxlint" } }
+
 -- M.nvdash = { load_on_startup = true }
 -- M.ui = {
 --       tabufline = {
