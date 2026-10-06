@@ -31,7 +31,6 @@ Applied with [chezmoi](https://chezmoi.io) and [mise](https://mise.jdx.dev). See
 | Path | Target | What it is |
 | --- | --- | --- |
 | `home/dot_config/ghostty/config` | `~/.config/ghostty/config` | Ghostty terminal config |
-| `home/dot_config/btop/` | `~/.config/btop/` | btop resource monitor config |
 | `home/dot_config/herdr/config.toml` | `~/.config/herdr/config.toml` | Herdr (agent terminal workspace manager) config |
 | `home/dot_config/herdr/palette/` | `~/.config/herdr/palette/` | the `prefix+p` command palette |
 | `home/dot_config/herdr/layout/` | `~/.config/herdr/layout/` | the `prefix+f` fold command |
