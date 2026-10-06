@@ -356,7 +356,9 @@ fi
 # atuin binds ^R in emacs and viins but only `/` in vicmd, so without the extra
 # bindkey fzf's earlier `-M vicmd '^R'` would leave normal mode on a different
 # history search than insert mode.
-if command -v atuin >/dev/null 2>&1; then
+#
+# Skipped in Tern while testing it without atuin: Ctrl+R falls back to fzf's history widget.
+if ! _in_tern && command -v atuin >/dev/null 2>&1; then
   _atuin_bind='eval "$(atuin init zsh)"; bindkey -M vicmd "^r" atuin-search'
   if (( ${+zvm_after_init_commands} )); then
     zvm_after_init_commands+=("$_atuin_bind")
