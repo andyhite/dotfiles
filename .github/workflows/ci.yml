@@ -108,6 +108,9 @@ jobs:
           test -f "$dest/.omp/agent/models.yml" && test ! -L "$dest/.omp/agent/models.yml"
           test -f "$dest/.omp/agent/config.local.yml" && test ! -L "$dest/.omp/agent/config.local.yml"
 
+          # dstack is macOS-only — neither its config tree nor the old Linux
+          # systemd unit should exist on this platform.
+          test ! -e "$dest/.dstack"
           test ! -e "$dest/.config/systemd"
 
           # The Darwin-only Library/ tree must not exist on this platform —
@@ -134,4 +137,5 @@ jobs:
 
           test -e "$dest/Library/LaunchAgents/dev.caddy.plist"
           test -L "$dest/Library/Application Support/Tern/settings.json"
+          test -f "$dest/.dstack/server/config.yml" && test ! -L "$dest/.dstack/server/config.yml"
           test ! -e "$dest/.config/systemd"

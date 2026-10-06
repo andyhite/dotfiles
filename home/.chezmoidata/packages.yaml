@@ -140,6 +140,14 @@ packages:
   - { name: godot,     darwin: { via: cask } }
 
   # ── uv tools ──────────────────────────────────────────────────────────────
+  # No Homebrew formula and no apt package on either OS. The `[server]` extra is
+  # required — the bare package omits the server's dependencies and
+  # `dstack server` fails at startup with "missing server dependencies".
+  # uv itself comes from mise (aqua:astral-sh/uv), so this runs after mise.
+  # macOS only: ~/.dstack/server config only targets Mac hosts, so Linux boxes
+  # never get dstack installed. No LaunchAgent: run `dstack server -n -p 3333`
+  # by hand when it's needed.
+  - { name: dstack, darwin: { via: uv, id: "dstack[server]" } }
   # Markdown formatter/linter; no Homebrew formula and no apt package. uv
   # itself comes from mise (aqua:astral-sh/uv), so this runs after mise.
   - { name: mdformat, all: { via: uv } }

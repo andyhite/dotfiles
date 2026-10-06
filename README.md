@@ -64,6 +64,7 @@ Applied with [chezmoi](https://chezmoi.io) and [mise](https://mise.jdx.dev). See
 | `home/dot_omp/private_agent/AGENTS.md` | `~/.omp/agent/AGENTS.md` | omp's global context file |
 | `home/dot_omp/private_agent/create_private_models.yml` | `~/.omp/agent/models.yml` (created once, mode 0600) | credentials and custom provider ids |
 | `home/dot_omp/private_agent/create_private_config.local.yml` | `~/.omp/agent/config.local.yml` (created once, mode 0600) | machine-local `modelPresets` and `modelRoles` overlay |
+| `home/dot_dstack/server/create_private_config.yml` | `~/.dstack/server/config.yml` (created once, mode 0600, macOS) | [dstack](https://dstack.ai) GPU-cloud orchestrator config; the server is started by hand, not at login |
 | `home/dot_local/bin/executable_tailscale` | `~/.local/bin/tailscale` | PATH shim for the Mac App Store build of Tailscale |
 
 ### Repo scripts, checks & docs
