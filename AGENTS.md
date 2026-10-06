@@ -47,7 +47,9 @@ A tree lives in `<repo>/linked/` instead — outside the chezmoi source root, so
 never manages its content, only a `symlink_` entry pointing at it — when either is true:
 
 - **The tool writes into it.** `linked/nvim` (NvChad rewrites `lazy-lock.json` on `:Lazy
-  sync`); `linked/tern` (Tern rewrites `settings.json` when a setting changes in its UI).
+  sync`). Only when the tool writes in place: Tern saves by replacing the file, which swaps
+  a symlink for a plain file, so its settings stay copied and UI changes come back with
+  `chezmoi re-add`.
 - **It's code developed in place, headed for its own repo eventually.** None right now.
 
 Everything else is copied. When in doubt: if nothing but a human ever writes to it, it's

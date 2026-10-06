@@ -8,6 +8,7 @@
     "pulse": "ripple"
   },
   "contrast": "Always",
+  "layout": "Float",
   "font_family": "GeistMono Nerd Font",
   "ui_font": "Geist",
   "code_font": "GeistMono Nerd Font",

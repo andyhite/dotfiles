@@ -136,6 +136,6 @@ jobs:
             --override-data '{"workName":"","workEmail":"","workGitDir":""}'
 
           test -e "$dest/Library/LaunchAgents/dev.caddy.plist"
-          test -L "$dest/Library/Application Support/Tern/settings.json"
+          test -f "$dest/Library/Application Support/Tern/settings.json"
           test -f "$dest/.dstack/server/config.yml" && test ! -L "$dest/.dstack/server/config.yml"
           test ! -e "$dest/.config/systemd"

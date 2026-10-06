@@ -27,7 +27,7 @@ Applied with [chezmoi](https://chezmoi.io) and [mise](https://mise.jdx.dev). See
 
 | Path | Target | What it is |
 | --- | --- | --- |
-| `home/Library/Application Support/Tern/symlink_settings.json.tmpl` | `~/Library/Application Support/Tern/settings.json` → `linked/tern/settings.json` (macOS) | [Tern](https://stencil.so/tern) terminal settings; linked because Tern rewrites it when a setting changes |
+| `home/Library/Application Support/Tern/settings.json` | `~/Library/Application Support/Tern/settings.json` (macOS) | [Tern](https://stencil.so/tern) terminal settings; copied, not linked — Tern saves by replacing the file, which turns a symlink into a plain file. After changing a setting in Tern's UI, `chezmoi re-add` it |
 | `home/dot_config/caddy/Caddyfile` | `~/.config/caddy/Caddyfile` (macOS only) | base Caddyfile |
 | `home/dot_config/caddy/create_private_Caddyfile.local` | `~/.config/caddy/Caddyfile.local` (created once, mode 0600) | machine-local site blocks, never committed |
 | `home/dot_config/dnsmasq/dnsmasq.conf.tmpl` | `~/.config/dnsmasq/dnsmasq.conf` (macOS only) | base dnsmasq config |
