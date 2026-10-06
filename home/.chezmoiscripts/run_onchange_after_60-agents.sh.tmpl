@@ -2,31 +2,6 @@
 set -euo pipefail
 {{ template "output.sh.tmpl" . }}
 
-# ── herdr plugins ────────────────────────────────────────────────────────
-heading "herdr plugins"
-
-# A `local:` id is a path relative to the repo working tree, resolved and
-# link-installed rather than fetched from GitHub — that's how a plugin still
-# being developed in this repo stays live instead of frozen at install time.
-if command -v herdr >/dev/null 2>&1; then
-  :
-{{ range $.packages -}}
-{{-   $spec := or (index . $.chezmoi.os) (index . "all") }}
-{{-   if $spec }}{{ if eq $spec.via "herdr" }}
-{{-     $id := index $spec "id" }}
-{{-     if hasPrefix "local:" $id }}
-  run_quiet {{ .name | squote }} herdr plugin link {{ printf "%s/%s" $.chezmoi.workingTree (trimPrefix "local:" $id) | squote }} && updated {{ .name | squote }} "linked"
-{{-     else }}
-  # --yes must follow the positional argument — herdr's plugin parser
-  # rejects `herdr plugin install --yes <spec>` with a usage error.
-  run_quiet {{ .name | squote }} herdr plugin install {{ $id | squote }} --yes && updated {{ .name | squote }}
-{{-     end }}
-{{ end }}{{ end }}
-{{- end }}
-else
-  warned "herdr" "not on PATH — skipping herdr plugins"
-fi
-
 # ── omp plugins ──────────────────────────────────────────────────────────
 heading "omp plugins"
 if command -v omp >/dev/null 2>&1; then
@@ -86,47 +61,3 @@ heading "skills"
 run_quiet {{ .name | squote }} mise exec -- npx --yes skills add {{ (index $spec "id") | squote }} --skill {{ $skillName | squote }} -g -y && updated {{ .name | squote }}
 {{ end }}{{ end }}
 {{- end }}
-
-# ── omp skills from herdr plugins ────────────────────────────────────────
-# A herdr plugin can ship its own agent skills at its checkout root
-# (`skills/` or `.agents/skills/`), outside the plugin's own directory —
-# omp's `agents` skill provider only ever scans a user or project root, so
-# it never finds them there on its own. Dedupe by skill name, first source
-# wins, so re-running never relinks the destination to a different source.
-if command -v herdr >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
-  registry="$HOME/.config/herdr/plugins.json"
-  omp_skills="$HOME/.omp/agent/skills"
-  if [ -f "$registry" ]; then
-    seen=""
-    while IFS=$'\t' read -r plugin_id plugin_root clone_root; do
-      [ -n "$plugin_root" ] || continue
-      for root in "$plugin_root" "$clone_root"; do
-        [ -n "$root" ] || continue
-        for skills_dir in "$root/skills" "$root/.agents/skills"; do
-          [ -d "$skills_dir" ] || continue
-          for skill_src in "$skills_dir"/*/; do
-            [ -f "$skill_src/SKILL.md" ] || continue
-            skill_src="${skill_src%/}"
-            skill_name="$(basename "$skill_src")"
-            case " $seen " in *" $skill_name "*) continue ;; esac
-            seen="$seen $skill_name"
-            skill_dst="$omp_skills/$skill_name"
-            mkdir -p "$omp_skills"
-            if [ -L "$skill_dst" ]; then
-              [ "$(readlink "$skill_dst")" = "$skill_src" ] && continue
-              rm "$skill_dst"
-            elif [ -e "$skill_dst" ]; then
-              mv "$skill_dst" "$skill_dst.bak.$(date +%s)"
-            fi
-            ln -s "$skill_src" "$skill_dst"
-            updated "$skill_name" "linked from $plugin_id"
-          done
-        done
-      done
-    done < <(jq -r '.[]? | select(.plugin_root) | [
-        .plugin_id,
-        .plugin_root,
-        (if (.source.subdir // "") != "" then (.source.managed_path // "") else "" end)
-      ] | @tsv' "$registry" 2>/dev/null || true)
-  fi
-fi

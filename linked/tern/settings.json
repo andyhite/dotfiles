@@ -1,0 +1,54 @@
+{
+  "theme": "Dark",
+  "copy_on_select": true,
+  "cursor": {
+    "programs": true,
+    "glide": 40,
+    "trail": "warp",
+    "pulse": "ripple"
+  },
+  "contrast": "Always",
+  "font_family": "GeistMono Nerd Font",
+  "ui_font": "Geist",
+  "code_font": "GeistMono Nerd Font",
+  "pane_headers": "Always",
+  "material": "Glass",
+  "shell": "/opt/homebrew/bin/zsh",
+  "prompt_style": "tern",
+  "prompt_parts": {
+    "shape": "pill",
+    "frame": "rounded",
+    "line_end": true,
+    "gap": "dots",
+    "dir": "repo",
+    "spaced": true,
+    "clock": "h12",
+    "layout": {
+      "left": [
+        "os_icon",
+        "context",
+        "dir",
+        "vcs"
+      ],
+      "right": [
+        "status",
+        "command_execution_time",
+        "background_jobs",
+        "vi_mode",
+        "virtualenv",
+        "node_version",
+        "rust_version",
+        "go_version",
+        "todo",
+        "ram",
+        "time"
+      ]
+    }
+  },
+  "file_tree": {
+    "open": true
+  },
+  "git": {
+    "path_tree": true
+  }
+}

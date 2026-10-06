@@ -3,17 +3,8 @@ packages:
   # Registry names verified against `mise registry`. Plain names, not pinned
   # backends: the registry lists several backends per tool in preference order
   # and mise picks the first one this machine can actually use, which is what
-  # makes eza (vfox, then cargo) and neovim (vfox, then aqua) work on both
+  # makes neovim (vfox, then aqua) work on both
   # platforms without a per-OS override here.
-  - name: starship
-    all: { via: mise }
-    postInstall: [{ zshCompletion: [starship, completions, zsh] }]
-  - name: atuin
-    all: { via: mise }
-    postInstall: [{ zshCompletion: [atuin, gen-completions, --shell, zsh] }]
-  - name: bat
-    all: { via: mise }
-    postInstall: [{ zshCompletion: [bat, --completion, zsh] }]
   - name: rg
     all: { via: mise, id: ripgrep }
     postInstall: [{ zshCompletion: [rg, --generate, complete-zsh] }]
@@ -23,17 +14,10 @@ packages:
   - name: tree-sitter
     all: { via: mise }
     postInstall: [{ zshCompletion: [tree-sitter, complete, --shell, zsh] }]
-  - name: herdr
-    all: { via: mise }
-    postInstall: [{ zshCompletion: [herdr, completion, zsh] }]
-  - { name: fzf,        all: { via: mise } }
-  - { name: eza,        all: { via: mise } }
   - { name: direnv,     all: { via: mise } }
   - { name: nvim,       all: { via: mise, id: neovim } }
   - { name: fd,         all: { via: mise } }
   - { name: gh,         all: { via: mise } }
-  - { name: lazygit,    all: { via: mise } }
-  - { name: delta,      all: { via: mise } }
   - { name: gitleaks,   all: { via: mise } }
   - { name: jq,         all: { via: mise } }
   - { name: shellcheck, all: { via: mise } }
@@ -60,11 +44,9 @@ packages:
     all: { via: mise }
     postInstall: [{ zshCompletion: [acli, completion, zsh] }]
   # macOS ships bash 3.2 (Apple froze it there over the GPLv3 relicense) and
-  # never updates it; herdr-plugins/ticket-worktree/modal.sh needs bash 4+
-  # (associative arrays, `${x,,}`/`${x^^}` case conversion) to read its
-  # config.toml and derive branch names. Linux distros already ship bash 5
-  # as /bin/bash, so this is darwin-only — Homebrew's bin dir precedes
-  # /bin on PATH via dot_zshrc's `brew shellenv`, so this shadows it there.
+  # never updates it. Linux distros already ship bash 5 as /bin/bash, so this
+  # is darwin-only — Homebrew's bin dir precedes /bin on PATH via dot_zshrc's
+  # `brew shellenv`, so this shadows it there.
   - { name: bash, darwin: { via: brew } }
 
   # ── Runtimes, exact pins ──────────────────────────────────────────────────
@@ -136,14 +118,13 @@ packages:
   - { name: cc,         linux: { via: apt, id: build-essential } }
   - { name: pkg-config, linux: { via: apt } }
   - { name: fc-cache,   linux: { via: apt, id: fontconfig } }   # Nerd Font external
-  - { name: infocmp,    linux: { via: apt, id: ncurses-bin } }  # ghostty ssh-terminfo
+  - { name: infocmp,    linux: { via: apt, id: ncurses-bin } }  # terminfo for ssh'd terminals
   - { name: wl-copy,    linux: { via: apt, id: wl-clipboard } } # nvim `+` on Wayland
   - { name: xclip,      linux: { via: apt } }                   # …and on X11
 
   # ── macOS casks ───────────────────────────────────────────────────────────
-  - { name: ghostty,     darwin: { via: cask } }
   - { name: zed,         darwin: { via: cask } }
-  # zed/settings.json names Geist and Geist Mono; ghostty and nvim both need the
+  # zed/settings.json names Geist and Geist Mono; nvim needs the
   # Nerd Font build for glyphs. Linux gets the Nerd Font from
   # .chezmoiexternal.toml instead — there is no Linux package for it.
   - { name: font-geist,                darwin: { via: cask } }
@@ -151,27 +132,14 @@ packages:
   - { name: font-geist-mono-nerd-font, darwin: { via: cask } }
   # Ships a signed .pkg, so install/upgrade escalates through sudo mid-bundle.
   - { name: 1password-cli,  darwin: { via: cask } }
-  # No tracked config reads it, but it's the one tool here whose absence turns
-  # an ordinary project checkout into a dead end. `args: { adopt: true }` is
-  # required, not decorative: a machine can already have /Applications/
-  # Docker.app installed outside Homebrew, and a plain cask install aborts
-  # with "It seems there is already an App at...".
-  - { name: docker-desktop, darwin: { via: cask, args: "adopt: true" } }
-  # Desktop apps. Raycast.app on the first Mac was a direct download, so it
-  # needs the same `adopt: true` as docker-desktop; github is GitHub Desktop.
+  # Desktop apps. Raycast.app on the first Mac was a direct download, and a plain
+  # cask install aborts with "It seems there is already an App at..." unless it
+  # adopts that copy. github is GitHub Desktop.
   - { name: raycast,   darwin: { via: cask, args: "adopt: true" } }
   - { name: github,    darwin: { via: cask } }
-  - { name: mouseless, darwin: { via: cask } }
   - { name: godot,     darwin: { via: cask } }
 
   # ── uv tools ──────────────────────────────────────────────────────────────
-  # No Homebrew formula and no apt package on either OS. The `[server]` extra is
-  # required — the bare package omits the server's dependencies and
-  # `dstack server` fails at startup with "missing server dependencies".
-  # uv itself comes from mise (aqua:astral-sh/uv), so this runs after mise.
-  # macOS only: this repo's dstack automation (LaunchAgent, ~/.dstack/server
-  # config) only targets Mac hosts, so Linux boxes never get dstack installed.
-  - { name: dstack, darwin: { via: uv, id: "dstack[server]" } }
   # Markdown formatter/linter; no Homebrew formula and no apt package. uv
   # itself comes from mise (aqua:astral-sh/uv), so this runs after mise.
   - { name: mdformat, all: { via: uv } }
@@ -207,37 +175,6 @@ packages:
   # lockfile, which the mise npm/aqua backends don't, and a mise shim would fight
   # `pi update`.
   - { name: pi, all: { via: installer, url: "https://pi.dev/install.sh", shell: sh } }
-  # Non-interactive install with the three extra skills (compound,
-  # setup-goal, visual-explainer) made model-invocable in addition to the
-  # default user-invoked-only skills; --extras installs those skills.
-  - name: plannotator
-    all:
-      via: installer
-      url: "https://plannotator.ai/install.sh"
-      shell: bash
-      args:
-        [
-          "--non-interactive",
-          "--model-invocable",
-          "plannotator-compound,plannotator-setup-goal,plannotator-visual-explainer",
-          "--extras",
-        ]
-
-  # ── herdr plugins ─────────────────────────────────────────────────────────
-  # A `local:` id is a path relative to the repo working tree, resolved against
-  # {{ .chezmoi.workingTree }} and installed with `herdr plugin link` rather
-  # than `herdr plugin install`.
-  # Directional pane focus that hands off to nvim splits instead of stopping
-  # at the pane edge (vim-tmux-navigator, for herdr). Two-sided: the herdr
-  # half is the ctrl+h/j/k/l bindings in dot_config/herdr/config.toml, the
-  # nvim half is linked/nvim/lua/herdr-nav.lua.
-  - { name: herdr/vim-herdr-navigation, all: { via: herdr, id: paulbkim-dev/vim-herdr-navigation } }
-  # Full install (annotate terminal text, review documents/folders, and
-  # review the agent's last reply via Plannotator TUI; comments become the
-  # agent's next message). Keybindings are required by the plugin's own
-  # docs — see dot_config/herdr/config.toml's herdr-annotate section.
-  - { name: herdr/herdr-annotate, all: { via: herdr, id: plannotator/herdr-annotate } }
-  - { name: herdr/ticket-worktree,      all: { via: herdr, id: "local:linked/herdr-plugins/ticket-worktree" } }
 
   # ── gh extensions ─────────────────────────────────────────────────────────
   # Deletes local branches whose PR is merged or closed. It checks PR state
@@ -249,9 +186,6 @@ packages:
   - { name: gh/gh-poi, all: { via: gh, id: seachicken/gh-poi } }
 
   # ── omp plugins ───────────────────────────────────────────────────────────
-  # Built as a Pi extension, but omp can install any npm-packaged Pi
-  # extension directly — no separate omp-specific packaging needed.
-  - { name: omp/pi-extension, all: { via: omp, id: "npm:@plannotator/pi-extension" } }
   # Terse "lazy senior dev" mode. Config (hideStatus) lives in
   # dot_config/ponytail/config.json.
   - { name: omp/ponytail, all: { via: omp, id: "npm:@dietrichgebert/ponytail" } }
@@ -266,6 +200,5 @@ packages:
   # ── Cross-agent skills ────────────────────────────────────────────────────
   # Canonical copies land in ~/.agents/skills; the CLI symlinks each agent's own
   # skills directory into that tree.
-  - { name: skill/herdr,        all: { via: skill, id: herdrdev/herdr } }
   # Apple HIG-based UI review, used for macOS/Tauri design work.
   - { name: skill/apple-design, all: { via: skill, id: dickwu/apple-design-skill } }

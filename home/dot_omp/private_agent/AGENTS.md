@@ -1,9 +1,5 @@
 # Agent notes
 
-Global context for every omp session, and — via `~/.claude/CLAUDE.md`, which
-is a symlink to this file — Claude Code's global user memory too. One source
-of truth, since the two files needed identical content.
-
 ## Chrome for Testing
 
 For browser automation, MUST attach to the user-started Chrome for Testing at

@@ -17,9 +17,3 @@ map("n", "<leader>gd", "<cmd>DiffviewOpen<CR>", { desc = "diffview open against 
 map("n", "<leader>gc", "<cmd>DiffviewClose<CR>", { desc = "diffview close" })
 map("n", "<leader>gh", "<cmd>DiffviewFileHistory %<CR>", { desc = "diffview file history (current file)" })
 map("n", "<leader>gH", "<cmd>DiffviewFileHistory<CR>", { desc = "diffview file history (branch)" })
-
--- Loaded last: `require "nvchad.mappings"` above installs NvChad's
--- normal-mode <C-h/j/k/l> -> <C-w>h/j/k/l window mappings; herdr-nav must
--- load after so it replaces them (it's a no-op outside a herdr pane)
--- rather than being replaced by them.
-require "herdr-nav"

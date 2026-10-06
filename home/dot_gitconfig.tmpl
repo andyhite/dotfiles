@@ -139,54 +139,6 @@
 	# fsmonitor (or reliable mtimes) to know when to invalidate — both are
 	# already satisfied above.
 	untrackedCache = true
-	# Delta syntax-highlights `git diff`/`git show` and pages the result
-	# itself (defaulting to `less`); a bare `git log`/`git config --list`
-	# isn't diff-shaped, so delta passes it through unchanged and still pages
-	# it through the same mechanism — nothing here special-cases log vs diff.
-	# `--pager` pins delta's underlying `less` invocation: `-F` exits
-	# immediately when output fits on one screen so short commands just
-	# stream, `-R` keeps color codes intact, `-X` skips the alternate-screen
-	# clear so scrollback survives quitting. git runs this through `sh -c`,
-	# so `|| less -FRX` keeps every git command pageable even before `delta`
-	# is installed (e.g. a fresh machine mid-bootstrap). This used to route
-	# through a `hunk pager` review TUI, which spun at ~100% CPU for many
-	# seconds — sometimes without ever producing output — on repos with
-	# several thousand commits; delta has no such ceiling (400k lines through
-	# it locally: well under a second).
-	pager = delta --pager=\"less -FRX\" || less -FRX
-[interactive]
-	# Same delta binary, `--color-only` instead of core.pager's full pass:
-	# `add -p` parses this filter's output and needs it to line up 1:1 with
-	# what git generated, so the filter has to leave line structure alone
-	# rather than adding delta's line-number gutter/file header. git runs
-	# this through `sh -c`, so `|| cat` keeps `add -p` usable without delta
-	# installed instead of failing outright.
-	diffFilter = delta --color-only || cat
-[delta]
-	# Shows line numbers in the gutter of each hunk.
-	line-numbers = true
-	# There is no dark GitHub syntax theme in delta's bundle — `delta
-	# --list-syntax-themes` ships only a LIGHT `GitHub`. Rather than pick a
-	# wrong-palette approximation, `none` disables syntax highlighting
-	# entirely so delta renders with the terminal's own foreground and its
-	# plus/minus backgrounds only.
-	syntax-theme = none
-	# Tells delta the terminal background is dark, so it picks line-number and
-	# background colors that read against it instead of assuming a light
-	# terminal.
-	dark = true
-# Difftool is pair-oriented: git invokes the command once per file with
-# temporary paths, rather than piping a unified diff the way `git diff` does
-# — so it needs delta's direct two-file-argument form, not `--color-only`.
-[diff]
-	tool = delta
-[difftool "delta"]
-	cmd = delta "$LOCAL" "$REMOTE"
-[difftool]
-	# Runs straight into the difftool instead of asking "y/n" per file — a
-	# `git difftool` invocation is already explicit and deliberate, not one
-	# that needs a second confirmation on every file in the range.
-	prompt = false
 
 {{ if .workGitDir }}
 [includeIf "gitdir:{{ .workGitDir }}"]

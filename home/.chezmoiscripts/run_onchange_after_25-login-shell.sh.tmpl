@@ -6,7 +6,7 @@ heading "login shell"
 
 # Runs after 20-brew-bundle, which installs Homebrew's zsh. Apple's /bin/zsh
 # is frozen at 5.9 from 2022; pointing the login shell at brew's keeps
-# Terminal/Ghostty/ssh logins on the same zsh `brew upgrade` tracks.
+# Terminal/Tern/ssh logins on the same zsh `brew upgrade` tracks.
 zsh="$(brew --prefix)/bin/zsh"
 if [ ! -x "$zsh" ]; then
   warned "zsh" "$zsh missing — brew bundle must run first"

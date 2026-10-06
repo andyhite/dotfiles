@@ -43,7 +43,7 @@ data:
       | jq -e '
           def specs: [.all, .darwin, .linux] | map(select(. != null));
           def binary_managers: ["mise","brew","cask","apt","uv","installer","npx"];
-          def agent_managers:  ["herdr","omp","gh","skill"];
+          def agent_managers:  ["omp","gh","skill"];
           (length > 0)
           and (map(.name) | length == (unique | length))
           and all(.[];
@@ -146,8 +146,8 @@ leakguard:
 # in CI: a commit made with --no-verify, from a machine whose hooks were never
 # installed, or through GitHub's web UI reached origin with zero secret
 # scanning. Scans a `git archive HEAD` export, not the working tree, so live
-# gitignored files (herdr plugin *.env credentials under linked/) can never
-# produce findings and the scan covers exactly what the commit ships.
+# gitignored files can never produce findings and the scan covers exactly what
+# the commit ships.
 [doc("Scan committed content for token-shaped secrets with gitleaks")]
 gitleaks:
     #!/usr/bin/env bash

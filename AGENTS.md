@@ -12,23 +12,16 @@ things here*.
 
 ## Running git commands
 
-`core.pager` in `dot_gitconfig.tmpl` is `delta --pager="less -FRX" || less -FRX`,
-deliberately — it gives a real terminal session syntax-highlighted, scrollable output on
-`git diff`/`show`/`log`, which is correct, wanted behavior for a human at a keyboard. It's
-also a hang trap for automation: a script or agent that runs `git log`/`diff`/`show`
-attached to a real pty (not a plain pipe) but never sends a keystroke will sit forever at
-the underlying `less` prompt once output overflows one screen — indistinguishable from a
-real hang from the outside, but it's just the pager correctly waiting for input nobody will
-send. Plain non-tty command output (the common case for a tool call without an explicit
-pty) is unaffected: git only invokes a pager when stdout is a terminal, so this only bites
-pty-attached automation. (This used to run through `hunk pager`, a full-screen review TUI —
-dropped because it spun at ~100% CPU for many seconds, sometimes without ever producing
-output, on repos with several thousand commits; delta has no such ceiling.)
+`core.pager` is unset, so git pages through `less` whenever stdout is a terminal. That's a
+hang trap for automation: a script or agent that runs `git log`/`diff`/`show` attached to a
+real pty (not a plain pipe) but never sends a keystroke will sit forever at the `less`
+prompt once output overflows one screen. Plain non-tty command output (the common case
+for a tool call without an explicit pty) is unaffected: git only invokes a pager when
+stdout is a terminal. Tern panes also export `GIT_PAGER=cat` for `log`/`diff`/`show` and
+similar commands typed at the prompt.
 
 Any git command run non-interactively — from a script, hook, or an agent explicitly
-allocating a pty — MUST bypass the pager: `git --no-pager log`, or `GIT_PAGER=cat`. Don't
-"fix" this by changing `core.pager` itself; that would trade away the interactive review UX
-for a problem that only exists at pty-attached call sites.
+allocating a pty — MUST bypass the pager: `git --no-pager log`, or `GIT_PAGER=cat`.
 
 ## Editing a tracked file
 
@@ -54,10 +47,8 @@ A tree lives in `<repo>/linked/` instead — outside the chezmoi source root, so
 never manages its content, only a `symlink_` entry pointing at it — when either is true:
 
 - **The tool writes into it.** `linked/nvim` (NvChad rewrites `lazy-lock.json` on `:Lazy
-  sync`); `linked/herdr-plugin-config` (herdr creates a config directory per newly
-  installed plugin).
-- **It's code developed in place, headed for its own repo eventually.**
-  `linked/herdr-plugins/ticket-worktree`, `linked/omp-extensions/*.ts`.
+  sync`); `linked/tern` (Tern rewrites `settings.json` when a setting changes in its UI).
+- **It's code developed in place, headed for its own repo eventually.** None right now.
 
 Everything else is copied. When in doubt: if nothing but a human ever writes to it, it's
 copied; if a running program writes to it, it's linked.
@@ -90,7 +81,7 @@ listing.
 
 One edit: an entry in `home/.chezmoidata/packages.yaml`, with a `via` per platform and a
 comment saying why it's here. That covers a CLI, a language runtime, a Homebrew cask, an
-apt package, a herdr plugin, a `gh` extension, and a cross-agent skill — every one of them
+apt package, an omp plugin, a `gh` extension, and a cross-agent skill — every one of them
 is a `packages` list entry, never a second manifest file, a Brewfile line, or a hand-edited
 Linux branch somewhere else. Nothing else to touch:
 
@@ -102,8 +93,8 @@ Linux branch somewhere else. Nothing else to touch:
 - A shell completion is a `postInstall: [{ zshCompletion: [<argv>] }]` on that same entry,
   never a second entry.
 - Names must be globally unique across the whole list (`just data` enforces it). Anything
-  that isn't an executable — a herdr plugin, an omp plugin, a gh extension, a skill — is
-  prefixed with its kind: `herdr/`, `omp/`, `gh/`, `skill/`.
+  that isn't an executable — an omp plugin, a gh extension, a skill — is
+  prefixed with its kind: `omp/`, `gh/`, `skill/`.
 - A row in README's inventory table if it's substantial enough to warrant its own
   "Notes by tool" section; most entries don't need one.
 
@@ -162,8 +153,8 @@ Conventional Commits, one line, all lowercase, imperative mood, no trailing peri
 
 - Types in use: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `ci`, `chore`,
   `revert`.
-- Scope is the tool or config area (`omp`, `herdr`, `nvim`, `zsh`, `ssh`,
-  `ghostty`, `starship`, `atuin`, `chezmoi`, `mise`, `ci`, `setup`); omit it for
+- Scope is the tool or config area (`omp`, `tern`, `nvim`, `zsh`, `ssh`,
+  `chezmoi`, `mise`, `ci`, `setup`); omit it for
   repo-wide changes.
 - Add a body only when the reasoning is worth recording.
 
