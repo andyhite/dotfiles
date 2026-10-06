@@ -191,6 +191,10 @@ if [[ -z $_no_zle ]] && command -v fzf >/dev/null 2>&1; then
   fi
 fi
 
+# Tern: nothing on Ctrl+R while testing without a shell history search. `-r` removes
+# fzf's widget and zsh's built-in search alike; atuin is skipped further down.
+_in_tern && for _km in emacs viins vicmd; do bindkey -M $_km -r '^R'; done; unset _km
+
 # fzf's own default (a `find` walk) crawls everything including .git and
 # node_modules and doesn't know about .gitignore, so on a large repo it's
 # both slower and full of results you can't act on. fd respects .gitignore
@@ -357,7 +361,7 @@ fi
 # bindkey fzf's earlier `-M vicmd '^R'` would leave normal mode on a different
 # history search than insert mode.
 #
-# Skipped in Tern while testing it without atuin: Ctrl+R falls back to fzf's history widget.
+# Skipped in Tern while testing it without atuin; Ctrl+R is unbound there (see the fzf block).
 if ! _in_tern && command -v atuin >/dev/null 2>&1; then
   _atuin_bind='eval "$(atuin init zsh)"; bindkey -M vicmd "^r" atuin-search'
   if (( ${+zvm_after_init_commands} )); then
