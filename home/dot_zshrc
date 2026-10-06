@@ -179,7 +179,10 @@ command -v direnv   >/dev/null 2>&1 && eval "$(direnv hook zsh)"
 # `fzf --zsh` (0.48+) is the portable path. Older distro builds — Debian and
 # Ubuntu LTS ship 0.29 — don't have it and install the scripts on disk under
 # one of a few paths instead.
-if [[ -z $_no_zle ]] && command -v fzf >/dev/null 2>&1; then
+#
+# Skipped in Tern (key bindings and `**` completion both) while testing what Tern does
+# natively.
+if [[ -z $_no_zle ]] && ! _in_tern && command -v fzf >/dev/null 2>&1; then
   if fzf --zsh >/dev/null 2>&1; then
     source <(fzf --zsh)
   else
@@ -191,8 +194,8 @@ if [[ -z $_no_zle ]] && command -v fzf >/dev/null 2>&1; then
   fi
 fi
 
-# Tern: nothing on Ctrl+R while testing without a shell history search. `-r` removes
-# fzf's widget and zsh's built-in search alike; atuin is skipped further down.
+# Tern: nothing on Ctrl+R while testing without a shell history search. fzf and atuin are
+# skipped there; `-r` also drops zsh's built-in search.
 _in_tern && for _km in emacs viins vicmd; do bindkey -M $_km -r '^R'; done; unset _km
 
 # fzf's own default (a `find` walk) crawls everything including .git and
@@ -207,16 +210,19 @@ if command -v fd >/dev/null 2>&1; then
 fi
 
 # ── Modern ls & cat ──────────────────────────────────────────────────────────
-if command -v eza >/dev/null 2>&1; then
-  alias ls='eza --icons --group-directories-first'
-  alias ll='eza -l --icons --group-directories-first'
-  alias tree='eza --tree --icons'
-fi
-# Debian/Ubuntu package bat as `batcat` (name clash with an unrelated package).
-if command -v bat >/dev/null 2>&1; then
-  alias cat='bat'
-elif command -v batcat >/dev/null 2>&1; then
-  alias cat='batcat'
+# Skipped in Tern while testing its native handling of plain `ls`/`cat` output.
+if ! _in_tern; then
+  if command -v eza >/dev/null 2>&1; then
+    alias ls='eza --icons --group-directories-first'
+    alias ll='eza -l --icons --group-directories-first'
+    alias tree='eza --tree --icons'
+  fi
+  # Debian/Ubuntu package bat as `batcat` (name clash with an unrelated package).
+  if command -v bat >/dev/null 2>&1; then
+    alias cat='bat'
+  elif command -v batcat >/dev/null 2>&1; then
+    alias cat='batcat'
+  fi
 fi
 
 # ── Git ──────────────────────────────────────────────────────────────────────

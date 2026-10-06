@@ -1,6 +1,7 @@
 zsh-users/zsh-autosuggestions
-zsh-users/zsh-syntax-highlighting
-Aloxaf/fzf-tab
+# Not in Tern, while testing what it handles natively (`_in_tern` is in zshrc).
+zsh-users/zsh-syntax-highlighting conditional:'! _in_tern'
+Aloxaf/fzf-tab conditional:'! _in_tern'
 # Not in Tern: its lazy init rebinds Tab after Tern installs native completion, and Tern
 # turns its native line editing off while the shell edits in vi mode. `_in_tern` is in zshrc.
 jeffreytse/zsh-vi-mode conditional:'! _in_tern'
