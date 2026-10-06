@@ -49,6 +49,12 @@ packages:
   # aqua backend has no darwin build, so macOS stays on the brew formula
   # (which builds from source) while Linux uses mise's prebuilt binary.
   - { name: btop, darwin: { via: brew }, linux: { via: mise } }
+  # Resource monitor with a disk benchmark, built with Tern support. No mise registry
+  # entry, but its GitHub releases carry per-OS/arch tarballs that the github backend picks.
+  # Not the upstream install.sh: that one defaults to /usr/local/bin and escalates through
+  # sudo mid-apply. Upgrade with `mise upgrade`, not `rmon update`, so mise's copy is the
+  # one that changes.
+  - { name: rmon, all: { via: mise, id: "github:pgkt04/rmon" } }
   - { name: chezmoi,    all: { via: mise } }
   # No mise registry entry — `mise registry | awk '$1=="lin"'` is empty. The
   # crates.io package is `lincli`; `linear-cli` is a different project by a
