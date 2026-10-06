@@ -11,7 +11,7 @@ gui:
   filterMode: fuzzy
   showRandomTip: false
   # GitHub Dark Default, shared with Ghostty, starship, herdr's accent, atuin,
-  # btop, hunk, delta, and nvim. The focused border uses `#58a6ff` — ANSI 4,
+  # hunk, delta, and nvim. The focused border uses `#58a6ff` — ANSI 4,
   # the theme's normal blue — the same accent value Ghostty renders and
   # nested TUIs (Zed, herdr) agree on for the active-pane accent.
   theme:

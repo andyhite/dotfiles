@@ -45,10 +45,6 @@ packages:
   - { name: uv,         all: { via: mise } }
   - { name: pre-commit, all: { via: mise } }
   - { name: just,       all: { via: mise } }
-  # aristocratos/btop ships only Linux/FreeBSD binaries upstream — mise's
-  # aqua backend has no darwin build, so macOS stays on the brew formula
-  # (which builds from source) while Linux uses mise's prebuilt binary.
-  - { name: btop, darwin: { via: brew }, linux: { via: mise } }
   # Resource monitor with a disk benchmark, built with Tern support. No mise registry
   # entry, but its GitHub releases carry per-OS/arch tarballs that the github backend picks.
   # Not the upstream install.sh: that one defaults to /usr/local/bin and escalates through

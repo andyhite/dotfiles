@@ -1,7 +1,7 @@
 # GitHub Dark Default for Atuin. Exact matches: Ghostty (bundles this theme by
 # name), hunk (Shiki ships theme id `github-dark-default`), Zed (via the
 # `github-dark-default` extension) and omp (built-in `dark-github`). Everything
-# else that takes raw hex — this file, plus btop, starship, and lazygit — is
+# else that takes raw hex — this file, plus starship and lazygit — is
 # hand-mapped onto the same palette instead. delta can't be pointed at it at
 # all and runs with `syntax-theme = none`; NvChad needs a hand-written custom
 # theme because base46 only bundles the legacy `#24292E` GitHub Dark, not
