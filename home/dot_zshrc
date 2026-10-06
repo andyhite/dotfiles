@@ -72,6 +72,14 @@ autoload -Uz compinit
 # install.sh deletes ~/.zcompdump* whenever it writes new ones.
 compinit -C
 
+# ── Tern ─────────────────────────────────────────────────────────────────────
+# Tern's shell integration runs before this file and leaves `_ksi_loaded` set. kitty's
+# integration uses the same name, hence the TERM_PROGRAM check too. TERM_PROGRAM alone isn't
+# enough: plain `ssh` from a Tern pane forwards it to hosts where no integration ran.
+# Used as an antidote `conditional:` in ~/.zsh_plugins.txt, so it must exist before
+# `antidote load`.
+_in_tern() { [[ $TERM_PROGRAM == tern && -n ${_ksi_loaded-} ]] }
+
 # ── Plugin manager (antidote, replaces Oh My Zsh) ───────────────────────────
 # install.sh clones it to ~/.antidote, but a machine that got it from Homebrew
 # keeps it under the brew prefix. Take whichever exists; an unguarded source
@@ -159,7 +167,12 @@ setopt EXTENDED_GLOB          # ~/^/# glob qualifiers
 # starship only draws a prompt, so it's skipped outright without a line editor;
 # direnv is guarded inside its own init output and stays useful (per-directory
 # env) in a scripted shell.
-[[ -z $_no_zle ]] && command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
+#
+# Tern draws its own prompt for every Prompt style but `imported` (`_npp_style`, set by its
+# integration), overwriting PS1 — starship would still fork on every prompt for output
+# nobody sees. Unset outside Tern, so the default keeps starship everywhere else.
+[[ -z $_no_zle && ${_npp_style:-imported} == imported ]] &&
+  command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
 command -v direnv   >/dev/null 2>&1 && eval "$(direnv hook zsh)"
 
 # ── fzf ──────────────────────────────────────────────────────────────────────

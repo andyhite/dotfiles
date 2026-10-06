@@ -1,4 +1,6 @@
 zsh-users/zsh-autosuggestions
 zsh-users/zsh-syntax-highlighting
 Aloxaf/fzf-tab
-jeffreytse/zsh-vi-mode
+# Not in Tern: its lazy init rebinds Tab after Tern installs native completion, and Tern
+# turns its native line editing off while the shell edits in vi mode. `_in_tern` is in zshrc.
+jeffreytse/zsh-vi-mode conditional:'! _in_tern'
