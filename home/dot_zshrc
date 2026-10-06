@@ -195,8 +195,14 @@ if [[ -z $_no_zle ]] && ! _in_tern && command -v fzf >/dev/null 2>&1; then
 fi
 
 # Tern: nothing on Ctrl+R while testing without a shell history search. fzf and atuin are
-# skipped there; `-r` also drops zsh's built-in search.
-_in_tern && for _km in emacs viins vicmd; do bindkey -M $_km -r '^R'; done; unset _km
+# skipped there; `-r` also drops zsh's built-in search. zsh-vi-mode binds viins Ctrl+R back
+# to zsh's search during its init on the first precmd, after this line, so it reruns from
+# zvm_after_init_commands (same problem as the atuin block). vicmd keeps Ctrl+R as vi redo.
+_tern_unbind_ctrl_r() { bindkey -M emacs -r '^R'; bindkey -M viins -r '^R' }
+if _in_tern; then
+  _tern_unbind_ctrl_r
+  (( ${+zvm_after_init_commands} )) && zvm_after_init_commands+=(_tern_unbind_ctrl_r)
+fi
 
 # fzf's own default (a `find` walk) crawls everything including .git and
 # node_modules and doesn't know about .gitignore, so on a large repo it's
