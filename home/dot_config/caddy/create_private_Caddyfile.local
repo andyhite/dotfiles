@@ -1,7 +1,7 @@
 # Written to ~/.config/caddy/Caddyfile.local by `chezmoi apply` the first
 # time it runs, then never touched again — inert until you uncomment a
 # block and fill in a real hostname and IP, same contract as
-# private_dot_ssh/create_private_config.local. Imported by the tracked
+# home/create_private_dot_gitconfig.local. Imported by the tracked
 # Caddyfile above.
 #
 # Caddy now runs via this repo's own LaunchAgent

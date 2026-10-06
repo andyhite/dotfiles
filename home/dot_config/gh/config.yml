@@ -2,9 +2,9 @@
 version: 1
 # What protocol to use when performing git operations. Supported values: ssh, https
 #
-# Deliberately https, not ssh: ~/.ssh/config maps github.com to the work SSH
-# key with `IdentitiesOnly yes` for a different reason (see ssh/config), which
-# means an ssh remote here would silently authenticate as the wrong account.
+# Deliberately https, not ssh: each machine's own ~/.ssh/config (not managed by
+# this repo) may map github.com to a work SSH key with `IdentitiesOnly yes`, so
+# an ssh remote here could silently authenticate as the wrong account.
 # https instead goes through gh's credential helper (wired into gitconfig's
 # [credential] blocks), which authenticates as whichever gh account is
 # currently active via `gh auth switch`.

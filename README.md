@@ -51,8 +51,6 @@ Applied with [chezmoi](https://chezmoi.io) and [mise](https://mise.jdx.dev). See
 | `home/create_private_dot_gitconfig-work.tmpl` | `~/.gitconfig-work` (created once, mode 0600; skipped when `workGitDir` is blank) | work git `[user] name`/`email` |
 | `home/dot_config/git/ignore` | `~/.config/git/ignore` | global gitignore |
 | `home/dot_config/gh/config.yml` | `~/.config/gh/config.yml` | gh CLI defaults and aliases |
-| `home/private_dot_ssh/config` | `~/.ssh/config` (mode 0600) | portable ssh identity config |
-| `home/private_dot_ssh/create_private_config.local` | `~/.ssh/config.local` (created once, mode 0600) | throwaway test hosts, machine-specific aliases |
 
 ### Agents & orchestration
 
