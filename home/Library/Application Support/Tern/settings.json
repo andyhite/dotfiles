@@ -8,13 +8,11 @@
     "pulse": "ripple"
   },
   "contrast": "Always",
-  "layout": "Float",
   "font_family": "GeistMono Nerd Font",
   "ui_font": "Geist",
   "code_font": "GeistMono Nerd Font",
   "pane_headers": "Always",
   "material": "Glass",
-  "shell": "/opt/homebrew/bin/zsh",
   "prompt_style": "tern",
   "prompt_parts": {
     "shape": "pill",
