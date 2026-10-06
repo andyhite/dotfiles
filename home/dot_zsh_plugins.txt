@@ -1,5 +1,3 @@
 zsh-users/zsh-autosuggestions
 zsh-users/zsh-syntax-highlighting
-# Not in Tern, while testing its native completion (`_in_tern` is in zshrc).
-Aloxaf/fzf-tab conditional:'! _in_tern'
 jeffreytse/zsh-vi-mode

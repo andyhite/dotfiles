@@ -1,7 +1,7 @@
 # dotfiles
 
-Shell and terminal config, synced between my Mac (Ghostty) and remote dev VMs. GitHub Dark
-Default theme everywhere, zsh with antidote, starship for the prompt, NvChad for editing.
+Shell and terminal config, synced between my Mac (Tern) and remote dev VMs. GitHub Dark
+Default theme everywhere, zsh with antidote, Tern's native prompt, NvChad for editing.
 
 Applied with [chezmoi](https://chezmoi.io) and [mise](https://mise.jdx.dev). See
 `AGENTS.md` for how to change things here.
@@ -20,7 +20,7 @@ Applied with [chezmoi](https://chezmoi.io) and [mise](https://mise.jdx.dev). See
 | --- | --- | --- |
 | `home/dot_zshrc` | `~/.zshrc` | zsh config: completion, antidote plugin load, history, aliases, tool init hooks |
 | `home/dot_zshenv` | `~/.zshenv` | `PATH` setup read by every zsh invocation |
-| `home/dot_zsh_plugins.txt` | `~/.zsh_plugins.txt` | antidote's plugin list (zsh-autosuggestions, zsh-syntax-highlighting, fzf-tab, zsh-vi-mode) |
+| `home/dot_zsh_plugins.txt` | `~/.zsh_plugins.txt` | antidote's plugin list (zsh-autosuggestions, zsh-syntax-highlighting, zsh-vi-mode) |
 | `home/dot_config/starship.toml` | `~/.config/starship.toml` | prompt config |
 | `home/dot_config/atuin/config.toml` | `~/.config/atuin/config.toml` | Atuin (shell history) config |
 | `home/dot_config/atuin/themes/github-dark-default.toml` | `~/.config/atuin/themes/github-dark-default.toml` | Atuin theme |
