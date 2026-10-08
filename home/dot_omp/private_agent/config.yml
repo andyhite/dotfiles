@@ -6,12 +6,12 @@ modelRoles: &anthropicRoles
   plan: anthropic/claude-opus-5-5:high
   slow: anthropic/claude-opus-5-5:max
   task: anthropic/claude-sonnet-5-5:low
-  smol: anthropic/claude-haiku-4-5:low
-  commit: anthropic/claude-haiku-4-5:minimal
-  tiny: anthropic/claude-haiku-4-5:minimal
+  smol: anthropic/claude-haiku-5-5:low
+  commit: anthropic/claude-haiku-5-5:minimal
+  tiny: anthropic/claude-haiku-5-5:minimal
   vision: anthropic/claude-sonnet-5-5:medium
   designer: anthropic/claude-opus-5-5:high
-  advisor: anthropic/claude-sonnet-5-5:medium
+  advisor: anthropic/claude-fable-5-1:medium
 # A preset switch clears every role it leaves out, so a preset names all of them,
 # `designer` included. Only `anthropic` lives here: it needs nothing but the built-in
 # subscription login. Presets that depend on per-machine auth (e.g. `openai` on
@@ -150,7 +150,7 @@ tui:
   tight: false
   scrollbackRebuild: true
   imeSafeCursor: false
-  vimMode: true
+  vimMode: false
   vimModeDisplay: text
 display:
   shimmer: classic
@@ -197,7 +197,7 @@ features:
   unexpectedStopDetection: mechanical
 compaction:
   handoffSaveToDisk: true
-  thresholdPercent: 40
+  thresholdPercent: 60
   idleEnabled: true
   methodOrder:
     - snapcompact

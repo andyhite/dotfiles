@@ -44,9 +44,6 @@
       ]
     }
   },
-  "file_tree": {
-    "open": true
-  },
   "git": {
     "path_tree": true
   }
