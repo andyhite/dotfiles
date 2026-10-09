@@ -103,7 +103,7 @@ Tern owns the OMP executable; this repo owns only OMP configuration, plugins, an
 skills. On a machine that had the old repo-installed binary, delete `~/.local/bin/omp`
 (leave `~/.omp`).
 
-Fourteen scripts under `home/.chezmoiscripts/` run in numbered order:
+Thirteen scripts under `home/.chezmoiscripts/` run in numbered order:
 
 | Script | Platform | What it does |
 | --- | --- | --- |
@@ -114,7 +114,6 @@ Fourteen scripts under `home/.chezmoiscripts/` run in numbered order:
 | `run_onchange_after_25-login-shell.sh.tmpl` | darwin | makes Homebrew's zsh the login shell (`/etc/shells` + `chsh`) |
 | `run_onchange_after_30-mise-install.sh.tmpl` | both | `mise install --yes` for every `via: mise` entry |
 | `run_onchange_after_35-uv-tools.sh.tmpl` | both | installs/upgrades every `via: uv` entry |
-| `run_onchange_after_36-npx-tools.sh.tmpl` | both | runs every `via: npx` entry (Chrome for Testing via puppeteer) |
 | `run_once_after_40-installers.sh.tmpl` | both | installs every `via: installer` entry |
 | `run_onchange_after_45-fontcache.sh.tmpl` | linux | `fc-cache -f` on the Nerd Font directory |
 | `run_onchange_after_50-completions.sh.tmpl` | both | generates zsh completions for tools carapace doesn't cover |

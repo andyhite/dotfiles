@@ -156,17 +156,6 @@ packages:
   # script matches against to decide install vs upgrade.
   - { name: gdtoolkit, all: { via: uv } }
 
-  # ── npx-run installers ───────────────────────────────────────────────────
-  # Puppeteer's browser download is not a package: it drops Chrome for
-  # Testing into ~/.cache/puppeteer, with no binary on PATH and no mise
-  # registry entry, brew formula, or apt package to install instead. `npx`
-  # itself re-checks that cache and no-ops when the browser is already
-  # there, so running the command unconditionally on every packages.yaml
-  # change (rather than gating it behind a `command -v` check like the
-  # `installer` via) is correct, not wasteful. Needs node on PATH, hence
-  # `cmd` runs after mise installs node/npx, not before.
-  - { name: puppeteer, all: { via: npx, cmd: "browsers install chrome" } }
-
   # ── Upstream installers ───────────────────────────────────────────────────
   # claude self-updates (`claude update`), so it is installed once and then left
   # alone. mise has a claude entry (aqua:anthropics/claude-code) but a mise shim
