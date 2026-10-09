@@ -1,7 +1,5 @@
-# Anchored so the `anthropic` preset below is this exact block, not a second copy that drifts.
-# omp expands the alias into a literal copy whenever it rewrites this file, so a
-# /modelpreset switch can't leave the preset pointing at the switched-to roles.
-modelRoles: &anthropicRoles
+modelRoles:
+  &modelRoles
   default: anthropic/claude-sonnet-5-5:medium
   plan: anthropic/claude-opus-5-5:high
   slow: anthropic/claude-opus-5-5:max
@@ -12,27 +10,14 @@ modelRoles: &anthropicRoles
   vision: anthropic/claude-sonnet-5-5:medium
   designer: anthropic/claude-opus-5-5:high
   advisor: anthropic/claude-fable-5-1:medium
-# A preset switch clears every role it leaves out, so a preset names all of them,
-# `designer` included. Only `anthropic` lives here: it needs nothing but the built-in
-# subscription login. Presets that depend on per-machine auth (e.g. `openai` on
-# openai-codex) go in ~/.omp/agent/config.local.yml; omp lists both files' presets
-# together, and a same-named preset there replaces this one whole.
 modelPresets:
   anthropic:
-    modelRoles: *anthropicRoles
+    modelRoles:
+      *modelRoles
     defaultThinkingLevel: high
 modelProviderOrder:
   - anthropic
   - cursor
-# omp reads <cwd>/.env on startup with no off switch, so any project that defines
-# CEREBRAS_API_KEY, FIREWORKS_API_KEY, ... silently makes that provider available
-# to omp. Disabling the id is the only gate checked before credentials. Kept out:
-# anthropic and openai-codex (stored OAuth outranks env keys), cursor,
-# huggingface/openrouter (keys exported in ~/.zshrc.local on purpose), and openai
-# (wanted, so a project's OPENAI_API_KEY does reach omp). Local engines (ollama,
-# lm-studio, llama.cpp, vllm) need no key and stay usable.
-# ponytail: hand-kept list of every env-keyed provider in omp 18.4.10; a provider
-# omp adds later is not covered until it's added here.
 disabledProviders:
   - amazon-bedrock
   - bedrock-mantle
@@ -166,15 +151,7 @@ task:
     enabled: true
 personality: pragmatic
 retry:
-  # No model fallback: a silent mid-task hop to another provider changes behavior,
-  # drops the prompt cache, and its last tier (cursor) is metered spend. A quota wall
-  # is a deliberate `/modelpreset switch <name>` instead. Same-model retries still
-  # ride out transient 429s/overloads. usageAwareFallback and the usageReserve* knobs
-  # only steer toward fallback models, so with none they are dead config: left at
-  # their defaults.
   modelFallback: false
-  # Wait out an authoritative quota reset rather than failing past maxDelayMs, so
-  # unattended runs resume on their own. Abortable, but it can hold subagents for hours.
   waitForUsageReset: true
 advisor:
   enabled: false
@@ -244,7 +221,6 @@ todo:
   eager: preferred
 browser:
   relay: false
-  cdpUrl: http://127.0.0.1:9222
 plan:
   defaultOnStartup: false
   autosave: true
@@ -265,3 +241,6 @@ defaultThinkingLevel: high
 extendedContext: true
 tools:
   xdevDocs: catalog
+vault:
+  enabled: true
+expandThinkingBlocks: true
