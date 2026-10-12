@@ -99,6 +99,10 @@ Removing a skill from the manifest prevents future installs but does not uninsta
 existing copy. Also run `mise exec -- npx --yes skills remove <skill-name> --global --yes`
 to remove the shared skill and its agent links.
 
+Tern owns the OMP executable; this repo owns only OMP configuration, plugins, and
+skills. On a machine that had the old repo-installed binary, delete `~/.local/bin/omp`
+(leave `~/.omp`).
+
 Fourteen scripts under `home/.chezmoiscripts/` run in numbered order:
 
 | Script | Platform | What it does |

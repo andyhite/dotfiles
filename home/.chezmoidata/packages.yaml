@@ -168,13 +168,9 @@ packages:
   - { name: puppeteer, all: { via: npx, cmd: "browsers install chrome" } }
 
   # ── Upstream installers ───────────────────────────────────────────────────
-  # Both self-update (`omp update`, `claude update`) and omp is a ~120MB
-  # download, so these are installed once and then left alone. mise has a claude
-  # entry (aqua:anthropics/claude-code) but a mise shim would fight
-  # `claude update`.
-  - name: omp
-    all: { via: installer, url: "https://omp.sh/install", shell: sh }
-    postInstall: [{ zshCompletion: [omp, completions, zsh] }]
+  # claude self-updates (`claude update`), so it is installed once and then left
+  # alone. mise has a claude entry (aqua:anthropics/claude-code) but a mise shim
+  # would fight `claude update`. The omp binary is owned by Tern, not this repo.
   - { name: claude, all: { via: installer, url: "https://claude.ai/install.sh", shell: bash } }
   - name: codex
     all: { via: installer, url: "https://chatgpt.com/codex/install.sh", shell: sh }
