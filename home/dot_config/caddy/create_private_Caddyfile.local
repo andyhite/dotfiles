@@ -4,8 +4,7 @@
 # home/create_private_dot_gitconfig.local. Imported by the tracked
 # Caddyfile above.
 #
-# Caddy now runs via this repo's own LaunchAgent
-# (Library/LaunchAgents/dev.caddy.plist), not `brew services`, so it starts
+# Caddy runs by hand as your user, not via `brew services`, so it starts
 # under your real login HOME every time — no fixed cert-storage path to
 # pin here.
 #

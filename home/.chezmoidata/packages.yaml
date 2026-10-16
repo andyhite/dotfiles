@@ -102,10 +102,8 @@ packages:
   - { name: hf,      darwin: { via: brew } }
 
   # ── macOS-only ───────────────────────────────────────────────────────────
-  # caddy and dnsmasq back this repo's own LaunchAgents (see
-  # home/Library/LaunchAgents/dev.{caddy,dnsmasq}.plist), not `brew
-  # services` — caddy is in mise's registry so it comes from there; dnsmasq
-  # isn't, so it stays a brew package.
+  # caddy is in mise's registry so it comes from there; dnsmasq isn't, so it
+  # stays a brew package. No LaunchAgent: start either by hand when needed.
   - { name: caddy,   darwin: { via: mise } }
   - { name: dnsmasq, darwin: { via: brew } }
   - { name: fswatch, darwin: { via: brew } }

@@ -91,11 +91,10 @@ setupVersion: 2
 dev:
   autoqaConsent: granted
 statusLine:
-  preset: custom
-  separator: slash
+  preset: full
   showHookStatus: true
-  compactThinkingLevel: false
-  transparent: true
+  compactThinkingLevel: true
+  transparent: false
   sessionAccent: true
   leftSegments:
     - pi
@@ -127,6 +126,7 @@ statusLine:
     time:
       format: 24h
       showSeconds: true
+  contextLine: embedded
 terminal:
   showProgress: true
 tui:
@@ -188,7 +188,7 @@ ttsr:
   contextMode: discard
   repeatMode: after-gap
 memory:
-  backend: "off"
+  backend: mnemopi
 autolearn:
   enabled: false
 edit:
@@ -229,10 +229,9 @@ commands:
 secrets:
   enabled: true
 composer:
-  shape: claude
+  shape: band
   tokenRate: true
-disabledExtensions:
-  []
+disabledExtensions: []
 isolation:
   backend: auto
 codexResets:
@@ -244,3 +243,11 @@ tools:
 vault:
   enabled: true
 expandThinkingBlocks: true
+title:
+  icons: nf+emoji
+colorBlindMode: false
+proseOnlyThinking: true
+omitThinking: false
+mnemopi:
+  scoping: per-project-tagged
+  embeddingVariant: en

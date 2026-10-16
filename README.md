@@ -27,13 +27,11 @@ Applied with [chezmoi](https://chezmoi.io) and [mise](https://mise.jdx.dev). See
 
 | Path | Target | What it is |
 | --- | --- | --- |
-| `home/Library/Application Support/Tern/settings.json` | `~/Library/Application Support/Tern/settings.json` (macOS) | [Tern](https://stencil.so/tern) terminal settings; copied, not linked — Tern saves by replacing the file, which turns a symlink into a plain file. After changing a setting in Tern's UI, `chezmoi re-add` it |
+| `home/private_Library/Application Support/Tern/settings.json` | `~/Library/Application Support/Tern/settings.json` (macOS) | [Tern](https://stencil.so/tern) terminal settings; copied, not linked — Tern saves by replacing the file, which turns a symlink into a plain file. After changing a setting in Tern's UI, `chezmoi re-add` it. `private_` keeps `~/Library` at macOS's 0700 instead of chmodding it 0755 |
 | `home/dot_config/caddy/Caddyfile` | `~/.config/caddy/Caddyfile` (macOS only) | base Caddyfile |
 | `home/dot_config/caddy/create_private_Caddyfile.local` | `~/.config/caddy/Caddyfile.local` (created once, mode 0600) | machine-local site blocks, never committed |
 | `home/dot_config/dnsmasq/dnsmasq.conf.tmpl` | `~/.config/dnsmasq/dnsmasq.conf` (macOS only) | base dnsmasq config |
 | `home/dot_config/dnsmasq/create_private_dnsmasq.local.conf` | `~/.config/dnsmasq/dnsmasq.local.conf` (created once, mode 0600) | machine-local wildcard-domain records, never committed |
-| `home/Library/LaunchAgents/dev.caddy.plist` | `~/Library/LaunchAgents/dev.caddy.plist` (macOS) | LaunchAgent for caddy — load by hand with `launchctl load -w` |
-| `home/Library/LaunchAgents/dev.dnsmasq.plist` | `~/Library/LaunchAgents/dev.dnsmasq.plist` (macOS) | same, for dnsmasq |
 
 ### Editor
 
@@ -56,7 +54,7 @@ Applied with [chezmoi](https://chezmoi.io) and [mise](https://mise.jdx.dev). See
 
 | Path | Target | What it is |
 | --- | --- | --- |
-| `home/dot_omp/private_agent/config.yml` | `~/.omp/agent/config.yml` | [omp](https://omp.sh) coding agent settings |
+| `home/dot_omp/private_agent/private_config.yml` | `~/.omp/agent/config.yml` | [omp](https://omp.sh) coding agent settings; `private_` matches the 0600 omp saves it with, so it doesn't show as drift |
 | `home/dot_omp/private_agent/i-have-adhd.json` | `~/.omp/agent/i-have-adhd.json` | `alwaysOn`/`hideStatus` for the `i-have-adhd` omp plugin (ADHD-friendly output style, installed via `packages.yaml`); `hideStatus` drops its line under the composer |
 | `home/dot_config/ponytail/config.json` | `~/.config/ponytail/config.json` | `hideStatus: true` drops the ponytail plugin's line under the composer; the mode stays active |
 | `home/dot_omp/private_agent/AGENTS.md` | `~/.omp/agent/AGENTS.md` | omp's global context file |

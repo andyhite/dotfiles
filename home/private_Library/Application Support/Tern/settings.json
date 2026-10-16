@@ -8,43 +8,59 @@
     "pulse": "ripple"
   },
   "contrast": "Always",
+  "layout": "Studio",
   "font_family": "GeistMono Nerd Font",
   "ui_font": "Geist",
   "code_font": "GeistMono Nerd Font",
+  "tabs": "Vertical",
   "pane_headers": "Always",
+  "status_bar": true,
   "material": "Glass",
+  "expand_thoughts": true,
   "prompt_style": "tern",
   "prompt_parts": {
-    "shape": "pill",
     "frame": "rounded",
     "line_end": true,
     "gap": "dots",
     "dir": "repo",
-    "spaced": true,
     "clock": "h12",
     "layout": {
       "left": [
         "os_icon",
-        "context",
         "dir",
+        "package",
         "vcs"
       ],
       "right": [
         "status",
         "command_execution_time",
         "background_jobs",
-        "vi_mode",
-        "virtualenv",
         "node_version",
         "rust_version",
-        "go_version",
-        "todo",
+        "swift_version",
+        "virtualenv",
         "ram",
-        "time"
+        "swap",
+        "disk_usage",
+        "load",
+        "todo"
       ]
     }
   },
+  "msaa": "8x",
   "git": {
+    "pull_mode": "Rebase",
+    "git_executable": "",
     "path_tree": true
-  }
+  },
+  "carly": {
+    "model": "@default"
+  },
+  "keybinds": {
+    "ctrl+cmd+enter": "zoom",
+    "shift+cmd+[": "previous_tab_across_sessions",
+    "shift+cmd+]": "next_tab_across_sessions",
+    "shift+cmd+enter": []
+  },
+  "global_hotkey": "ctrl+enter"
 }
