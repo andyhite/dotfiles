@@ -91,7 +91,7 @@ setupVersion: 2
 dev:
   autoqaConsent: granted
 statusLine:
-  preset: full
+  preset: custom
   showHookStatus: true
   compactThinkingLevel: true
   transparent: false
