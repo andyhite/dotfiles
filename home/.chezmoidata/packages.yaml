@@ -193,3 +193,5 @@ packages:
   # skills directory into that tree.
   # Apple HIG-based UI review, used for macOS/Tauri design work.
   - { name: skill/apple-design, all: { via: skill, id: dickwu/apple-design-skill } }
+  # Strunk-based rules for any prose humans read (docs, commit messages, error text).
+  - { name: skill/writing-clearly-and-concisely, all: { via: skill, id: softaworks/agent-toolkit } }
