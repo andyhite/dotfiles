@@ -174,7 +174,7 @@ features:
   unexpectedStopDetection: mechanical
 compaction:
   handoffSaveToDisk: true
-  thresholdPercent: 60
+  thresholdPercent: 70
   idleEnabled: true
   methodOrder:
     - snapcompact
@@ -251,3 +251,5 @@ omitThinking: false
 mnemopi:
   scoping: per-project-tagged
   embeddingVariant: en
+generate_image:
+  enabled: true
