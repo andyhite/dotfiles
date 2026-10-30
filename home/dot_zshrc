@@ -205,6 +205,15 @@ if [[ "$_os" == "Darwin" ]]; then
   # `gmake` (4.x) to avoid the clash — that's the one worth reaching for.
   command -v gmake >/dev/null 2>&1 && alias make="gmake"
   alias disable-chrome-updater='sudo "/Library/Application Support/Google/GoogleUpdater/Current/GoogleUpdater.app/Contents/MacOS/GoogleUpdater" --uninstall --system'
+  # oMLX (macOS-only app) installs a CLI shim dir; its installer appended this to
+  # ~/.zshrc unguarded. Gate on the dir existing so machines without it get no
+  # dangling PATH entry. The case guard keeps re-sourced shells from duplicating it.
+  if [[ -d "$HOME/.omlx/bin" ]]; then
+    case ":$PATH:" in
+      *":$HOME/.omlx/bin:"*) ;;
+      *) export PATH="$HOME/.omlx/bin:$PATH" ;;
+    esac
+  fi
 fi
 
 # ── Linux-only fixups ────────────────────────────────────────────────────────
